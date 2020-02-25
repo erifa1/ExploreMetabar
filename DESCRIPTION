@@ -1,0 +1,12 @@
+Package: ExploreMetabar
+Title: ExploreMetabar
+Version: 0.0.0.9000
+Authors@R: person('Etienne', 'Rifa', email = 'etienne.rifa@inrae.fr', role = c('cre', 'aut'))
+Description: Shiny application to explore metabarcoding data (16S, ITS...)
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    shiny, 
+    golem
+RoxygenNote: 6.1.0
