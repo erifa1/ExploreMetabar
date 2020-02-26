@@ -24,3 +24,5 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+URL: https://github.com/erifa1/ExploreMetabar
+BugReports: https://github.com/erifa1/ExploreMetabar/issues
