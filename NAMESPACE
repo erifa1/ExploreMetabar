@@ -2,5 +2,9 @@
 
 export(run_app)
 import(shiny)
+import(shinydashboard)
+import(phyloseq)
+import(ggplot2)
+import(dplyr)
 importFrom(shiny,addResourcePath)
 importFrom(shiny,runApp)
