@@ -1,28 +1,22 @@
----
-output: github_document
----
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
-)
-```
 # ExploreMetabar
 
 <!-- badges: start -->
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
 <!-- badges: end -->
 
-ExploreMetabar is a shiny application used to explore metabarcoding data (16S, ITS) with interactive plots, integrated statistical test, and differential analysis. 
+ExploreMetabar is a shiny application used to explore metabarcoding data
+(16S, ITS) with interactive plots, integrated statistical test, and
+differential analysis.
 
 ## Installation
 
-You can install the development version of ExploreMetabar from this repository with:
+You can install the development version of ExploreMetabar from this
+repository with:
 
 ``` r
 devtools::install_github("erifa1/ExploreMetabar")
@@ -32,7 +26,7 @@ devtools::install_github("erifa1/ExploreMetabar")
 
 This is a basic example which shows you how to solve a common problem:
 
-```r
+``` r
 library(ExploreMetabar)
 ExploreMetabar::run_app()
 ```
@@ -40,7 +34,9 @@ ExploreMetabar::run_app()
 <!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->
 
 <!-- ```{r cars} -->
+
 <!-- summary(cars) -->
+
 <!-- ``` -->
 
 <!-- You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. -->
@@ -48,6 +44,7 @@ ExploreMetabar::run_app()
 <!-- You can also embed plots, for example: -->
 
 <!-- ```{r pressure, echo = FALSE} -->
-<!-- plot(pressure) -->
-<!-- ``` -->
 
+<!-- plot(pressure) -->
+
+<!-- ``` -->
