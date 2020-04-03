@@ -7,22 +7,35 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: 
-    shiny,
-    golem,
-    processx,
-    attempt,
-    DT,
-    glue,
-    htmltools,
-    phyloseq,
+    DESeq2,
+    dplyr,
     ggplot2,
-    phyloseq.extended,
-    dplyr
-RoxygenNote: 6.1.1
+    metagenomeSeq,
+    metacoder,
+    phyloseq,
+    plotly,
+    purrr,
+    rhdf5,
+    shiny,
+    shinydashboard,
+    tibble,
+    tidyr,
+    Biobase,
+    DT,
+    VennDiagram,
+    broom,
+    config,
+    glue,
+    golem,
+    htmltools,
+    microbiome,
+    shiny,
+    taxa
+RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0),
     knitr,
     rmarkdown
 VignetteBuilder: knitr
-URL: https://github.com/erifa1/ExploreMetabar
-BugReports: https://github.com/erifa1/ExploreMetabar/issues
+URL: https://forgemia.inra.fr/umrf/exploremetabar
+BugReports: https://forgemia.inra.fr/umrf/ExploreMetabar/issues

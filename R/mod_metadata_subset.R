@@ -20,22 +20,31 @@ mod_metadata_subset_ui <- function(id){
   ns <- NS(id)
   
   tagList(
-    fluidPage(h1("Metadatas / Subset")),
-    
-    
-    tags$div(
-      title = "RData where 'data' is a phyloseq object.",
-      fileInput(ns("fileRData"),
-                label = "RData : ",
-                placeholder = "data.RData")
-    ),
-    
-    verbatimTextOutput(ns("print1")),
-    h3("Metadata table"),
-    fluidPage(h4("Use filters to subset phyloseq object")),
-    dataTableOutput(ns("sdata3")),
-    h3("Selected samples names"),
-    verbatimTextOutput(ns("sids"))
+    box(width = NULL,
+          tabsetPanel(
+            tabPanel("Input/Subset",
+                    fluidPage(h1("Input phyloseq object: "),
+                              
+                              
+                              tags$div(
+                                title = "RData where 'data' is a phyloseq object.",
+                                fileInput(ns("fileRData"),
+                                          label = "RData with phyloseq object : ",
+                                          placeholder = "data.RData")
+                              ),
+                              
+                              verbatimTextOutput(ns("print1")),
+                              h3("Metadata table:"),
+                              fluidPage(h3("Use table filters to subset phyloseq object, surbset object will be used for next modules")),
+                              dataTableOutput(ns("sdata3")),
+                              h3("Selected samples names"),
+                              verbatimTextOutput(ns("sids"))
+                    )
+                  )#,
+            #tabPanel("Plot Metadata")
+          
+        )
+    )
   )
 }
     
@@ -45,6 +54,7 @@ mod_metadata_subset_ui <- function(id){
 #' @export
 #' @keywords internal
 #' @importFrom DT renderDataTable
+#' @import phyloseq
     
 mod_metadata_subset_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -53,8 +63,9 @@ mod_metadata_subset_server <- function(input, output, session, r = r){
     ne <- new.env() ## new env to store RData content and avoid border effects
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne) 
-    } else {load("~/Bureau/robjects_600.Rdata", envir = ne)}
+    } else {load("./data-raw/robjects_600.Rdata", envir = ne)}
     if (class(ne$data) == "phyloseq")
+      ne$data@phy_tree <- NULL   # improve speed
       return(ne$data)
   })
   

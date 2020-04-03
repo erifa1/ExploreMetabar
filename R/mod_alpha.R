@@ -32,6 +32,7 @@ mod_alpha_ui <- function(id){
       ),
       
       verbatimTextOutput(ns("print1")),
+      actionButton(ns("go1"), "Run Alpha Diversity"),
       dataTableOutput(ns("alphaout")),
       # plotOutput(ns("plotalpha1")),
       plotlyOutput(ns("plot2"))
@@ -57,7 +58,7 @@ mod_alpha_server <- function(input, output, session, r = r){
                       choices = r$data16S()@sam_data@names)
   })
   
-  alpha1 <- reactive({
+  alpha1 <- eventReactive(input$go1, {
     if(is.null(r$subdata())){return(NULL)}
     print(input$metrics)
     print(input$minAb)
@@ -67,7 +68,8 @@ mod_alpha_server <- function(input, output, session, r = r){
     
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
                                                      "InvSimpson", "Fisher") )
-    
+    row.names(alphatab) = sample_names(data)
+      
     LL=list()
     LL$alphatab = as.data.frame(alphatab)
     LL$data = data
@@ -86,7 +88,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$data
   })
 
- plot1 <- reactive({
+ plot1 <- eventReactive(input$go1, {
    LL = alpha1()
    p <- plot_richness(LL$data,x=input$Fact1, color=input$Fact1, measures=input$metrics)
    p$layers <- p$layers[-1]
@@ -104,15 +106,18 @@ mod_alpha_server <- function(input, output, session, r = r){
  })
  
  output$plot2 <- renderPlotly({
+   print("plotAlpha")
    LL = alpha1()
    sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
    alphatab =  tibble::rownames_to_column(LL$alphatab)
    
-   print(sdat)
-   print(alphatab)
+   # print(sdat)
+   # print(alphatab)
    
-   boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname") %>%
-     dplyr::rename(sample.id = rowname)
+   boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
+     print(names(boxtab))
+   if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
+   
    boxtab
    print(dim(boxtab))
    
@@ -121,15 +126,15 @@ mod_alpha_server <- function(input, output, session, r = r){
      layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack')
  })
 
- output$plot3 <- renderPlot({
-   LL = alpha1()
-   sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
-   alphatab =  tibble::rownames_to_column(LL$alphatab)
-   boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname") %>%
-     dplyr::rename(sample.id = rowname)
-   
-   boxplot(as.formula(glue("{input$metrics} ~ {input$Fact1}")), color=input$Fact1, data=boxtab)
- })
+#  output$plot3 <- renderPlot({
+#    LL = alpha1()
+#    sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
+#    alphatab =  tibble::rownames_to_column(LL$alphatab)
+#    boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname") 
+#    
+# 
+#    boxplot(as.formula(glue("{input$metrics} ~ {input$Fact1}")), color=input$Fact1, data=boxtab)
+#  })
 
   
 }

@@ -37,7 +37,7 @@ app_ui <- function() {
                       ),
                       tabItem(tabName = "tab_boxplot",
                               mod_taxaboxplot_ui("taxaboxplot_ui_1")
-                      ), 
+                      ),
                       tabItem(tabName = "tab_diff",
                                  mod_diffanalysis_ui("diffanalysis_ui_1")
                       ),

@@ -33,9 +33,10 @@ mod_compo_ui <- function(id){
       
       selectInput(
         ns("Fact1"),
-        label = "Select variable for X axis tick labels: ",
+        label = "Select variable for changing X axis tick labels and color categories: ",
         choices = ""
       ),
+      actionButton(ns("go1"), "Run Composition Plot"),
       box(plotlyOutput(ns("compo2")), width=12),
       box(plotlyOutput(ns("compo1")), width=12)
   )
@@ -63,7 +64,7 @@ mod_compo_server <- function(input, output, session, r = r){
                       choices = r$data16S()@sam_data@names)
   })
   
-  compo <- reactive({
+  compo <- eventReactive(input$go1, {
     print("compo")
     withProgress({
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())

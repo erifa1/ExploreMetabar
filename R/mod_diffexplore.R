@@ -18,10 +18,11 @@
 mod_diffexplore_ui <- function(id){
   ns <- NS(id)
   tagList(
+    h1("Module used to explore ANOMALY aggregate_diff_*.csv file:"),
     fileInput(ns("diffData"),
               label = "Select an aggregate_diff_*.csv file : ",
               placeholder = "yourfile.csv"),
-    h3("Sélectionner une comparaison à afficher:"),
+    h4("Select in table filter the comparison to plot:"),
     DT::dataTableOutput(ns("DTdiff")),
     # verbatimTextOutput(ns("print1")),
     plotOutput(ns("DiffPlot"), height="600px")

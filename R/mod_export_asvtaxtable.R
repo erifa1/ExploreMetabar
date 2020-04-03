@@ -20,6 +20,7 @@ mod_export_asvtaxtable_ui <- function(id){
   tagList(
     fluidPage(
       h1("ASV Taxonomy Table"),
+      h2("Glom and normalized object will be used for next modules"),
       selectInput(
         ns("RankGlom"),
         label = "Select rank to glom : ",
@@ -32,13 +33,14 @@ mod_export_asvtaxtable_ui <- function(id){
         inline = TRUE,
         choices = list(
           `No Norm` = "Raw",
-          `CLR` = "CLR norm.",
           `TSS` = "TSS norm.",
+          `CLR` = "CLR norm.",
           `VST` = "VST norm."
-        ), selected = "CLR norm."
+        ), selected = "TSS norm."
       ),
+      h3("Raw object:"),
       verbatimTextOutput(ns("print1")),
-      h3("Glom/Subset Object:"),
+      h3("Glom/Subset object:"),
       verbatimTextOutput(ns("print2")),
       verbatimTextOutput(ns("print3")),
       h1("ASV table"),
@@ -78,7 +80,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     Fdata <- r$data16S()
     # print(head(otu_table(Fdata)))
     # Glom
-    print("Glom")
+    print("Glom object")
     withProgress({
       
       if(input$RankGlom != "ASV"){
@@ -99,7 +101,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   })
 
   subglom <- reactive({
-    print("subset")
+    print("Subset object")
     Fdata <- prune_samples(sample_names(glom())[r$rowselect()], glom())
     Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
     Fdata

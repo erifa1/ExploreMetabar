@@ -1,6 +1,9 @@
+^app\\.R$
 .Rhistory
 .RData
 .Rproj.user
 inst/doc
 doc
 Meta
+rsconnect
+README.Rmd

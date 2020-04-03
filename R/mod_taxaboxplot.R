@@ -20,17 +20,18 @@ mod_taxaboxplot_ui <- function(id){
     
     fluidPage(
       h1("Boxplots"),
-      h3("You can select specific sample in Metadatas/Subset tab, and agglomerate to specific rank in ASVtable tab."),
+      h2("Reminder : You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module"),
       selectInput(
         ns("Fact1"),
         label = "Select factor to test: ",
         choices = ""
       ),
-      h4("Clic on feature to generate boxplot:"),
+      h3("Clic on feature below to generate boxplot:"),
       fluidRow(box(dataTableOutput(ns("pvalout1"))
                    , width = 8)),
       box(plotlyOutput(ns("boxplot1")), width=10, height=500),
       # verbatimTextOutput(ns("sids2")),
+      h3("Results of pairwise wilcox test:"),
       box(verbatimTextOutput(ns("wilcoxprint")), width=10)
     )
     
@@ -59,6 +60,12 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       print("melting table")
       # data.melt <- psmelt(Fdata)
       Fdata <- r$dat() #subglom()
+      
+      #If taxa names begin with a number
+      if(any(grepl("^[0-9].*$", taxa_names(Fdata)))) {
+        taxa_names(Fdata) <- paste("ASV_", taxa_names(Fdata), sep="")
+      }
+      
       print("BP sdata")
       stable <- Fdata %>%
         sample_data() %>%
@@ -84,9 +91,8 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       }else(lvls <- names(otable))
       
       
-      joinGlom <-
-        dplyr::left_join(stable, otable, by = "rowname") %>%
-        dplyr::rename(sample.id = rowname)
+      joinGlom <- dplyr::left_join(stable, otable, by = "rowname")
+      if( !any(names(joinGlom)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(joinGlom, sample.id = rowname) }
       
       LL=list()
       LL$joinGlom <- joinGlom
@@ -151,7 +157,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     select1  <- stab[input$pvalout1_row_last_clicked,1]
     print(head(joinGlom))
     print(str(joinGlom))
-    plot_ly(joinGlom, x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{select1}")),
+    plot_ly(joinGlom, x = as.formula(glue("~ {input$Fact1}")), y = as.formula(glue("~ {select1}")),
             color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
       layout(title=select1, yaxis = list(title = glue('{input$NORM} abundance')), xaxis = list(title = 'Samples'), barmode = 'stack')
   })

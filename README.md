@@ -5,8 +5,8 @@
 
 <!-- badges: start -->
 
-[![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+<!-- [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental) -->
+
 <!-- badges: end -->
 
 ExploreMetabar is a shiny application used to explore metabarcoding data
@@ -19,7 +19,7 @@ You can install the development version of ExploreMetabar from this
 repository with:
 
 ``` r
-devtools::install_github("erifa1/ExploreMetabar")
+devtools::install_git("https://forgemia.inra.fr/umrf/ExploreMetabar")
 ```
 
 ## To run Shiny app
