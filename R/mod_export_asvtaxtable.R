@@ -87,7 +87,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
         FGdata <- tax_glom(Fdata, input$RankGlom)
         # FGotab <- otu_table(FGdata); 
         FGnames <- tax_table(FGdata)[,input$RankGlom]
-        nnames <- paste(substr(FGnames, 1, 20), taxa_names(FGdata), sep="_")
+        nnames <- paste(substr(FGnames, 1, 50), taxa_names(FGdata), sep="_")
         taxa_names(FGdata) <- nnames
       }else{FGdata <- Fdata}
       FGdata
@@ -97,7 +97,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   
   output$print2 <- renderPrint({
     print(glom())
-    r$rowselect()
+    # r$rowselect()
   })
 
   subglom <- reactive({

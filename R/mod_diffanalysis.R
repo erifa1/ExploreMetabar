@@ -41,11 +41,11 @@ mod_diffanalysis_ui <- function(id){
                      actionButton(ns("go4"), "Run Metacoder"),
                      dataTableOutput(ns("mtcoderTab"))
             ),
-            tabPanel("Wilcox non parametric test",
-                     h1("Run Wilcox tests with same settings:"),
-                     actionButton(ns("go3"), "Run Wilcox"),
-                     dataTableOutput(ns("WilcoxTab"))
-            ),
+            # tabPanel("Wilcox non parametric test",
+            #          h1("Run Wilcox tests with same settings:"),
+            #          actionButton(ns("go3"), "Run Wilcox"),
+            #          dataTableOutput(ns("WilcoxTab"))
+            # ),
             tabPanel("Merge results",
                      h1("Merge results of differential analysis:"),
                      verbatimTextOutput(ns("mergePrint")),
@@ -132,6 +132,9 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     })
     
     deseqDA = eventReactive(input$go1, {
+      
+      withProgress({
+        
       req(input$Fact1, input$Cond1, input$Cond2, r$subglom())
       
       print("deseqtophy")
@@ -156,6 +159,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       print("res")
       res = results(deseq, cooksCutoff = FALSE)
       res
+      
+      }, message = "Performing DESeq2...")
     })
       
 
@@ -232,7 +237,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         
         TAB
         
-      }, message="Performing metagenomeSeq")
+      }, message="Performing metagenomeSeq...")
       
     })
 
@@ -245,6 +250,9 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     
     # ### MEtacoder
     mtcoderDA = eventReactive(input$go4, {
+      
+      withProgress({
+      
       req(input$Fact1, input$Cond1, input$Cond2, r$subglom())
       
       mean_ratio <- function(abund_1, abund_2) {
@@ -284,6 +292,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       
       table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
       table
+      
+      }, message = "Performing metacoder...")
     })
     
     output$mtcoderTab <- DT::renderDataTable({
@@ -394,6 +404,9 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     
     
     mergeList <- reactive({
+      
+      withProgress({
+        
       print("merge")
       # req(wilcoxDA(), mtcoderDA(), deseqDA(), mgSeqDA(), input$Alpha1)
       
@@ -488,6 +501,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[ListAllOtu])}
 
         TABf
+        
+      }, message = "Merging results...")
         
     })
     

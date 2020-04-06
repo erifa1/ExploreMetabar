@@ -26,6 +26,7 @@ mod_taxaboxplot_ui <- function(id){
         label = "Select factor to test: ",
         choices = ""
       ),
+      actionButton(ns("go1"), "Run Test/Boxplot"),
       h3("Clic on feature below to generate boxplot:"),
       fluidRow(box(dataTableOutput(ns("pvalout1"))
                    , width = 8)),
@@ -102,7 +103,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
   
   
-  listBP <- reactive({
+  listBP <- eventReactive(input$go1, {
     withProgress({
       LL = LjoinGlom()
       joinGlom <- LL$joinGlom
