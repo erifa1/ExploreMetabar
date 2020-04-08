@@ -78,6 +78,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     if (is.null(r$data16S()))
       return(NULL)
     Fdata <- r$data16S()
+    Fdata@phy_tree <- NULL # to improve speed remove TREE 
     # print(head(otu_table(Fdata)))
     # Glom
     print("Glom object")

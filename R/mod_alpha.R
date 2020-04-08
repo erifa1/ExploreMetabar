@@ -34,9 +34,8 @@ mod_alpha_ui <- function(id){
       verbatimTextOutput(ns("print1")),
       actionButton(ns("go1"), "Run Alpha Diversity"),
       dataTableOutput(ns("alphaout")),
-      # plotOutput(ns("plotalpha1")),
-      plotlyOutput(ns("plot2"))
-      # plotOutput(ns("plot3"))
+      plotlyOutput(ns("plot2")),
+      box(verbatimTextOutput(ns("testalpha")), width=10)
     )
   )
 }
@@ -87,54 +86,45 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL = alpha1()
     LL$data
   })
-
- plot1 <- eventReactive(input$go1, {
-   LL = alpha1()
-   p <- plot_richness(LL$data,x=input$Fact1, color=input$Fact1, measures=input$metrics)
-   p$layers <- p$layers[-1]
-   p1 <- p + ggtitle('Alpha diversity indexes') +  geom_boxplot(position = position_dodge(width = 0.5),alpha = 0.7, outlier.shape = NA) +
-     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size=11), plot.title = element_text(hjust = 0.5)) + theme_bw()
-   
-   p1
- })
-
- output$plotalpha1 <-renderPlot({
-   print("renderAlphaplot")
-   if (is.null(plot1()))
-     return(NULL)
-   ggplotly(plot1())
- })
  
- output$plot2 <- renderPlotly({
-   print("plotAlpha")
-   LL = alpha1()
-   sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
-   alphatab =  tibble::rownames_to_column(LL$alphatab)
-   
-   # print(sdat)
-   # print(alphatab)
-   
-   boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
-     print(names(boxtab))
-   if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
-   
-   boxtab
-   print(dim(boxtab))
-   
-   plot_ly(boxtab, x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
+boxtab <- reactive(
+  {
+    print("plotAlpha")
+    LL = alpha1()
+    sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
+    alphatab =  tibble::rownames_to_column(LL$alphatab)
+    
+    # print(sdat)
+    # print(alphatab)
+    
+    boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
+    print(names(boxtab))
+    if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
+    print(head(boxtab))
+    
+    boxtab$Depth <- sample_sums(r$subdata())
+    
+    boxtab  
+  }
+)
+
+  
+output$plot2 <- renderPlotly({
+   plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
            color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
      layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack')
  })
 
-#  output$plot3 <- renderPlot({
-#    LL = alpha1()
-#    sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
-#    alphatab =  tibble::rownames_to_column(LL$alphatab)
-#    boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname") 
-#    
-# 
-#    boxplot(as.formula(glue("{input$metrics} ~ {input$Fact1}")), color=input$Fact1, data=boxtab)
-#  })
+  
+ output$testalpha <- renderPrint({
+   anova_data = boxtab()
+   form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
+   print(form1)
+   anova_res1 <- aov( as.formula(form1), anova_data)
+   
+   summary(anova_res1)
+   
+ })
 
   
 }

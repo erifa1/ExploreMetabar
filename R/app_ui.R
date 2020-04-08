@@ -15,6 +15,7 @@ app_ui <- function() {
                       menuItem("ASVtable", tabName = "export_asvtable", icon = icon("leaf")),
                       menuItem("Compo", tabName = "tab_compo", icon = icon("leaf")),
                       menuItem("Alpha", tabName = "tab_alpha", icon = icon("leaf")),
+                      menuItem("Beta", tabName = "tab_beta", icon = icon("leaf")),
                       menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("leaf")),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("leaf")),
                       menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
@@ -34,6 +35,9 @@ app_ui <- function() {
                       ),
                       tabItem(tabName = "tab_alpha",
                               mod_alpha_ui("alpha_ui_1")
+                      ),
+                      tabItem(tabName = "tab_beta",
+                              mod_beta_ui("beta_ui_1")
                       ),
                       tabItem(tabName = "tab_boxplot",
                               mod_taxaboxplot_ui("taxaboxplot_ui_1")

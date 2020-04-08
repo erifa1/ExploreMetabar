@@ -65,7 +65,7 @@ mod_metadata_subset_server <- function(input, output, session, r = r){
       load(input$fileRData$datapath, envir = ne) 
     } else {load("./data-raw/robjects_600.Rdata", envir = ne)}
     if (class(ne$data) == "phyloseq")
-      ne$data@phy_tree <- NULL   # improve speed
+      # ne$data@phy_tree <- NULL   # improve speed
       return(ne$data)
   })
   
