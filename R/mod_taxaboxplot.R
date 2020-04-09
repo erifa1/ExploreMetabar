@@ -26,7 +26,7 @@ mod_taxaboxplot_ui <- function(id){
         label = "Select factor to test: ",
         choices = ""
       ),
-      actionButton(ns("go1"), "Run Test/Boxplot"),
+      actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle")),
       h3("Clic on feature below to generate boxplot:"),
       fluidRow(box(dataTableOutput(ns("pvalout1"))
                    , width = 8)),

@@ -18,24 +18,40 @@ mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                         choices =
-                           list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                                "InvSimpson", "Fisher"),
-                         selected = c("Shannon")
-      ),
-      numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 1, max = NA),
-      selectInput(
-        ns("Fact1"),
-        label = "Select factor to test: ",
-        choices = ""
+      box(
+        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                     choices =
+                       list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+                            "InvSimpson", "Fisher"),
+                     selected = c("Shannon")
+        ),
+        numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 1, max = NA),
+        selectInput(
+          ns("Fact1"),
+          label = "Select factor to test: ",
+          choices = ""
+        ),
+        actionButton(ns("go1"), "Run Alpha Diversity", icon = icon("play-circle")),
+        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
       
-      verbatimTextOutput(ns("print1")),
-      actionButton(ns("go1"), "Run Alpha Diversity"),
-      dataTableOutput(ns("alphaout")),
-      plotlyOutput(ns("plot2")),
-      box(verbatimTextOutput(ns("testalpha")), width=10)
+      # verbatimTextOutput(ns("print1")),
+
+      box(
+        dataTableOutput(ns("alphaout")),
+        downloadButton(outputId = ns("alpha_download"), label = "Download Table", icon = icon("download")),
+        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = TRUE
+      ),
+      box(
+        plotlyOutput(ns("plot2")),
+        width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
+      ),
+      box(
+        downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")), 
+        dataTableOutput(ns("boxstats")),
+        box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
+        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+      )
     )
   )
 }
@@ -48,6 +64,7 @@ mod_alpha_ui <- function(id){
 #' @import phyloseq
 #' @importFrom DT datatable
 #' @import plotly
+#' @importFrom agricolae HSD.test
     
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -82,6 +99,13 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$alphatab
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE)) ##filter = "top",
 
+  output$alpha_download <- downloadHandler(
+    filename = "alpha_index.csv",
+    content = function(file) {
+      LL = alpha1()
+      write.table(LL$alphatab, file, sep="\t", col.names=NA)}
+  )
+  
   output$print1 <- renderPrint({
     LL = alpha1()
     LL$data
@@ -116,16 +140,53 @@ output$plot2 <- renderPlotly({
  })
 
   
- output$testalpha <- renderPrint({
+  reacalpha <- reactive({
    anova_data = boxtab()
    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
-   print(form1)
    anova_res1 <- aov( as.formula(form1), anova_data)
+   outhsd <- HSD.test(anova_res1,input$Fact1)
    
-   summary(anova_res1)
+   # cat("\nANOVA\n##########")
+   # print(form1)
+   # print(summary(anova_res1))
+   # cat("\nHSD.test groups\n##########")
+   # print(outhsd$groups[levels(anova_data[,input$Fact1]),])
+   # cat("\nStatistics\n##########")
+   # print(outhsd$means[levels(anova_data[,input$Fact1]),])
    
+   LL = list()
+   LL$form1 = form1
+   LL$aov1 = summary(anova_res1)
+   LL$groups1 = outhsd$groups[levels(anova_data[,input$Fact1]),]
+   LL$stats1 = outhsd$means[levels(anova_data[,input$Fact1]),]
+   
+   LL
  })
 
+ output$testalpha <- renderPrint({
+   req(reacalpha)
+   LL = reacalpha()
+   
+   cat("ANOVA\n##########\n")
+   print(LL$form1)
+   print(LL$aov1)
+   cat("\nHSD.test groups\n##########\n")
+   print(LL$groups1)
+   
+ })
+ 
+ output$boxstats <- renderDataTable({
+   req(reacalpha)
+   LL = reacalpha()
+   LL$stats1
+ }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+ 
+ output$boxtab_download <- downloadHandler(
+   filename = "alpha_boxplot_stats.csv",
+   content = function(file) {
+     LL = reacalpha()
+     write.table(LL$stats1, file, sep="\t", col.names=NA)}
+ )
   
 }
     

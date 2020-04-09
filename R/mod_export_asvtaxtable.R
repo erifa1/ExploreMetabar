@@ -19,34 +19,40 @@ mod_export_asvtaxtable_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("ASV Taxonomy Table"),
-      h2("Glom and normalized object will be used for next modules"),
-      selectInput(
-        ns("RankGlom"),
-        label = "Select rank to glom : ",
-        choices = "",
-        selected = 1
+      box(
+        h3("Glom and normalized object will be used for next modules"),
+        selectInput(
+          ns("RankGlom"),
+          label = "Select rank to glom : ",
+          choices = "",
+          selected = 1
+        ),
+        radioButtons(
+          ns("NORM"),
+          label = "Normalization : ",
+          inline = TRUE,
+          choices = list(
+            `No Norm` = "Raw",
+            `TSS` = "TSS norm.",
+            `CLR` = "CLR norm.",
+            `VST` = "VST norm."
+          ), selected = "TSS norm."
+        ),
+        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
-      radioButtons(
-        ns("NORM"),
-        label = "Normalization : ",
-        inline = TRUE,
-        choices = list(
-          `No Norm` = "Raw",
-          `TSS` = "TSS norm.",
-          `CLR` = "CLR norm.",
-          `VST` = "VST norm."
-        ), selected = "TSS norm."
-      ),
-      h3("Raw object:"),
-      verbatimTextOutput(ns("print1")),
-      h3("Glom/Subset object:"),
-      verbatimTextOutput(ns("print2")),
-      verbatimTextOutput(ns("print3")),
-      h1("ASV table"),
-      fluidRow(column(dataTableOutput(ns("otable1")) , width = 12)),
-      downloadButton(outputId = ns("otable_download"), label = "Download Table")
-    
+
+      box(
+        h3("Raw object:"),
+        verbatimTextOutput(ns("print1")),
+        h3("Glom/Subset object:"),
+        verbatimTextOutput(ns("print2")),
+        verbatimTextOutput(ns("print3")),
+        title = "Details", collapsible = TRUE, collapsed = TRUE, width = 10, status = "primary", solidHeader = TRUE),
+      box(
+        downloadButton(outputId = ns("otable_download"), label = "Download Table"),
+        dataTableOutput(ns("otable1")),
+        title = "ASV table", width = 12, status = "primary", solidHeader = TRUE
+      )
     )
   )
 }

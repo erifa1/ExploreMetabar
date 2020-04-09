@@ -20,25 +20,29 @@ mod_metadata_subset_ui <- function(id){
   ns <- NS(id)
   
   tagList(
-    box(width = NULL,
+    box(width = NULL, status = "primary", solidHeader = TRUE,
           tabsetPanel(
             tabPanel("Input/Subset",
-                    fluidPage(h1("Input phyloseq object: "),
-                              
-                              
-                              tags$div(
-                                title = "RData where 'data' is a phyloseq object.",
-                                fileInput(ns("fileRData"),
-                                          label = "RData with phyloseq object : ",
-                                          placeholder = "data.RData")
-                              ),
-                              
-                              verbatimTextOutput(ns("print1")),
-                              h3("Metadata table:"),
-                              fluidPage(h3("Use table filters to subset phyloseq object, surbset object will be used for next modules")),
-                              dataTableOutput(ns("sdata3")),
-                              h3("Selected samples names"),
-                              verbatimTextOutput(ns("sids"))
+                     fluidPage(
+                       box(
+                         tags$div(
+                           title = "RData where 'data' is a phyloseq object.",
+                           fileInput(ns("fileRData"),
+                                     label = "RData with phyloseq object : ",
+                                     placeholder = "data.RData")
+                         ),
+                         verbatimTextOutput(ns("print1")),
+                         title = "Input phyloseq object:", width = 12, status = "primary", solidHeader = TRUE
+                       ),
+                       
+                       box(
+                         fluidPage(h3("Use table filters to subset phyloseq object, surbset object will be used for next modules")),
+                         dataTableOutput(ns("sdata3")),
+                         solidHeader = TRUE, status = "primary", title ="Metadata table:", width = 12
+                       ),
+                       box(verbatimTextOutput(ns("sids")), 
+                           collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE, status = "primary", title ="Selected samples names", width=12
+                           )
                     )
                   )#,
             #tabPanel("Plot Metadata")

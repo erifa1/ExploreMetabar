@@ -36,7 +36,7 @@ mod_compo_ui <- function(id){
         label = "Select variable for changing X axis tick labels and color categories: ",
         choices = ""
       ),
-      actionButton(ns("go1"), "Run Composition Plot"),
+      actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle")),
       box(plotlyOutput(ns("compo2")), width=12),
       box(plotlyOutput(ns("compo1")), width=12)
   )

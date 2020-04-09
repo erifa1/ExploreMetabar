@@ -27,13 +27,14 @@ mod_beta_ui <- function(id){
       ),
       selectInput(
         ns("Fact1"),
-        label = "Select factor to test: ",
+        label = "Select main factor to test + color plot: ",
         choices = ""
       ),
-      
       h3("Ordination plot: "),
       box(plotlyOutput(ns("plot1")), width=12),
       h3("Permanova with adonis: "),
+      uiOutput(ns("factor2")),
+      actionButton(ns("go1"), "Update Test"),
       box(verbatimTextOutput(ns("testprint")), width=10)
     )
   )
@@ -52,6 +53,21 @@ mod_beta_server <- function(input, output, session, r = r){
     updateSelectInput(session, "Fact1",
                       choices = r$data16S()@sam_data@names)
   })
+  
+  
+  output$factor2 = renderUI({
+    req(input$Fact1)
+    facts = r$subglom()@sam_data@names
+    Fchoices = facts[facts != input$Fact1]
+    
+    checkboxGroupInput(
+      ns("Fact2"),
+      label = "Select covariable(s) to test: ",
+      choices = Fchoices,
+      inline = TRUE
+    )
+  })
+  
   
   Fdata <- reactive( {
     print("Beta")
@@ -85,7 +101,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  betatest <- reactive({
+  betatest <- eventReactive(input$go1, {
     req(input$metrics, input$Fact1, Fdata())
       
     data = Fdata()
@@ -101,14 +117,23 @@ mod_beta_server <- function(input, output, session, r = r){
       eval(parse(text=fun))
     }
     
-    form1 = glue::glue('{input$metrics}.dist ~ Depth + {input$Fact1}')
+    if(is.null(input$Fact2)){
+      form1 = glue::glue('{input$metrics}.dist ~ Depth + {input$Fact1}')
+    }else{
+      cov1 = paste(input$Fact2, collapse = " + ")
+      form1 = glue::glue('{input$metrics}.dist ~ Depth + {cov1} + {input$Fact1}')
+    }
+    
+    
     print(form1)
     res1 = adonis(as.formula(form1), data = mdata, permutations = 1000)
-    res1
+    print(res1)
   })
   
   
   output$testprint <- renderPrint({
+    # print(input$Fact2)
+    # print(str(betatest()))
     betatest()
   })
   

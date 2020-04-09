@@ -11,13 +11,13 @@ app_ui <- function() {
                   dashboardSidebar(
                     sidebarMenu(
                       # menuItem("Transform phyloseq object", tabName = "Transform", icon = icon("leaf")),
-                      menuItem("Metadatas/Subset", tabName = "input_select", icon = icon("leaf")),
-                      menuItem("ASVtable", tabName = "export_asvtable", icon = icon("leaf")),
-                      menuItem("Compo", tabName = "tab_compo", icon = icon("leaf")),
-                      menuItem("Alpha", tabName = "tab_alpha", icon = icon("leaf")),
-                      menuItem("Beta", tabName = "tab_beta", icon = icon("leaf")),
-                      menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("leaf")),
-                      menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("leaf")),
+                      menuItem("Metadatas/Subset", tabName = "input_select", icon = icon("diagnoses")),
+                      menuItem("ASVtable", tabName = "export_asvtable", icon = icon("table")),
+                      menuItem("Compo", tabName = "tab_compo", icon = icon("chart-pie")),
+                      menuItem("Alpha", tabName = "tab_alpha", icon = icon("chart-bar")),
+                      menuItem("Beta", tabName = "tab_beta", icon = icon("chart-bar")),
+                      menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("microscope")),
+                      menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )
                   ),

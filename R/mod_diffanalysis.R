@@ -27,18 +27,18 @@ mod_diffanalysis_ui <- function(id){
           tabsetPanel(
             tabPanel("DESeq2",
                      verbatimTextOutput(ns("print1")),
-                     actionButton(ns("go1"), "Run DESeq2"),
+                     actionButton(ns("go1"), "Run DESeq2", icon = icon("play-circle")),
                      dataTableOutput(ns("deseqTab"))
 
                      ),
             tabPanel("MetaGenomeSeq",
                      h1("Run MGseq with same settings:"),
-                     actionButton(ns("go2"), "Run MGSeq"),
+                     actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle")),
                      dataTableOutput(ns("MGseqTab"))
             ),
             tabPanel("MetaCoder",
                      h1("Run Metacoder with same settings:"),
-                     actionButton(ns("go4"), "Run Metacoder"),
+                     actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle")),
                      dataTableOutput(ns("mtcoderTab"))
             ),
             # tabPanel("Wilcox non parametric test",
@@ -512,7 +512,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     
     output$mergeTab <- DT::renderDataTable({
       mergeList()
-      })
+      }, filter="top", options = list(scrollX = TRUE))
     
     
     # output$mergePlot <- renderPlot({
