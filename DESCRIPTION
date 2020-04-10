@@ -7,7 +7,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: 
-    DESeq2,
     dplyr,
     ggplot2,
     metagenomeSeq,
@@ -30,7 +29,9 @@ Imports:
     htmltools,
     microbiome,
     shiny,
-    taxa
+    taxa,
+    agricolae,
+    DESeq2
 RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0),

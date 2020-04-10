@@ -50,6 +50,7 @@ mod_export_asvtaxtable_ui <- function(id){
         title = "Details", collapsible = TRUE, collapsed = TRUE, width = 10, status = "primary", solidHeader = TRUE),
       box(
         downloadButton(outputId = ns("otable_download"), label = "Download Table"),
+        downloadButton(outputId = ns("refseq_download"), label = "Download FASTA sequences"),
         dataTableOutput(ns("otable1")),
         title = "ASV table", width = 12, status = "primary", solidHeader = TRUE
       )
@@ -66,6 +67,7 @@ mod_export_asvtaxtable_ui <- function(id){
 #' @import tibble
 #' @importFrom DT renderDataTable
 #' @importFrom DESeq2 varianceStabilizingTransformation
+#' @importFrom Biostrings writeXStringSet
     
 mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -186,6 +188,15 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     content = function(file) {write.table(merge1(), file, sep="\t", row.names=FALSE)}
   )
 
+  output$refseq_download <- downloadHandler(
+    filename = "ref-seq.fasta",
+    content = function(file) {
+      req(dat())
+      writeXStringSet(refseq(dat()), file)
+      }
+  )
+  
+  
   #Saving variable for other modules.
   # Object only glom
   r$subglom <- reactive(

@@ -48,10 +48,11 @@ mod_diffanalysis_ui <- function(id){
             # ),
             tabPanel("Merge results",
                      h1("Merge results of differential analysis:"),
-                     verbatimTextOutput(ns("mergePrint")),
-                     verbatimTextOutput(ns("mergeList")),
+                     # verbatimTextOutput(ns("mergePrint")),
+                     downloadButton(outputId = ns("merge_download"), label = "Download Table"),
                      dataTableOutput(ns("mergeTab")),
-                     plotOutput(ns("mergePlot"))
+                     # plotOutput(ns("mergePlot")),
+                     box(plotlyOutput(ns("barplot1"), height = "1000px"), width=12)
             )
             
         )
@@ -65,7 +66,10 @@ mod_diffanalysis_ui <- function(id){
 #' @rdname mod_diffanalysis
 #' @export
 #' @keywords internal
-#' @import DESeq2
+#' @importFrom DESeq2 estimateSizeFactors
+#' @importFrom DESeq2 DESeq
+#' @importFrom DESeq2 results
+#' @importFrom DESeq2 counts
 #' @import metacoder
 #' @import phyloseq
 #' @import tibble
@@ -499,9 +503,11 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
         TABf <- cbind.data.frame(TABf, ttax[TABf[,1],])
         if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[ListAllOtu])}
-
-        TABf
         
+        LL = list()
+        LL$TABf = TABf
+        LL$ttax = ttax
+        LL
       }, message = "Merging results...")
         
     })
@@ -511,8 +517,43 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     # })
     
     output$mergeTab <- DT::renderDataTable({
-      mergeList()
+      mergeList()$TABf
       }, filter="top", options = list(scrollX = TRUE))
+    
+    output$merge_download <- downloadHandler(
+      filename = "aggregate_table.csv",
+      content = function(file) {write.table(mergeList()$TABf, file, sep="\t", row.names=FALSE)}
+    )
+    
+    
+    reacbarplot1 <- reactive({
+      print("plot")
+      req(mergeList())
+      TABf = mergeList()$TABf
+      ttax = mergeList()$ttax
+      # Barplot
+      ## differentialy abundant features on 2 methods
+      ## Top abs(LogFolchange)
+      ## feature with relative abondance > 0.1% (0.001)
+      TABbar = TABf[TABf$DESeq ==1 | TABf$metagenomeSeq ==1 |  TABf$sumMethods >=2, ]
+      TABbar = TABbar[TABbar$MeanRelAbcond1>=0.001 | TABbar$MeanRelAbcond2>=0.001, ]
+      TABbar = tail(TABbar[order(abs(TABbar$DESeqLFC)),],50)
+      
+      if(nrow(TABbar)){
+        TABbar$tax = paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
+        
+          p<-ggplot(data=TABbar, aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
+          geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
+          coord_flip() + theme_bw() +
+          scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5))
+        ggplotly(p)
+        
+      }else{return('No ASV to plot...')}
+    })
+    
+    output$barplot1 <- renderPlotly({
+        reacbarplot1()
+    })
     
     
     # output$mergePlot <- renderPlot({

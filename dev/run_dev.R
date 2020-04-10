@@ -11,3 +11,7 @@
   # Run the application
   devtools::load_all(".")
   ExploreMetabar::run_app()
+
+  # # Deploy
+  # options(repos = BiocManager::repositories()); getOption("repos")
+  # rsconnect::deployApp("~/Repository/LRF/shiny_app/ExploreMetabar/")
