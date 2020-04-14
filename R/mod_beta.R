@@ -12,30 +12,33 @@ mod_beta_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("Beta diversity"),
-      
-      radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                   choices =
-                     list("bray", "jaccard", "unifrac", "wunifrac"),
-                   selected = c("bray")
+      h1("Beta diversity analysis"),
+      box(
+        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                     choices =
+                       list("bray", "jaccard", "unifrac", "wunifrac"),
+                     selected = c("bray")
+        ),
+        
+        radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
+                     choices =
+                       list("MDS", "NMDS", "CCA", "RDA"),
+                     selected = c("NMDS")
+        ),
+        selectInput(
+          ns("Fact1"),
+          label = "Select main factor to test + color plot: ",
+          choices = ""
+        ),
+        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
-      
-      radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
-                   choices =
-                     list("MDS", "NMDS", "CCA", "RDA"),
-                   selected = c("NMDS")
-      ),
-      selectInput(
-        ns("Fact1"),
-        label = "Select main factor to test + color plot: ",
-        choices = ""
-      ),
-      h3("Ordination plot: "),
-      box(plotlyOutput(ns("plot1")), width=12),
-      h3("Permanova with adonis: "),
+      box(plotlyOutput(ns("plot1")),
+          title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE),
+      box(
       uiOutput(ns("factor2")),
       actionButton(ns("go1"), "Update Test"),
-      box(verbatimTextOutput(ns("testprint")), width=10)
+      verbatimTextOutput(ns("testprint")), 
+      title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE)
     )
   )
 }

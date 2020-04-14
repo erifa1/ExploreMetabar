@@ -20,20 +20,35 @@ mod_taxaboxplot_ui <- function(id){
     
     fluidPage(
       h1("Boxplots"),
-      h2("Reminder : You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module"),
-      selectInput(
-        ns("Fact1"),
-        label = "Select factor to test: ",
-        choices = ""
+      
+      infoBox("Reminder :", 
+              "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module", 
+              icon = icon("info-circle"), fill=TRUE, width = 10),
+      
+      box(
+        selectInput(
+          ns("Fact1"),
+          label = "Select factor to test: ",
+          choices = ""
+        ),
+        actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle")),
+        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
-      actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle")),
+      
+      box(
       h3("Clic on feature below to generate boxplot:"),
-      fluidRow(box(dataTableOutput(ns("pvalout1"))
-                   , width = 8)),
-      box(plotlyOutput(ns("boxplot1")), width=10, height=500),
+      dataTableOutput(ns("pvalout1")),
+      title = "Features:", width = 12, status = "primary", solidHeader = TRUE
+      ),
+      box(plotlyOutput(ns("boxplot1")), height=500,
+          title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
+          ),
       # verbatimTextOutput(ns("sids2")),
-      h3("Results of pairwise wilcox test:"),
-      box(verbatimTextOutput(ns("wilcoxprint")), width=10)
+      box(verbatimTextOutput(ns("wilcoxprint")),
+          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)#,
+      
+    #   box(dataTableOutput(ns("wilcoxDT")),
+    #       title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)
     )
     
   )
@@ -46,6 +61,9 @@ mod_taxaboxplot_ui <- function(id){
 #' @keywords internal
 #' @import plotly
 #' @importFrom DT datatable
+#' @importFrom DT formatStyle
+#' @importFrom DT formatRound
+#' @importFrom DT styleInterval
     
 mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -181,6 +199,16 @@ output$wilcoxprint <- renderPrint({
   print(LL$select1)
   print(LL$res)
   })
+
+# output$wilcoxDT <- renderDataTable({
+#   LL = statsBP1()
+#   datatable(LL$res$p.value) %>%
+#     formatStyle(names(LL$res$p.value),
+#       backgroundColor = styleInterval(range(0,0.0001), c("white","lightgreen","white"))
+#     ) %>%
+#     formatRound(names(LL$res$p.value), digits = 5)
+#   
+# })
   
   
   output$statsBP1 <- reactive({

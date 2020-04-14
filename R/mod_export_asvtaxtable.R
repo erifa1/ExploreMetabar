@@ -38,8 +38,10 @@ mod_export_asvtaxtable_ui <- function(id){
             `VST` = "VST norm."
           ), selected = "TSS norm."
         ),
+        numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 0, max = NA),
         title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
+      
 
       box(
         h3("Raw object:"),
@@ -110,9 +112,10 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   })
 
   subglom <- reactive({
+    req(input$minAb, glom())
     print("Subset object")
     Fdata <- prune_samples(sample_names(glom())[r$rowselect()], glom())
-    Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
+    Fdata <- prune_taxa(taxa_sums(Fdata) > input$minAb, Fdata)
     Fdata
   })
   
@@ -169,12 +172,37 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       otu_table() %>%
       as.data.frame(stringsAsFactors = FALSE) %>%
       tibble::rownames_to_column()
+    
+    rawtaxasum1 <-  subglom() %>%
+      taxa_sums() %>%
+      as.data.frame %>%
+      tibble::rownames_to_column()
+    names(rawtaxasum1)[2] <- "RawAbundanceSum"
+    
     joinGlom <-
-      dplyr::left_join(ttable, otable, by = "rowname") %>%
-      dplyr::rename(asvname = rowname)
-
-    print(str(as.data.frame(as.matrix(ttable))))
-    as.data.frame(joinGlom)
+      dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
+      mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
+      dplyr::left_join(otable, by = "rowname") 
+    
+    if(input$RankGlom=="ASV" & !is.null(refseq(dat(), errorIfNULL=FALSE)) ){
+      print("add sequence to dataframe")
+      refseq1 <- FNGdata %>%
+        refseq %>%
+        as.data.frame %>%
+        tibble::rownames_to_column() %>%
+        rename(sequences = x)
+        
+      joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
+        dplyr::rename(asvname = rowname)
+      FTAB = as.data.frame(joinGlom2)
+    }else{
+      showNotification("No refseq in object.", type="error", duration = 10)
+      dplyr::rename(joinGlom, asvname = rowname)
+      # print(str(as.data.frame(as.matrix(ttable))))
+      FTAB = as.data.frame(joinGlom)
+    }
+    
+    FTAB
 
   })
 
@@ -185,15 +213,19 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
 
   output$otable_download <- downloadHandler(
     filename = "asv_taxtable.csv",
-    content = function(file) {write.table(merge1(), file, sep="\t", row.names=FALSE)}
+    content = function(file) {
+        write.table(merge1(), file, sep="\t", row.names=FALSE)
+    }
   )
 
   output$refseq_download <- downloadHandler(
     filename = "ref-seq.fasta",
     content = function(file) {
       req(dat())
-      writeXStringSet(refseq(dat()), file)
-      }
+      if(!is.null(refseq(dat(), errorIfNULL=FALSE))){
+        writeXStringSet(refseq(dat()), file)
+      }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 10))
+    }
   )
   
   

@@ -18,6 +18,7 @@ mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
+      h1("Alpha diversity analysis"),
       box(
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =

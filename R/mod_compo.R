@@ -19,26 +19,32 @@ mod_compo_ui <- function(id){
   tagList(
     fluidPage(
       h1("Community composition"),
-      selectInput(
-        ns("RankCompo"),
-        label = "Select rank to plot: ",
-        choices = ""
-      ),
       
-      selectInput(
-        ns("Ord1"),
-        label = "Select variable to order sample (X axis): ",
-        choices = ""
+      box(
+        selectInput(
+          ns("RankCompo"),
+          label = "Select rank to plot: ",
+          choices = ""
+        ),
+        
+        selectInput(
+          ns("Ord1"),
+          label = "Select variable to order sample (X axis): ",
+          choices = ""
+        ),
+        
+        selectInput(
+          ns("Fact1"),
+          label = "Select variable for changing X axis tick labels and color categories: ",
+          choices = ""
+        ),
+        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle")),
+        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
-      
-      selectInput(
-        ns("Fact1"),
-        label = "Select variable for changing X axis tick labels and color categories: ",
-        choices = ""
-      ),
-      actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle")),
-      box(plotlyOutput(ns("compo2")), width=12),
-      box(plotlyOutput(ns("compo1")), width=12)
+      box(plotlyOutput(ns("compo2")),
+          title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),
+      box(plotlyOutput(ns("compo1")),
+          title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE)
   )
   )
 }
