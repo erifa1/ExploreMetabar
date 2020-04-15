@@ -49,10 +49,18 @@ mod_diffanalysis_ui <- function(id){
             tabPanel("Merge results",
                      h1("Merge results of differential analysis:"),
                      # verbatimTextOutput(ns("mergePrint")),
+                     box(
                      downloadButton(outputId = ns("merge_download"), label = "Download Table"),
                      dataTableOutput(ns("mergeTab")),
-                     # plotOutput(ns("mergePlot")),
-                     box(plotlyOutput(ns("barplot1"), height = "1000px"), width=12)
+                     title = "Aggregate table:", width = 12, status = "primary", solidHeader = TRUE),
+                     
+                     box(
+                     numericInput(ns("minAb"), "Minimum mean relative abundance:", value = 0.001, min = 0, max = 1, step = 1000),
+                     sliderInput(ns("Nfeat"), "Number of features to plot:",
+                                 min = 0, max = 100, value = 50
+                     ),
+                     plotlyOutput(ns("barplot1"), height = "1000px"),
+                     title = "Plotting features:", width = 12, status = "primary", solidHeader = TRUE)
             )
             
         )
@@ -106,7 +114,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
   output$cond2 = renderUI({
     req(input$Cond1)
     Conds = unique(r$subglom()@sam_data[,input$Fact1])
-    choices2 = Conds[Conds != input$Cond1]
+    if(length(Conds) <= 2){
+      print(Conds)
+      choices2 = Conds
+    }else{
+      choices2 = Conds[Conds != input$Cond1]
+    }
+print(choices2)
+    
                    
     selectInput(ns("Cond2"), 
                 label = "Select Condition 2 to compare: ", 
@@ -500,9 +515,12 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         TABf$Condition = factor(TABf$Condition,
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
-
+        print("Adding taxonomy...")
+        print(dim(TABf))
+        print(length(TABf[,1]))
+        print(dim(ttax[TABf[,1],]))
         TABf <- cbind.data.frame(TABf, ttax[TABf[,1],])
-        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[ListAllOtu])}
+        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[TABf[,1]])}
         
         LL = list()
         LL$TABf = TABf
@@ -535,13 +553,17 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       ## differentialy abundant features on 2 methods
       ## Top abs(LogFolchange)
       ## feature with relative abondance > 0.1% (0.001)
+      print("Filters...")
+      print(input$minAb)
+      print(input$Nfeat)
       TABbar = TABf[TABf$DESeq ==1 | TABf$metagenomeSeq ==1 |  TABf$sumMethods >=2, ]
-      TABbar = TABbar[TABbar$MeanRelAbcond1>=0.001 | TABbar$MeanRelAbcond2>=0.001, ]
-      TABbar = tail(TABbar[order(abs(TABbar$DESeqLFC)),],50)
+      TABbar = TABbar[TABbar$MeanRelAbcond1 >= input$minAb | TABbar$MeanRelAbcond2 >= input$minAb, ]    # min mean Abundance to choose
+      TABbar = tail(TABbar[order(abs(TABbar$DESeqLFC)),], input$Nfeat)      # number of features to plot
       
+      print("Plot")
       if(nrow(TABbar)){
         TABbar$tax = paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
-        
+          
           p<-ggplot(data=TABbar, aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
           geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
           coord_flip() + theme_bw() +

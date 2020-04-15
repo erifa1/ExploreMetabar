@@ -53,6 +53,7 @@ mod_export_asvtaxtable_ui <- function(id){
       box(
         downloadButton(outputId = ns("otable_download"), label = "Download Table"),
         downloadButton(outputId = ns("refseq_download"), label = "Download FASTA sequences"),
+        downloadButton(outputId = ns("rdata_download"), label = "Download transformed Phyloseq object"),
         dataTableOutput(ns("otable1")),
         title = "ASV table", width = 12, status = "primary", solidHeader = TRUE
       )
@@ -227,6 +228,16 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 10))
     }
   )
+  
+  output$rdata_download <- downloadHandler(
+    filename = "robject.rdata",
+    content = function(file) {
+      req(subglom())
+        data = subglom()
+        save(data, file = file)
+    }
+  )
+  
   
   
   #Saving variable for other modules.

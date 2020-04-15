@@ -6,7 +6,9 @@ Description: Shiny application to explore metabarcoding data (16S, ITS...)
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-Imports: 
+Imports:
+    rhdf5,
+    biomformat,
     dplyr,
     ggplot2,
     metagenomeSeq,
@@ -32,6 +34,14 @@ Imports:
     taxa,
     agricolae,
     DESeq2
+Remotes:
+    bioc::3.10/rhdf5,
+    bioc::3.10/biomformat,
+    bioc::3.10/metagenomeSeq,
+    bioc::3.10/phyloseq,
+    bioc::3.10/microbiome,
+    bioc::3.10/Biobase,
+    github::mikelove/DESeq2
 RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0),
