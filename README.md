@@ -19,7 +19,7 @@ You can install the development version of ExploreMetabar from this
 repository with:
 
 ``` r
-devtools::install_git("https://forgemia.inra.fr/umrf/ExploreMetabar")
+devtools::install_git("https://exploremetabar-private:D-tWuQTDEuy9pqdE7vro@forgemia.inra.fr/umrf/ExploreMetabar.git")
 ```
 
 ## To run Shiny app

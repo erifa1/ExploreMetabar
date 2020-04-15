@@ -45,10 +45,10 @@ mod_taxaboxplot_ui <- function(id){
           ),
       # verbatimTextOutput(ns("sids2")),
       box(verbatimTextOutput(ns("wilcoxprint")),
-          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)#,
+          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE),
       
-    #   box(dataTableOutput(ns("wilcoxDT")),
-    #       title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)
+      box(dataTableOutput(ns("wilcoxDT")),
+          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)
     )
     
   )
@@ -157,7 +157,11 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     LL = listBP()
     # print(head(as.data.frame(LL$pval)))
     # print(str(as.data.frame(LL$pval)))
-    datatable(as.data.frame(LL$pval), selection = "single", filter="top")
+    datatable(as.data.frame(LL$pval), selection = "single", filter="top") %>%
+      formatStyle(
+        'kruskal.pvalue',
+        backgroundColor=styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","yellow","red"))
+      )
   })
   
   output$sids2 <- reactive({
@@ -198,17 +202,24 @@ output$wilcoxprint <- renderPrint({
   LL = statsBP1()
   print(LL$select1)
   print(LL$res)
+  print(names(as.data.frame(LL$res$p.value)))
   })
 
-# output$wilcoxDT <- renderDataTable({
-#   LL = statsBP1()
-#   datatable(LL$res$p.value) %>%
-#     formatStyle(names(LL$res$p.value),
-#       backgroundColor = styleInterval(range(0,0.0001), c("white","lightgreen","white"))
-#     ) %>%
-#     formatRound(names(LL$res$p.value), digits = 5)
-#   
-# })
+output$wilcoxDT <- renderDataTable({
+  LL = statsBP1()
+  wtab = as.data.frame(LL$res$p.value)
+  
+  wtab %>% 
+    tibble::rownames_to_column() %>% 
+    reshape2::melt(value.name = "pvalue") %>%
+    na.omit() %>%
+    rename(Condition1 = rowname)%>%
+    rename(Condition2 = variable) %>%
+    datatable() %>%
+    formatStyle("pvalue",
+      backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
+  )
+})
   
   
   output$statsBP1 <- reactive({

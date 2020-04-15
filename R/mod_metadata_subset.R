@@ -67,7 +67,7 @@ mod_metadata_subset_server <- function(input, output, session, r = r){
     ne <- new.env() ## new env to store RData content and avoid border effects
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne) 
-    } else {load("./data-raw/robjects_600.Rdata", envir = ne)}
+    } else {load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)}   #"./data-raw/robjects_600.Rdata"
     if (class(ne$data) == "phyloseq")
       # ne$data@phy_tree <- NULL   # improve speed
       return(ne$data)
