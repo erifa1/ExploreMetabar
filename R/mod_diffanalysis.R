@@ -519,8 +519,8 @@ print(choices2)
         print(dim(TABf))
         print(length(TABf[,1]))
         print(dim(ttax[TABf[,1],]))
-        TABf <- cbind.data.frame(TABf, ttax[TABf[,1],])
-        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[TABf[,1]])}
+        TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),])
+        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[as.character(TABf[,1])])}
         
         LL = list()
         LL$TABf = TABf

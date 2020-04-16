@@ -19,6 +19,7 @@ You can install the development version of ExploreMetabar from this
 repository with:
 
 ``` r
+install.packages("devtools")
 devtools::install_git("https://exploremetabar-private:D-tWuQTDEuy9pqdE7vro@forgemia.inra.fr/umrf/ExploreMetabar.git")
 ```
 
