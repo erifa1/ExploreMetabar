@@ -55,6 +55,9 @@ mod_diffanalysis_ui <- function(id){
                      title = "Aggregate table:", width = 12, status = "primary", solidHeader = TRUE),
                      
                      box(
+                       sliderInput(ns("Nmeth"), "Number of diff. methods :",
+                                   min = 1, max = 3, value = 3
+                       ),
                      numericInput(ns("minAb"), "Minimum mean relative abundance:", value = 0.001, min = 0, max = 1, step = 1000),
                      sliderInput(ns("Nfeat"), "Number of features to plot:",
                                  min = 0, max = 100, value = 50
@@ -201,7 +204,7 @@ print(choices2)
       resDESeq <- as.data.frame(res) %>%
         rownames_to_column() %>%
         mutate(absLFC = abs(log2FoldChange)) %>%
-        filter(padj<=input$Alpha1) %>%
+        # filter(padj<=input$Alpha1) %>%
         left_join(ttable1, by="rowname") %>%
         left_join(sseq1, by="rowname")
       
@@ -434,6 +437,8 @@ print(choices2)
         
         mtTab = mtcoderDA()
         mtList = mtTab[mtTab$wilcox_p_value <= input$Alpha1, "otu_id"]
+        print("mtList")
+        print(head(mtList))
         
         deTab = deseqDA()
         deTab = deTab[!is.na(deTab$padj),]
@@ -486,16 +491,17 @@ print(choices2)
         otableNORM <- otu_table(data.norm)
         ssample <- as.matrix(sample_data(data.norm))
         ttax <- tax_table(data.norm)
+        head(ttax)
         seqs = NULL
         try(seqs <- refseq(data.norm), silent = TRUE)
-        print("coucou")
+        print("mean1")
         Gtab <- cbind(as.data.frame(ssample), t(otableNORM))
         MeanRelAbcond1 = NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond1,i], na.rm=TRUE)
           MeanRelAbcond1=c(MeanRelAbcond1,tt)
         }
-        print("coucou2")
+        print("mean2")
         MeanRelAbcond2=NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond2,i], na.rm=TRUE)
@@ -516,11 +522,14 @@ print(choices2)
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
         print("Adding taxonomy...")
-        print(dim(TABf))
-        print(length(TABf[,1]))
-        print(dim(ttax[TABf[,1],]))
-        TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),])
+        # Debug
+        # LL = list()
+        # LL$TABf = TABf; LL$ttax =ttax[as.character(TABf[,1]),] ;  LL$seq = seqs[as.character(TABf[,1])]
+        # save(LL, file = "~/Téléchargements/debug_explore.rdata")
+        
+        TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),]@.Data)
         if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[as.character(TABf[,1])])}
+        print("done")
         
         LL = list()
         LL$TABf = TABf
@@ -556,21 +565,32 @@ print(choices2)
       print("Filters...")
       print(input$minAb)
       print(input$Nfeat)
-      TABbar = TABf[TABf$DESeq ==1 | TABf$metagenomeSeq ==1 |  TABf$sumMethods >=2, ]
+      TABbar = TABf[TABf$DESeq ==1 | TABf$metagenomeSeq ==1 |  TABf$sumMethods >= input$Nmeth, ]
       TABbar = TABbar[TABbar$MeanRelAbcond1 >= input$minAb | TABbar$MeanRelAbcond2 >= input$minAb, ]    # min mean Abundance to choose
       TABbar = tail(TABbar[order(abs(TABbar$DESeqLFC)),], input$Nfeat)      # number of features to plot
       
-      print("Plot")
-      if(nrow(TABbar)){
-        TABbar$tax = paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
-          
+      print(TABbar)
+      
+      
+      if(nrow(TABbar)!=0){
+        print("Plot")
+        print(r$RankGlom())
+        if(r$RankGlom() == "ASV"){
+          TABbar$tax = paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
+        }else{
+          TABbar$tax = TABbar$ListAllOtu
+        }
+        
           p<-ggplot(data=TABbar, aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
           geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
           coord_flip() + theme_bw() +
           scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5))
         ggplotly(p)
         
-      }else{return('No ASV to plot...')}
+      }else{
+        print("No ASV to plot")
+        showNotification("No ASV to plot... (all features show summethods <=2 ? too high mean relative abundance filters ?)", type="error", duration = 10)
+        }
     })
     
     output$barplot1 <- renderPlotly({

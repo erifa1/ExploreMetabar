@@ -187,6 +187,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     
     if(input$RankGlom=="ASV" & !is.null(refseq(dat(), errorIfNULL=FALSE)) ){
       print("add sequence to dataframe")
+      showNotification("Sequences added to dataframe.", type="message", duration = 5)
       refseq1 <- FNGdata %>%
         refseq %>%
         as.data.frame %>%
@@ -197,7 +198,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
         dplyr::rename(asvname = rowname)
       FTAB = as.data.frame(joinGlom2)
     }else{
-      showNotification("No refseq in object.", type="error", duration = 10)
+      showNotification("No refseq in object.", type="error", duration = 5)
       dplyr::rename(joinGlom, asvname = rowname)
       # print(str(as.data.frame(as.matrix(ttable))))
       FTAB = as.data.frame(joinGlom)
@@ -225,7 +226,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       req(dat())
       if(!is.null(refseq(dat(), errorIfNULL=FALSE))){
         writeXStringSet(refseq(dat()), file)
-      }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 10))
+      }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
     }
   )
   
