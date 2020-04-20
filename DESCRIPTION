@@ -7,11 +7,13 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+    RCurl,
+    Rcpp,
     rhdf5,
     biomformat,
     dplyr,
     ggplot2,
-    metagenomeSeq,
+    metagenomeSeq,  
     metacoder,
     phyloseq,
     plotly,
