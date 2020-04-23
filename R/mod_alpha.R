@@ -81,6 +81,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     print(input$minAb)
     
     data <- prune_taxa(taxa_sums(r$subdata()) > input$minAb, r$subdata())
+    data <- prune_taxa(r$asvselect(), data)
     print(data)
     
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",

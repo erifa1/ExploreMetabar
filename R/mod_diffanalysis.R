@@ -146,21 +146,30 @@ print(choices2)
       # req(input$Fact1)
       # print(input$Fact1)
       # print(unique(r$subglom()@sam_data[,input$Fact1]))
-      print(r$subglom())
+      print(data1())
       cat("\n")
       print( glue("Compare {input$Cond1} and {input$Cond2} ") )
       
       # print(head(tax_table(r$subglom())))
     })
     
+    
+    #Taxonomy subset (asvselect)
+    data1 <- reactive({
+      req(r$asvselect(), r$subglom())
+      Fdata <- prune_taxa(r$asvselect(), r$subglom())
+      Fdata
+    })
+    
+    
     deseqDA = eventReactive(input$go1, {
       
       withProgress({
         
-      req(input$Fact1, input$Cond1, input$Cond2, r$subglom())
+      req(input$Fact1, input$Cond1, input$Cond2, data1())
       
       print("deseqtophy")
-      fun <- glue(" tmp <- subset_samples(r$subglom(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+      fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
       print("coucou")
       tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
@@ -191,10 +200,10 @@ print(choices2)
       
       res <- deseqDA()
       # Construct table
-      ttable1 <- as.data.frame(r$subglom()@tax_table@.Data) %>%
+      ttable1 <- as.data.frame(data1()@tax_table@.Data) %>%
         rownames_to_column()
       
-      sseq1 <- as.data.frame(r$subglom()@refseq) %>%
+      sseq1 <- as.data.frame(data1()@refseq) %>%
         rownames_to_column() 
       
       if(nrow(sseq1) != 0){sseq1 <- rename(sseq1, sequence = 2)}
@@ -220,9 +229,9 @@ print(choices2)
       
       withProgress({
         
-        req(input$Fact1, input$Cond1, input$Cond2, r$subglom())
+        req(input$Fact1, input$Cond1, input$Cond2, data1())
         
-        fun <- glue(" tmp <- subset_samples(r$subglom(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+        fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
         eval(parse(text=fun))
         print("coucou")
         tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
@@ -275,7 +284,7 @@ print(choices2)
       
       withProgress({
       
-      req(input$Fact1, input$Cond1, input$Cond2, r$subglom())
+      req(input$Fact1, input$Cond1, input$Cond2, data1())
       
       mean_ratio <- function(abund_1, abund_2) {
         log_ratio <- log2(mean(abund_1) / mean(abund_2))
@@ -288,7 +297,7 @@ print(choices2)
              wilcox_p_value = wilcox.test(abund_1, abund_2)$p.value)
       }
       
-      fun <- glue(" psobj <- tmp <- subset_samples(r$subglom(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+      fun <- glue(" psobj <- tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
       
       
@@ -331,7 +340,7 @@ print(choices2)
       
       withProgress({
         
-        fun <- glue(" tmp <- subdata <- subset_samples(r$subglom(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+        fun <- glue(" tmp <- subdata <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
         eval(parse(text=fun))
         
         print("format")
@@ -485,7 +494,7 @@ print(choices2)
         # input$Cond2="Soil"
 
         print('Calculating mean relative abundance...')
-        data = r$subglom()
+        data = data1()
         normf = function(x){ x/sum(x) }
         data.norm <- transform_sample_counts(data, normf)
         otableNORM <- otu_table(data.norm)
@@ -565,7 +574,7 @@ print(choices2)
       print("Filters...")
       print(input$minAb)
       print(input$Nfeat)
-      TABbar = TABf[TABf$DESeq ==1 | TABf$metagenomeSeq ==1 |  TABf$sumMethods >= input$Nmeth, ]
+      TABbar = TABf[TABf$sumMethods >= input$Nmeth, ] #TABf$DESeq ==1 | TABf$metagenomeSeq ==1 &  
       TABbar = TABbar[TABbar$MeanRelAbcond1 >= input$minAb | TABbar$MeanRelAbcond2 >= input$minAb, ]    # min mean Abundance to choose
       TABbar = tail(TABbar[order(abs(TABbar$DESeqLFC)),], input$Nfeat)      # number of features to plot
       

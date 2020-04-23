@@ -75,6 +75,7 @@ mod_compo_server <- function(input, output, session, r = r){
     withProgress({
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
       Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)  
+      Fdata <- prune_taxa(r$asvselect(), Fdata)
       psobj.top <- aggregate_top_taxa(Fdata, input$RankCompo, top = 10)
       
       sdata = as.data.frame(sample_data(psobj.top))

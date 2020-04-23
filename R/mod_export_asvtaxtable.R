@@ -46,14 +46,18 @@ mod_export_asvtaxtable_ui <- function(id){
       box(
         h3("Raw object:"),
         verbatimTextOutput(ns("print1")),
-        h3("Glom/Subset object:"),
+        h3("Glom object:"),
         verbatimTextOutput(ns("print2")),
+        h3("Subset on samples:"),
         verbatimTextOutput(ns("print3")),
+        h3("Subset on taxonomy:"),
+        verbatimTextOutput(ns("print4")),
         title = "Details", collapsible = TRUE, collapsed = TRUE, width = 10, status = "primary", solidHeader = TRUE),
       box(
         downloadButton(outputId = ns("otable_download"), label = "Download Table"),
         downloadButton(outputId = ns("refseq_download"), label = "Download FASTA sequences"),
         downloadButton(outputId = ns("rdata_download"), label = "Download transformed Phyloseq object"),
+        h3("Use table filters to subset phyloseq object according to taxonomy, surbset object will be used for next modules"),
         dataTableOutput(ns("otable1")),
         title = "ASV table", width = 12, status = "primary", solidHeader = TRUE
       )
@@ -212,6 +216,25 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     merge1()
   }, filter="top", options = list(scrollX = TRUE))
   
+  #SUBSET on taxonomy with ASV TABLE.
+  asvselect <- reactive({
+    req(merge1())
+    select <- merge1()[input$otable1_rows_all, 1]
+    return(select)
+    # select
+  })
+  
+  subtax <- reactive({
+    req(asvselect(), dat())
+    Fdata <- prune_taxa(asvselect(), dat())
+    Fdata
+  })
+
+  
+  output$print4 <- renderPrint({
+    print(subtax())
+  })
+  
 
   output$otable_download <- downloadHandler(
     filename = "asv_taxtable.csv",
@@ -223,9 +246,9 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   output$refseq_download <- downloadHandler(
     filename = "ref-seq.fasta",
     content = function(file) {
-      req(dat())
-      if(!is.null(refseq(dat(), errorIfNULL=FALSE))){
-        writeXStringSet(refseq(dat()), file)
+      req(subtax())
+      if(!is.null(refseq(subtax(), errorIfNULL=FALSE))){
+        writeXStringSet(refseq(subtax()), file)
       }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
     }
   )
@@ -233,8 +256,8 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   output$rdata_download <- downloadHandler(
     filename = "robject.rdata",
     content = function(file) {
-      req(subglom())
-        data = subglom()
+      req(subtax())
+        data = subtax()
         save(data, file = file)
     }
   )
@@ -253,6 +276,14 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   )
   r$RankGlom <- reactive(
     input$RankGlom
+  )
+  
+  r$asvselect <- reactive(
+    asvselect()
+  )
+  
+  r$subtax <- reactive(
+    subtax()
   )
   
   

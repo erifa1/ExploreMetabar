@@ -76,6 +76,8 @@ mod_beta_server <- function(input, output, session, r = r){
     print("Beta")
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
       Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata) 
+      Fdata <- prune_taxa(r$asvselect(), Fdata)
+      print(Fdata)
       Fdata
   })
   

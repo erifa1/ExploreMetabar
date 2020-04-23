@@ -78,7 +78,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     withProgress({
       print("melting table")
       # data.melt <- psmelt(Fdata)
-      Fdata <- r$dat() #subglom()
+      Fdata <- r$subtax() #r$dat()
       
       #If taxa names begin with a number
       if(any(grepl("^[0-9].*$", taxa_names(Fdata)))) {
