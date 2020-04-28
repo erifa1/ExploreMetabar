@@ -170,8 +170,8 @@ tabvenn1 <- eventReactive(input$go1, {
       names(TABf)[1] = names(TF)[j]
     }
     
-    if(!is.null(refseq(data, errorIfNULL=FALSE))){
-      refseq1 <- as.data.frame(refseq(data)); names(refseq1)="seq"
+    if(!is.null(refseq(r$data16S(), errorIfNULL=FALSE))){
+      refseq1 <- as.data.frame(refseq(r$data16S())); names(refseq1)="seq"
     }else{print('No Sequences ...')}
     
     if(exists("refseq1")){
