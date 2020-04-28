@@ -219,6 +219,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   #SUBSET on taxonomy with ASV TABLE.
   asvselect <- reactive({
     req(merge1())
+
     select <- merge1()[input$otable1_rows_all, 1]
     return(select)
     # select
@@ -274,14 +275,18 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   r$dat <- reactive(
     dat()
   )
+  
+  # Chosen rank to glom object
   r$RankGlom <- reactive(
     input$RankGlom
   )
   
+  # ASV corresponding to chosen taxa 
   r$asvselect <- reactive(
     asvselect()
   )
   
+  # glom + norm + taxa filtered.
   r$subtax <- reactive(
     subtax()
   )

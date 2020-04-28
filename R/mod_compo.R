@@ -56,6 +56,7 @@ mod_compo_ui <- function(id){
 #' @keywords internal
 #' @import plotly 
 #' @importFrom microbiome aggregate_top_taxa
+#' @importFrom reshape2 melt
     
 mod_compo_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -76,17 +77,20 @@ mod_compo_server <- function(input, output, session, r = r){
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
       Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)  
       Fdata <- prune_taxa(r$asvselect(), Fdata)
+  
+      print("top")
       psobj.top <- aggregate_top_taxa(Fdata, input$RankCompo, top = 10)
       
+      print("get data")
       sdata = as.data.frame(sample_data(psobj.top))
       sdata$sample.id = sample_names(psobj.top)
       otable = as.data.frame(otu_table(psobj.top))
       row.names(otable) = tax_table(psobj.top)[,input$RankCompo]
       
-      #
+      print("melt data")
       dat= as.data.frame(t(otable))
       dat <- cbind.data.frame(sdata, dat)
-      meltdat = data.table::melt(dat, id.vars=1:ncol(sdata))
+      meltdat = reshape2::melt(dat, id.vars=1:ncol(sdata))
       tt=levels(meltdat$variable)
       meltdat$variable = factor(meltdat$variable, levels= c("Other", tt[tt!="Other"]))
       

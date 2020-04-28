@@ -18,6 +18,7 @@ app_ui <- function() {
                       menuItem("Beta", tabName = "tab_beta", icon = icon("chart-bar")),
                       menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("microscope")),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
+                      menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
                       menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )
                   ),
@@ -43,7 +44,10 @@ app_ui <- function() {
                               mod_taxaboxplot_ui("taxaboxplot_ui_1")
                       ),
                       tabItem(tabName = "tab_diff",
-                                 mod_diffanalysis_ui("diffanalysis_ui_1")
+                              mod_diffanalysis_ui("diffanalysis_ui_1")
+                      ),
+                      tabItem(tabName = "tab_asvenn",
+                              mod_asvenn_ui("asvenn_ui_1")
                       ),
                       tabItem(tabName = "tab_diffexplore",
                               mod_diffexplore_ui("diffexplore_ui_1")
