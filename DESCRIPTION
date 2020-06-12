@@ -45,7 +45,7 @@ Remotes:
     bioc::3.10/microbiome,
     bioc::3.10/Biobase,
     github::mikelove/DESeq2
-    github::jchiquet/PLNmodels
+    jchiquet/PLNmodels
 RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0),
