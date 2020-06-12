@@ -36,7 +36,7 @@ mod_taxaboxplot_ui <- function(id){
       ),
       
       box(
-      h3("Clic on feature below to generate boxplot:"),
+      h2("Click on feature below to generate boxplot:"),
       dataTableOutput(ns("pvalout1")),
       title = "Features:", width = 12, status = "primary", solidHeader = TRUE
       ),
@@ -44,11 +44,10 @@ mod_taxaboxplot_ui <- function(id){
           title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
           ),
       # verbatimTextOutput(ns("sids2")),
-      box(verbatimTextOutput(ns("wilcoxprint")),
-          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE),
-      
       box(dataTableOutput(ns("wilcoxDT")),
-          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)
+          title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE),
+      box(verbatimTextOutput(ns("wilcoxprint")),
+          title = "Raw Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE)
     )
     
   )
@@ -202,7 +201,7 @@ output$wilcoxprint <- renderPrint({
   LL = statsBP1()
   print(LL$select1)
   print(LL$res)
-  print(names(as.data.frame(LL$res$p.value)))
+  # print(names(as.data.frame(LL$res$p.value)))
   })
 
 output$wilcoxDT <- renderDataTable({

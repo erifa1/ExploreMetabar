@@ -20,6 +20,10 @@ mod_compo_ui <- function(id){
     fluidPage(
       h1("Community composition"),
       
+      infoBox("", 
+              "Use phyloseq object without taxa merging step.", 
+              icon = icon("info-circle"), fill=TRUE, width = 10),
+      
       box(
         selectInput(
           ns("RankCompo"),
@@ -38,13 +42,16 @@ mod_compo_ui <- function(id){
           label = "Select variable for changing X axis tick labels and color categories: ",
           choices = ""
         ),
+        numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle")),
         title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
       box(plotlyOutput(ns("compo2")),
           title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),
       box(plotlyOutput(ns("compo1")),
-          title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE)
+          title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE),
+      box(verbatimTextOutput(ns("totalsum1")),
+          title = "Total sum per samples:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE)
   )
   )
 }
@@ -73,13 +80,19 @@ mod_compo_server <- function(input, output, session, r = r){
   
   compo <- eventReactive(input$go1, {
     print("compo")
+    print(r$rowselect())
+    print(r$data16S())
+    print(r$asvselect())
     withProgress({
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
-      Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)  
-      Fdata <- prune_taxa(r$asvselect(), Fdata)
-  
+      Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
+      if( r$RankGlom() == "ASV"){
+        Fdata <- prune_taxa(r$asvselect(), Fdata)
+      }
+      
+      
       print("top")
-      psobj.top <- aggregate_top_taxa(Fdata, input$RankCompo, top = 10)
+      psobj.top <- aggregate_top_taxa(Fdata, input$RankCompo, top = input$topTax)
       
       print("get data")
       sdata = as.data.frame(sample_data(psobj.top))
@@ -159,7 +172,16 @@ mod_compo_server <- function(input, output, session, r = r){
     LL <- compo()
     LL$p2
   })
-  
+
+  output$totalsum1 <- renderPrint({
+    Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
+    Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
+    if( r$RankGlom() == "ASV"){
+      Fdata <- prune_taxa(r$asvselect(), Fdata)
+    }
+    
+    print(sample_sums(Fdata))
+  })
   
   
 }

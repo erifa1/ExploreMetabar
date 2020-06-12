@@ -13,6 +13,11 @@ mod_beta_ui <- function(id){
   tagList(
     fluidPage(
       h1("Beta diversity analysis"),
+      
+      infoBox("", 
+              "Use phyloseq object without taxa merging step.", 
+              icon = icon("info-circle"), fill=TRUE, width = 10),
+      
       box(
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =
@@ -75,8 +80,10 @@ mod_beta_server <- function(input, output, session, r = r){
   Fdata <- reactive( {
     print("Beta")
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
-      Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata) 
-      Fdata <- prune_taxa(r$asvselect(), Fdata)
+      Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
+      if(r$RankGlom() == "ASV"){
+        Fdata <- prune_taxa(r$asvselect(), Fdata)
+      }
       print(Fdata)
       Fdata
   })

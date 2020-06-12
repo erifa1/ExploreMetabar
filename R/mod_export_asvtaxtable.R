@@ -19,8 +19,9 @@ mod_export_asvtaxtable_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
+      h1("Check/filter final datas:"),
       box(
-        h3("Glom and normalized object will be used for next modules"),
+        h2("Glom and normalized object will be used for next modules"),
         selectInput(
           ns("RankGlom"),
           label = "Select rank to glom : ",
@@ -38,7 +39,8 @@ mod_export_asvtaxtable_ui <- function(id){
             `VST` = "VST norm."
           ), selected = "TSS norm."
         ),
-        numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 0, max = NA),
+        numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
+        numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
         title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
       
@@ -48,7 +50,7 @@ mod_export_asvtaxtable_ui <- function(id){
         verbatimTextOutput(ns("print1")),
         h3("Glom object:"),
         verbatimTextOutput(ns("print2")),
-        h3("Subset on samples:"),
+        h3("Subset on sample / abundance / prevalence:"),
         verbatimTextOutput(ns("print3")),
         h3("Subset on taxonomy:"),
         verbatimTextOutput(ns("print4")),
@@ -118,9 +120,14 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
 
   subglom <- reactive({
     req(input$minAb, glom())
-    print("Subset object")
+    print("Subset object taxa on abundance and prevalence")
     Fdata <- prune_samples(sample_names(glom())[r$rowselect()], glom())
     Fdata <- prune_taxa(taxa_sums(Fdata) > input$minAb, Fdata)
+    
+    prevdf <- apply(X = otu_table(Fdata), MARGIN = ifelse(taxa_are_rows(Fdata), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
+    taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev)]
+    Fdata <- prune_taxa(taxToKeep1, Fdata)
+    
     Fdata
   })
   

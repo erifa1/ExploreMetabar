@@ -19,6 +19,11 @@ mod_alpha_ui <- function(id){
   tagList(
     fluidPage(
       h1("Alpha diversity analysis"),
+      
+      infoBox("", 
+              "Use phyloseq object without taxa merging step.", 
+              icon = icon("info-circle"), fill=TRUE, width = 10),
+      
       box(
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =
@@ -81,7 +86,9 @@ mod_alpha_server <- function(input, output, session, r = r){
     print(input$minAb)
     
     data <- prune_taxa(taxa_sums(r$subdata()) > input$minAb, r$subdata())
-    data <- prune_taxa(r$asvselect(), data)
+    if(r$RankGlom() == "ASV"){
+      data <- prune_taxa(r$asvselect(), data)
+    }
     print(data)
     
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
@@ -120,9 +127,9 @@ boxtab <- reactive(
     sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
     alphatab =  tibble::rownames_to_column(LL$alphatab)
     
-    # print(sdat)
-    # print(alphatab)
-    
+    print(head(sdat))
+    print(head(alphatab))
+    print("coucou")
     boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
     print(names(boxtab))
     if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }

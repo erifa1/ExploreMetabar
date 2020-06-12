@@ -35,7 +35,8 @@ Imports:
     shiny,
     taxa,
     agricolae,
-    DESeq2
+    DESeq2,
+    PLNmodels
 Remotes:
     bioc::3.10/rhdf5,
     bioc::3.10/biomformat,
@@ -44,6 +45,7 @@ Remotes:
     bioc::3.10/microbiome,
     bioc::3.10/Biobase,
     github::mikelove/DESeq2
+    github::jchiquet/PLNmodels
 RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0),
