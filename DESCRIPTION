@@ -44,7 +44,7 @@ Remotes:
     bioc::3.10/phyloseq,
     bioc::3.10/microbiome,
     bioc::3.10/Biobase,
-    github::mikelove/DESeq2
+    github::mikelove/DESeq2,
     jchiquet/PLNmodels
 RoxygenNote: 7.1.0
 Suggests: 
