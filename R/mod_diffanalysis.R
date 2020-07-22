@@ -237,7 +237,7 @@ print(choices2)
         eval(parse(text=fun))
         print("coucou")
         tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
-        
+        tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
         print(tmp)
         print(head(otu_table(tmp)))
         print("MGseqtophy")
@@ -299,9 +299,10 @@ print(choices2)
              wilcox_p_value = wilcox.test(abund_1, abund_2)$p.value)
       }
       
-      fun <- glue(" psobj <- tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+      fun <- glue(" psobj <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
-      
+      psobj <- prune_taxa(taxa_sums(psobj) >= 1, psobj)
+      psobj <- prune_samples(sample_sums(psobj) >=1, psobj)
       
       
       normf = function(x, tot=max(sample_sums(psobj))){ tot*x/sum(x) }
@@ -448,6 +449,9 @@ print(choices2)
         
         mtTab = mtcoderDA()
         mtList = mtTab[mtTab$wilcox_p_value <= input$Alpha1, "otu_id"]
+        if(all(is.na(mtList))){
+          mtList <- NULL
+        }
         print("mtList")
         print(head(mtList))
         
@@ -457,6 +461,7 @@ print(choices2)
         
         mgTab = mgSeqDA()
         mgList = row.names(mgTab[mgTab$adjPvalues <= input$Alpha1,])
+        
         
         TF = list(x1=deList, x2=mgList, x3=mtList)  
         names(TF) <- c("DESeq", "metagenomeSeq", "metacoder")
