@@ -1,5 +1,7 @@
 #' @import shiny
 #' @import rhdf5
+
+options(shiny.maxRequestSize = 30*1024^2)
 app_server <- function(input, output,session) {
   
   r <- reactiveValues()

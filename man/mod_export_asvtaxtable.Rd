@@ -2,12 +2,12 @@
 % Please edit documentation in R/mod_export_asvtaxtable.R
 \name{mod_export_asvtaxtable_ui}
 \alias{mod_export_asvtaxtable_ui}
-\alias{mod_export_asvtaxtable_server}
+\alias{merge_table}
 \title{mod_export_asvtaxtable_ui and mod_export_asvtaxtable_server}
 \usage{
 mod_export_asvtaxtable_ui(id)
 
-mod_export_asvtaxtable_server(input, output, session, r = r)
+merge_table(input, table)
 }
 \arguments{
 \item{id}{shiny id}

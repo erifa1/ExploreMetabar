@@ -138,7 +138,7 @@ print(choices2)
                  label = "Define pvalue threshold:",
                  min = 0, max = 1,
                  value = 0.05
-                 ) 
+                 )
   })
   
   
@@ -171,18 +171,20 @@ print(choices2)
       print("deseqtophy")
       fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
-      print("coucou")
+      print("prunetaxa")
       tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
-    
+      tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
       fun = glue ("deseq <- phyloseq_to_deseq2(tmp, ~ {input$Fact1})")
       eval(parse(text=fun))
-      print("coucou2")
-      
+      print(deseq)
       
       gm_mean = function(x, na.rm=TRUE){
         exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
       }
+      
+      print('geoMeans')
       geoMeans = apply(counts(deseq), 1, gm_mean)
+      print(geoMeans)
       deseq = estimateSizeFactors(deseq, geoMeans = geoMeans)
       print("deseq")
       deseq = DESeq(deseq, test="Wald", fitType="parametric")
