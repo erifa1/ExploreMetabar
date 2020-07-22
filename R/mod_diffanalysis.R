@@ -458,10 +458,15 @@ print(choices2)
         deTab = deseqDA()
         deTab = deTab[!is.na(deTab$padj),]
         deList = row.names(deTab[deTab$padj <= input$Alpha1,])
+        if(all(is.na(deList))){
+          deList <- NULL
+        }
         
         mgTab = mgSeqDA()
         mgList = row.names(mgTab[mgTab$adjPvalues <= input$Alpha1,])
-        
+        if(all(is.na(mgList))){
+          mgList <- NULL
+        }
         
         TF = list(x1=deList, x2=mgList, x3=mtList)  
         names(TF) <- c("DESeq", "metagenomeSeq", "metacoder")
