@@ -51,6 +51,7 @@ mod_diffanalysis_ui <- function(id){
                      # verbatimTextOutput(ns("mergePrint")),
                      box(
                      downloadButton(outputId = ns("merge_download"), label = "Download Table"),
+                     downloadButton(outputId = ns("fasta_download"), label = "Download FASTA"),
                      dataTableOutput(ns("mergeTab")),
                      title = "Aggregate table:", width = 12, status = "primary", solidHeader = TRUE),
                      
@@ -513,8 +514,12 @@ print(choices2)
         ssample <- as.matrix(sample_data(data.norm))
         ttax <- tax_table(data.norm)
         head(ttax)
+        
         seqs = NULL
-        try(seqs <- refseq(data.norm), silent = TRUE)
+        if(!is.null(refseq(data.norm, errorIfNULL=FALSE)) ){
+          seqs <- refseq(data.norm)
+        }
+        
         print("mean1")
         Gtab <- cbind(as.data.frame(ssample), t(otableNORM))
         MeanRelAbcond1 = NULL
@@ -542,27 +547,33 @@ print(choices2)
         TABf$Condition = factor(TABf$Condition,
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
-        print("Adding taxonomy...")
+        print("Adding taxonomy ans sequences...")
         # Debug
         # LL = list()
         # LL$TABf = TABf; LL$ttax =ttax[as.character(TABf[,1]),] ;  LL$seq = seqs[as.character(TABf[,1])]
         # save(LL, file = "~/Téléchargements/debug_explore.rdata")
         
         TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),]@.Data)
-        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, seqs[as.character(TABf[,1])])}
+        if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, sequences = seqs[as.character(TABf[,1])])}
         print("done")
+        
         
         LL = list()
         LL$TABf = TABf
         LL$ttax = ttax
+        LL$signifseqs = seqs[as.character(TABf[,1])]
         LL
       }, message = "Merging results...")
         
     })
     
-    # output$mergeList <- renderPrint({
-    #   mergeList()
-    # })
+
+    
+    
+    
+    
+    
+    
     
     output$mergeTab <- DT::renderDataTable({
       mergeList()$TABf
@@ -571,6 +582,16 @@ print(choices2)
     output$merge_download <- downloadHandler(
       filename = "aggregate_table.csv",
       content = function(file) {write.table(mergeList()$TABf, file, sep="\t", row.names=FALSE)}
+    )
+    
+    output$fasta_download <- downloadHandler(
+      filename = "signif_seqs.fasta",
+      content = function(file) {
+        req(mergeList())
+        if(!is.null(refseq(data1(), errorIfNULL=FALSE))){
+          writeXStringSet(mergeList()$signifseqs, file)
+        }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
+      }
     )
     
     
