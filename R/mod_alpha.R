@@ -71,7 +71,7 @@ mod_alpha_ui <- function(id){
 #' @importFrom DT datatable
 #' @import plotly
 #' @importFrom agricolae HSD.test
-    
+
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
   
@@ -154,21 +154,13 @@ output$plot2 <- renderPlotly({
    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
    anova_res1 <- aov( as.formula(form1), anova_data)
    outhsd <- HSD.test(anova_res1,input$Fact1)
-   
-   # cat("\nANOVA\n##########")
-   # print(form1)
-   # print(summary(anova_res1))
-   # cat("\nHSD.test groups\n##########")
-   # print(outhsd$groups[levels(anova_data[,input$Fact1]),])
-   # cat("\nStatistics\n##########")
-   # print(outhsd$means[levels(anova_data[,input$Fact1]),])
-   
+
    LL = list()
    LL$form1 = form1
    LL$aov1 = summary(anova_res1)
    LL$groups1 = outhsd$groups[levels(anova_data[,input$Fact1]),]
    LL$stats1 = outhsd$means[levels(anova_data[,input$Fact1]),]
-   
+
    LL
  })
 

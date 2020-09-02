@@ -1,5 +1,5 @@
 # Module UI
-  
+
 #' @title   mod_export_asvtaxtable_ui and mod_export_asvtaxtable_server
 #' @description  A shiny Module.
 #'
@@ -11,8 +11,8 @@
 #' @rdname mod_export_asvtaxtable
 #'
 #' @keywords internal
-#' @export 
-#' @importFrom shiny NS tagList 
+#' @export
+#' @importFrom shiny NS tagList
 #' @importFrom DT dataTableOutput
 
 mod_export_asvtaxtable_ui <- function(id){
@@ -43,7 +43,7 @@ mod_export_asvtaxtable_ui <- function(id){
         numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
         title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
       ),
-      
+
 
       box(
         h3("Raw object:"),
@@ -66,19 +66,20 @@ mod_export_asvtaxtable_ui <- function(id){
     )
   )
 }
-    
+
 # Module Server
-    
+
 #' @rdname mod_export_asvtaxtable
 #' @export
 #' @keywords internal
-#' @import dplyr 
+#' @import dplyr
 #' @import tibble
 #' @importFrom DT renderDataTable
 #' @importFrom DESeq2 varianceStabilizingTransformation
 #' @importFrom Biostrings writeXStringSet
 
-merge_table <- function(input, table){
+# Merge table function to export phyloseq object to single table with taxonomy, abundance and sequence
+merge_table <- function(input, table, table_raw){
   print("Merge tables")
   FNGdata <- table
   if(input$RankGlom=="ASV"){rank1 = "Species"}else{rank1 = input$RankGlom}
@@ -92,18 +93,18 @@ merge_table <- function(input, table){
     otu_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
-  
-  rawtaxasum1 <-  table %>%
+
+  rawtaxasum1 <-  table_raw %>%   ## here need raw counts 
     taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
   names(rawtaxasum1)[2] <- "RawAbundanceSum"
-  
+
   joinGlom <-
     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
     mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
-    dplyr::left_join(otable, by = "rowname") 
-  
+    dplyr::left_join(otable, by = "rowname")
+
   if(input$RankGlom=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
     print("add sequence to dataframe")
     showNotification("Sequences added to dataframe.", type="message", duration = 5)
@@ -112,7 +113,7 @@ merge_table <- function(input, table){
       as.data.frame %>%
       tibble::rownames_to_column() %>%
       rename(sequences = x)
-    
+
     joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
       dplyr::rename(asvname = rowname)
     FTAB = as.data.frame(joinGlom2)
@@ -129,7 +130,7 @@ merge_table <- function(input, table){
 
 mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   ns <- session$ns
-  
+
   output$print1 <- renderPrint({
     r$data16S()
   })
@@ -144,24 +145,24 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     if (is.null(r$data16S()))
       return(NULL)
     Fdata <- r$data16S()
-    Fdata@phy_tree <- NULL # to improve speed remove TREE 
+    Fdata@phy_tree <- NULL # to improve speed remove TREE
     # print(head(otu_table(Fdata)))
     # Glom
     print("Glom object")
     withProgress({
-      
+
       if(input$RankGlom != "ASV"){
         FGdata <- tax_glom(Fdata, input$RankGlom)
-        # FGotab <- otu_table(FGdata); 
+        # FGotab <- otu_table(FGdata);
         FGnames <- tax_table(FGdata)[,input$RankGlom]
         nnames <- paste(substr(FGnames, 1, 50), taxa_names(FGdata), sep="_")
         taxa_names(FGdata) <- nnames
       }else{FGdata <- Fdata}
       FGdata
     }, message = "Glom step on global table, please wait...")
-    
+
   })
-  
+
   output$print2 <- renderPrint({
     print(glom())
     # r$rowselect()
@@ -172,19 +173,19 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     print("Subset object taxa on abundance and prevalence")
     Fdata <- prune_samples(sample_names(glom())[r$rowselect()], glom())
     Fdata <- prune_taxa(taxa_sums(Fdata) > input$minAb, Fdata)
-    
+
     prevdf <- apply(X = otu_table(Fdata), MARGIN = ifelse(taxa_are_rows(Fdata), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
     taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev)]
     Fdata <- prune_taxa(taxToKeep1, Fdata)
-    
+
     Fdata
   })
-  
+
   output$print3 <- renderPrint({
     subglom()
   })
 
-  
+
   dat <- reactive({
     print("normalize")
     if (is.null(r$data16S()))
@@ -233,18 +234,18 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       otu_table() %>%
       as.data.frame(stringsAsFactors = FALSE) %>%
       tibble::rownames_to_column()
-    
+
     rawtaxasum1 <-  subglom() %>%
       taxa_sums() %>%
       as.data.frame %>%
       tibble::rownames_to_column()
     names(rawtaxasum1)[2] <- "RawAbundanceSum"
-    
+
     joinGlom <-
       dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
       mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
-      dplyr::left_join(otable, by = "rowname") 
-    
+      dplyr::left_join(otable, by = "rowname")
+
     if(input$RankGlom=="ASV" & !is.null(refseq(dat(), errorIfNULL=FALSE)) ){
       print("add sequence to dataframe")
       showNotification("Sequences added to dataframe.", type="message", duration = 5)
@@ -253,7 +254,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
         as.data.frame %>%
         tibble::rownames_to_column() %>%
         rename(sequences = x)
-        
+
       joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
         dplyr::rename(asvname = rowname)
       FTAB = as.data.frame(joinGlom2)
@@ -263,7 +264,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       # print(str(as.data.frame(as.matrix(ttable))))
       FTAB = as.data.frame(joinGlom)
     }
-    
+
     FTAB
 
   })
@@ -271,7 +272,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   output$otable1 <- DT::renderDataTable({
     merge1()
   }, filter="top", options = list(scrollX = TRUE))
-  
+
   #SUBSET on taxonomy with ASV TABLE.
   asvselect <- reactive({
     req(merge1())
@@ -280,23 +281,23 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
     return(select)
     # select
   })
-  
+
   subtax <- reactive({
     req(asvselect(), dat())
     Fdata <- prune_taxa(asvselect(), dat())
     Fdata
   })
 
-  
+
   output$print4 <- renderPrint({
     print(subtax())
   })
-  
+
 
   output$otable_download <- downloadHandler(
     filename = "asv_taxtable.csv",
     content = function(file) {
-        write.table(merge_table(input,subtax()), file, sep="\t", row.names=FALSE)
+        write.table(merge1(), file, sep="\t", row.names=FALSE)
     }
   )
 
@@ -309,7 +310,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
     }
   )
-  
+
   output$rdata_download <- downloadHandler(
     filename = "robject.rdata",
     content = function(file) {
@@ -318,41 +319,40 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
         save(data, file = file)
     }
   )
-  
-  
-  
+
+
+
   #Saving variable for other modules.
   # Object only glom
   r$subglom <- reactive(
     subglom()
   )
-  
+
   # Object glom + norm
   r$dat <- reactive(
     dat()
   )
-  
+
   # Chosen rank to glom object
   r$RankGlom <- reactive(
     input$RankGlom
   )
-  
-  # ASV corresponding to chosen taxa 
+
+  # ASV corresponding to chosen taxa
   r$asvselect <- reactive(
     asvselect()
   )
-  
+
   # glom + norm + taxa filtered.
   r$subtax <- reactive(
     subtax()
   )
-  
-  
+
+
 }
-    
+
 ## To be copied in the UI
 # mod_export_asvtaxtable_ui("export_asvtaxtable_ui_1")
-    
+
 ## To be copied in the server
 # callModule(mod_export_asvtaxtable_server, "export_asvtaxtable_ui_1")
- 
