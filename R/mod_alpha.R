@@ -18,8 +18,6 @@ mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("Alpha diversity analysis"),
-      
       infoBox("", 
               "Use phyloseq object without taxa merging step.", 
               icon = icon("info-circle"), fill=TRUE, width = 10),
@@ -37,15 +35,17 @@ mod_alpha_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
-        actionButton(ns("go1"), "Run Alpha Diversity", icon = icon("play-circle")),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        actionButton(ns("go1"), "Run Alpha Diversity", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       
       # verbatimTextOutput(ns("print1")),
 
       box(
         dataTableOutput(ns("alphaout")),
-        downloadButton(outputId = ns("alpha_download"), label = "Download Table", icon = icon("download")),
+        downloadButton(outputId = ns("alpha_download"), label = "Download Table", icon = icon("download"), class = "butt",
+                       style="background-color: #3b9ef5"),
         width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = TRUE
       ),
       box(

@@ -19,12 +19,11 @@ mod_export_asvtaxtable_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("Check/filter final datas:"),
       box(
-        h2("Glom and normalized object will be used for next modules"),
+        h2(icon("diagnoses"), "Merged and normalized object will be used for next modules"),
         selectInput(
           ns("RankGlom"),
-          label = "Select rank to glom : ",
+          label = "Select rank to merge phyloseq object with : ",
           choices = "",
           selected = 1
         ),
@@ -41,7 +40,7 @@ mod_export_asvtaxtable_ui <- function(id){
         ),
         numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
         numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        title = "Settings:", width = 12, solidHeader = TRUE, status = "warning"
       ),
 
 
@@ -59,7 +58,7 @@ mod_export_asvtaxtable_ui <- function(id){
         downloadButton(outputId = ns("otable_download"), label = "Download Table"),
         downloadButton(outputId = ns("refseq_download"), label = "Download FASTA sequences"),
         downloadButton(outputId = ns("rdata_download"), label = "Download transformed Phyloseq object"),
-        h3("Use table filters to subset phyloseq object according to taxonomy, surbset object will be used for next modules"),
+        h3(icon("diagnoses"),"Use table filters to subset phyloseq object according to taxonomy, surbset object will be used for next modules"),
         dataTableOutput(ns("otable1")),
         title = "ASV table", width = 12, status = "primary", solidHeader = TRUE
       )

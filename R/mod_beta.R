@@ -12,7 +12,6 @@ mod_beta_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("Beta diversity analysis"),
       
       infoBox("", 
               "Use phyloseq object without taxa merging step.", 
@@ -41,13 +40,14 @@ mod_beta_ui <- function(id){
           label = "Select main factor to test + color plot: ",
           choices = ""
         ),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       box(plotlyOutput(ns("plot1")),
           title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE),
       box(
       uiOutput(ns("factor2")),
-      actionButton(ns("go1"), "Update Test"),
+      actionButton(ns("go1"), "Update Test",
+                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
       verbatimTextOutput(ns("testprint")), 
       title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE)
     )

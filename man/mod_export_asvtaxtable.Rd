@@ -7,7 +7,7 @@
 \usage{
 mod_export_asvtaxtable_ui(id)
 
-merge_table(input, table)
+merge_table(input, table, table_raw)
 }
 \arguments{
 \item{id}{shiny id}

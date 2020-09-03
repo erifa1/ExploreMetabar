@@ -20,9 +20,9 @@ mod_metadata_subset_ui <- function(id){
   ns <- NS(id)
   
   tagList(
-    box(width = NULL, status = "primary", solidHeader = TRUE,
-          tabsetPanel(
-            tabPanel("Input/Subset",
+    # box(width = NULL, solidHeader = TRUE, status = "warning",
+    #       tabsetPanel(
+    #         tabPanel("Input/Subset",
                      fluidPage(
                        box(
                          tags$div(
@@ -32,23 +32,22 @@ mod_metadata_subset_ui <- function(id){
                                      placeholder = "data.RData")
                          ),
                          verbatimTextOutput(ns("print1")),
-                         title = "Input phyloseq object:", width = 12, status = "primary", solidHeader = TRUE
+                         title = "Input phyloseq object:", width = 12, status = "warning", solidHeader = TRUE
                        ),
                        
                        box(
-                         fluidPage(h3("Use table filters to subset phyloseq object, surbset object will be used for next modules")),
+                         fluidPage( h3(icon("diagnoses"), "Use table filters to subset phyloseq object, subset object will be used for next modules")),
                          dataTableOutput(ns("sdata3")),
-                         solidHeader = TRUE, status = "primary", title ="Metadata table:", width = 12
+                         solidHeader = TRUE, status = "primary", title ="Metadata table:", width = 12, color = "red"
                        ),
                        box(verbatimTextOutput(ns("sids")), 
                            collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE, status = "primary", title ="Selected samples names", width=12
                            )
                     )
-                  )#,
-            #tabPanel("Plot Metadata")
-          
-        )
-    )
+    #               )
+    #       
+    #     )
+    # )
   )
 }
     

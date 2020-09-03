@@ -19,7 +19,6 @@ mod_taxaboxplot_ui <- function(id){
   tagList(
     
     fluidPage(
-      h1("Boxplots"),
       
       infoBox("Reminder :", 
               "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module", 
@@ -31,16 +30,17 @@ mod_taxaboxplot_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
-        actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle")),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       
       box(
-      h2("Click on feature below to generate boxplot:"),
+      h2(icon("diagnoses"),"Click on feature below to generate boxplot:"),
       dataTableOutput(ns("pvalout1")),
-      title = "Features:", width = 12, status = "primary", solidHeader = TRUE
+      title = "Features:", width = 12, status = "warning", solidHeader = TRUE
       ),
-      box(plotlyOutput(ns("boxplot1")), height=500,
+      box(plotlyOutput(ns("boxplot1")), #, height=500
           title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
           ),
       # verbatimTextOutput(ns("sids2")),
