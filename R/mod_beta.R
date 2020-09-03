@@ -19,6 +19,12 @@ mod_beta_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
       
       box(
+        radioButtons(ns("norm1"), "Choose TSS normalization:", inline = TRUE,
+                     choices =
+                       list("TSS (recommended)", "raw"),
+                     selected = c("TSS (recommended)")
+        ),
+        
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =
                        list("bray", "jaccard", "unifrac", "wunifrac"),
@@ -85,7 +91,23 @@ mod_beta_server <- function(input, output, session, r = r){
         Fdata <- prune_taxa(r$asvselect(), Fdata)
       }
       print(Fdata)
+      
+      if(input$norm1 != "raw"){
+        print("PROPORTIONS")
+        normf = function(x){ x/sum(x) }
+        Fdata <- transform_sample_counts(Fdata, normf)
+      }
+      
       Fdata
+  })
+  
+  depth1 <- reactive( {
+    Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
+    Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
+    if(r$RankGlom() == "ASV"){
+      Fdata <- prune_taxa(r$asvselect(), Fdata)
+    }
+    depth1 = sample_sums(Fdata)
   })
   
   
@@ -119,7 +141,7 @@ mod_beta_server <- function(input, output, session, r = r){
     data = Fdata()
     otable = otu_table(data)
     mdata = data.frame(sample_data(data))
-    mdata$Depth <- sample_sums(data)
+    mdata$Depth <- depth1()
     
     if(any(input$metrics == c("bray", "jaccard")) ){
       fun = glue::glue("{input$metrics}.dist <<- vegdist(t(otable), distance={input$metrics})")
