@@ -13,7 +13,7 @@ Imports:
     biomformat,
     dplyr,
     ggplot2,
-    metagenomeSeq,  
+    metagenomeSeq,
     metacoder,
     phyloseq,
     plotly,
@@ -36,7 +36,8 @@ Imports:
     taxa,
     agricolae,
     DESeq2,
-    PLNmodels
+    PLNmodels,
+    pkgload
 Remotes:
     bioc::3.10/rhdf5,
     bioc::3.10/biomformat,
