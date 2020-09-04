@@ -13,7 +13,9 @@ mod_asvenn_ui <- function(id){
     
     fluidPage(
       
-      h1("Shared taxa between conditions"),
+      infoBox("", 
+              "Select conditions to highlight shared taxa", 
+              icon = icon("info-circle"), fill=TRUE, width = 10),
       box(
         selectInput(
           ns("Fact1"),
@@ -22,8 +24,9 @@ mod_asvenn_ui <- function(id){
         ),
         uiOutput(ns("lvls1")),
         numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 1, max = NA),
-        actionButton(ns("go1"), "Run/Update ASVenn", icon = icon("play-circle")),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        actionButton(ns("go1"), "Run/Update ASVenn", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       box(
         plotOutput(ns("venn1"), height = "800px"),

@@ -7,6 +7,8 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+    XML,
+    metacoder,
     RCurl,
     Rcpp,
     rhdf5,
@@ -14,7 +16,6 @@ Imports:
     dplyr,
     ggplot2,
     metagenomeSeq,
-    metacoder,
     phyloseq,
     plotly,
     purrr,
@@ -39,6 +40,7 @@ Imports:
     PLNmodels,
     pkgload
 Remotes:
+    github::omegahat/XML,
     bioc::3.10/rhdf5,
     bioc::3.10/biomformat,
     bioc::3.10/metagenomeSeq,
@@ -46,9 +48,10 @@ Remotes:
     bioc::3.10/microbiome,
     bioc::3.10/Biobase,
     github::mikelove/DESeq2,
-    jchiquet/PLNmodels
+    github::jchiquet/PLNmodels,
+    github::grunwaldlab/metacoder
 RoxygenNote: 7.1.1
-Suggests: 
+Suggests:
     testthat (>= 2.1.0),
     knitr,
     rmarkdown

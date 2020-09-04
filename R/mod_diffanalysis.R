@@ -17,28 +17,33 @@ mod_diffanalysis_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      uiOutput(ns("factor1")),
-      fluidRow(column(3, uiOutput(ns("cond1")) ),
-               column(3, uiOutput(ns("cond2")) )
+      box(title = "Settings:", width = 6, status = "warning", solidHeader = TRUE,
+        uiOutput(ns("factor1")),
+        fluidRow(column(3, uiOutput(ns("cond1")) ),
+                 column(3, uiOutput(ns("cond2")) )
+        ),
+        uiOutput(ns("alpha1"))
       ),
-      uiOutput(ns("alpha1")),
       
-      box(width = NULL,
+      box(title = "Differential analysis:", width = 12, status = "primary", solidHeader = TRUE,
           tabsetPanel(
             tabPanel("DESeq2",
                      verbatimTextOutput(ns("print1")),
-                     actionButton(ns("go1"), "Run DESeq2", icon = icon("play-circle")),
+                     actionButton(ns("go1"), "Run DESeq2", icon = icon("play-circle"),
+                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
                      dataTableOutput(ns("deseqTab"))
 
                      ),
             tabPanel("MetaGenomeSeq",
                      h1("Run MGseq with same settings:"),
-                     actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle")),
+                     actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle"),
+                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
                      dataTableOutput(ns("MGseqTab"))
             ),
             tabPanel("MetaCoder",
                      h1("Run Metacoder with same settings:"),
-                     actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle")),
+                     actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle"),
+                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
                      dataTableOutput(ns("mtcoderTab"))
             ),
             # tabPanel("Wilcox non parametric test",
@@ -63,7 +68,7 @@ mod_diffanalysis_ui <- function(id){
                      sliderInput(ns("Nfeat"), "Number of features to plot:",
                                  min = 0, max = 100, value = 50
                      ),
-                     plotlyOutput(ns("barplot1"), height = "1000px"),
+                     plotlyOutput(ns("barplot1")), #, height = "1000px"
                      title = "Plotting features:", width = 12, status = "primary", solidHeader = TRUE)
             )
             

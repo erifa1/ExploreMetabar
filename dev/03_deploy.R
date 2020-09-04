@@ -20,3 +20,17 @@ golem::add_dockerfile_shinyproxy()
 
 ## 5.2 If you want to deploy to Heroku
 golem::add_dockerfile_heroku()
+
+
+# shinyappIO
+
+options(repos = BiocManager::repositories())
+options()$repos
+
+## list all dependencies
+rsconnect::appDependencies()
+
+### installed package need to be same as deployed!!!
+
+rsconnect::deployApp()
+

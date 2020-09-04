@@ -18,7 +18,6 @@ mod_compo_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      h1("Community composition"),
       
       infoBox("", 
               "Use phyloseq object without taxa merging step.", 
@@ -43,8 +42,9 @@ mod_compo_ui <- function(id){
           choices = ""
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
-        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle")),
-        title = "Settings:", width = 12, status = "primary", solidHeader = TRUE
+        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       box(plotlyOutput(ns("compo2")),
           title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),

@@ -1,21 +1,25 @@
 #' @import shiny
 #' @import shinydashboard
+#' @import shinyWidgets
 app_ui <- function() {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
     # List the first level UI elements here 
     dashboardPage(skin = "red",
-                  dashboardHeader(title = "Explore Metabar"),
+                  dashboardHeader(title = "Explore Metabar",
+                                  tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/ranomaly")), #, target="_blank"
+                                  tags$li(class="dropdown",tags$a(icon("clinic-medical"),href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues"))
+                                  ),
                   
                   dashboardSidebar(
                     sidebarMenu(
                       # menuItem("Transform phyloseq object", tabName = "Transform", icon = icon("leaf")),
                       menuItem("Metadatas/Subset", tabName = "input_select", icon = icon("diagnoses")),
                       menuItem("Check ASVtable", tabName = "export_asvtable", icon = icon("table")),
-                      menuItem("Compo", tabName = "tab_compo", icon = icon("chart-pie")),
-                      menuItem("Alpha", tabName = "tab_alpha", icon = icon("chart-bar")),
-                      menuItem("Beta", tabName = "tab_beta", icon = icon("chart-bar")),
+                      menuItem("Community Composition", tabName = "tab_compo", icon = icon("chart-pie")),
+                      menuItem("Alpha diversity", tabName = "tab_alpha", icon = icon("chart-bar")),
+                      menuItem("Beta diversity ", tabName = "tab_beta", icon = icon("chart-bar")),
                       menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("microscope")),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope"))#,
