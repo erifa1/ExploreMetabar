@@ -22,6 +22,7 @@ Imports:
     rhdf5,
     shiny,
     shinydashboard,
+    shinyWidgets,
     tibble,
     tidyr,
     Biobase,
@@ -48,7 +49,8 @@ Remotes:
     bioc::3.10/Biobase,
     github::mikelove/DESeq2,
     github::jchiquet/PLNmodels,
-    github::grunwaldlab/metacoder
+    github::grunwaldlab/metacoder,
+    github::dreamRs/shinyWidgets
 RoxygenNote: 7.1.1
 Suggests: 
     testthat (>= 2.1.0),

@@ -39,8 +39,6 @@ mod_alpha_ui <- function(id){
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
-      
-      # verbatimTextOutput(ns("print1")),
 
       box(
         dataTableOutput(ns("alphaout")),
@@ -115,10 +113,6 @@ mod_alpha_server <- function(input, output, session, r = r){
       write.table(LL$alphatab, file, sep="\t", col.names=NA)}
   )
   
-  output$print1 <- renderPrint({
-    LL = alpha1()
-    LL$data
-  })
  
 boxtab <- reactive(
   {
