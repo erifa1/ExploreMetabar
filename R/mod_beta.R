@@ -51,9 +51,10 @@ mod_beta_ui <- function(id){
         uiOutput(ns("factor2")),
         actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         h5('Permanova Adonis Test Result: '),
-        verbatimTextOutput(ns("adonistest")),
+        DT::dataTableOutput(ns('adonistest')),
+        #verbatimTextOutput(ns("adonistest")),
         h5('Pairwise Adonis Test Results: '),
-        verbatimTextOutput(ns("adonispairwisetest"))
+        DT::dataTableOutput(ns("adonispairwisetest"))
         )
     )
   )
@@ -161,28 +162,34 @@ mod_beta_server <- function(input, output, session, r = r){
       cov1 = paste(input$Fact2, collapse = " + ")
       form1 = glue::glue('{input$metrics}.dist ~ Depth + {cov1} + {input$Fact1}')
     }
-    
-    
-    #print(form1)
+
     res.adonis = adonis(as.formula(form1), data = mdata, permutations = 1000)
-    #print(res1)
     
     fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$Fact1], p.adjust.m = "fdr")')
-    print(fun)
     eval(parse(text=fun))
     
     return(list(res.adonis = res.adonis$aov.tab, res.pairwise = res.pairwise))
   })
   
   
-  output$adonistest <- renderPrint({
+  output$adonistest <- renderDataTable({
     betatest()$res.adonis
   })
   
+  
+  # output$adonistest <- renderPrint({
+  #   betatest()$res.adonis
+  # })
+  
 
-  output$adonispairwisetest <- renderPrint({
+  output$adonispairwisetest <- renderDataTable({
     betatest()$res.pairwise
   })
+  
+  
+  # output$adonispairwisetest <- renderPrint({
+  #   betatest()$res.pairwise
+  # })
   
  
 }
