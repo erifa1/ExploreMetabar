@@ -167,7 +167,7 @@ mod_beta_server <- function(input, output, session, r = r){
     res.adonis = adonis(as.formula(form1), data = mdata, permutations = 1000)
     #print(res1)
     
-    fun <- glue::glue('res.pairwise = pairwise.adonis({input$metrics}.dist, mdata[,input$Fact1], p.adjust.m = "fdr")')
+    fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$Fact1], p.adjust.m = "fdr")')
     print(fun)
     eval(parse(text=fun))
     
