@@ -35,6 +35,8 @@ mod_alpha_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
+        checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE), 
+        
         actionButton(ns("go1"), "Run Alpha Diversity", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
@@ -69,6 +71,7 @@ mod_alpha_ui <- function(id){
 #' @importFrom DT datatable
 #' @import plotly
 #' @importFrom agricolae HSD.test
+#' @importFrom gtools mixedsort
 
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -77,6 +80,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     updateSelectInput(session, "Fact1",
                       choices = r$data16S()@sam_data@names)
   })
+  
   
   alpha1 <- eventReactive(input$go1, {
     if(is.null(r$subdata())){return(NULL)}
@@ -113,7 +117,7 @@ mod_alpha_server <- function(input, output, session, r = r){
       write.table(LL$alphatab, file, sep="\t", col.names=NA)}
   )
   
- 
+
 boxtab <- reactive(
   {
     print("plotAlpha")
@@ -123,9 +127,17 @@ boxtab <- reactive(
     
     print(head(sdat))
     print(head(alphatab))
-    print("coucou")
     boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
     print(names(boxtab))
+    
+    print(input$checkbox1)
+
+    if(input$checkbox1){
+      print("ORDER factor")
+      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
+      eval(parse(text=fun))
+    }
+
     if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
     print(head(boxtab))
     

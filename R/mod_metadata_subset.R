@@ -67,9 +67,18 @@ mod_metadata_subset_server <- function(input, output, session, r = r){
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne) 
     } else {load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)}   #"./data-raw/robjects_600.Rdata"
-    if (class(ne$data) == "phyloseq")
+    
+    classes1 = sapply(ne, class)
+    obj = classes1[classes1 == "phyloseq"]
+    
+    fun = glue::glue("return(ne${names(obj)})")
       # ne$data@phy_tree <- NULL   # improve speed
-      return(ne$data)
+    eval(parse(text = fun))
+    
+    # print(ls())
+    # print(ne)
+    # print(ne$data)
+    # ne$data
   })
   
   sdat <- reactive({

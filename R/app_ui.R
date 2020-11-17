@@ -8,7 +8,7 @@ app_ui <- function() {
     # List the first level UI elements here 
     dashboardPage(skin = "red",
                   dashboardHeader(title = "Explore Metabar",
-                                  tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/ranomaly")), #, target="_blank"
+                                  tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/exploremetabar")), #, target="_blank"
                                   tags$li(class="dropdown",tags$a(icon("clinic-medical"),href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues"))
                                   ),
                   
