@@ -241,7 +241,6 @@ print(choices2)
         
         fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
         eval(parse(text=fun))
-        print("coucou")
         tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
         tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
         print(tmp)
@@ -285,9 +284,7 @@ print(choices2)
       }, filter="top", options = list(scrollX = TRUE))
     
     
-    
-    
-    # ### MEtacoder
+    ### MEtacoder
     mtcoderDA = eventReactive(input$go4, {
       
       withProgress({

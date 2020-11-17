@@ -38,7 +38,8 @@ Imports:
     taxa,
     agricolae,
     DESeq2,
-    PLNmodels
+    PLNmodels,
+    pkgload
 Remotes:
     github::omegahat/XML,
     bioc::3.10/rhdf5,
@@ -52,7 +53,7 @@ Remotes:
     github::grunwaldlab/metacoder,
     github::dreamRs/shinyWidgets
 RoxygenNote: 7.1.1
-Suggests: 
+Suggests:
     testthat (>= 2.1.0),
     knitr,
     rmarkdown

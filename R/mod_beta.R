@@ -8,6 +8,8 @@
 #' @noRd 
 #'
 #' @importFrom shiny NS tagList 
+#' @importFrom pairwiseAdonis pairwise.adonis
+
 mod_beta_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -45,11 +47,15 @@ mod_beta_ui <- function(id){
       box(plotlyOutput(ns("plot1")),
           title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE),
       box(
-      uiOutput(ns("factor2")),
-      actionButton(ns("go1"), "Update Test",
-                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-      verbatimTextOutput(ns("testprint")), 
-      title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE)
+        title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+        uiOutput(ns("factor2")),
+        actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        h5('Permanova Adonis Test Result: '),
+        DT::dataTableOutput(ns('adonistest')),
+        #verbatimTextOutput(ns("adonistest")),
+        h5('Pairwise Adonis Test Results: '),
+        DT::dataTableOutput(ns("adonispairwisetest"))
+        )
     )
   )
 }
@@ -145,11 +151,10 @@ mod_beta_server <- function(input, output, session, r = r){
     
     if(any(input$metrics == c("bray", "jaccard")) ){
       fun = glue::glue("{input$metrics}.dist <<- vegdist(t(otable), distance={input$metrics})")
-      eval(parse(text=fun))
     }else{
       fun = glue::glue("{input$metrics}.dist <<- phyloseq::distance(data, '{input$metrics}')")
-      eval(parse(text=fun))
     }
+    eval(parse(text=fun))
     
     if(is.null(input$Fact2)){
       form1 = glue::glue('{input$metrics}.dist ~ Depth + {input$Fact1}')
@@ -157,19 +162,34 @@ mod_beta_server <- function(input, output, session, r = r){
       cov1 = paste(input$Fact2, collapse = " + ")
       form1 = glue::glue('{input$metrics}.dist ~ Depth + {cov1} + {input$Fact1}')
     }
+
+    res.adonis = adonis(as.formula(form1), data = mdata, permutations = 1000)
     
+    fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$Fact1], p.adjust.m = "fdr")')
+    eval(parse(text=fun))
     
-    print(form1)
-    res1 = adonis(as.formula(form1), data = mdata, permutations = 1000)
-    print(res1)
+    return(list(res.adonis = res.adonis$aov.tab, res.pairwise = res.pairwise))
   })
   
   
-  output$testprint <- renderPrint({
-    # print(input$Fact2)
-    # print(str(betatest()))
-    betatest()
+  output$adonistest <- renderDataTable({
+    betatest()$res.adonis
   })
+  
+  
+  # output$adonistest <- renderPrint({
+  #   betatest()$res.adonis
+  # })
+  
+
+  output$adonispairwisetest <- renderDataTable({
+    betatest()$res.pairwise
+  })
+  
+  
+  # output$adonispairwisetest <- renderPrint({
+  #   betatest()$res.pairwise
+  # })
   
  
 }
