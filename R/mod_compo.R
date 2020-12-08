@@ -1,5 +1,5 @@
 # Module UI
-  
+
 #' @title   mod_compo_ui and mod_compo_server
 #' @description  A shiny Module.
 #'
@@ -11,31 +11,31 @@
 #' @rdname mod_compo
 #'
 #' @keywords internal
-#' @export 
+#' @export
 #' @importFrom shiny NS tagList
-#' @import plotly 
+#' @import plotly
 mod_compo_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      
-      infoBox("", 
-              "Use phyloseq object without taxa merging step.", 
+
+      infoBox("",
+              "Use phyloseq object without taxa merging step.",
               icon = icon("info-circle"), fill=TRUE, width = 10),
-      
+
       box(
         selectInput(
           ns("RankCompo"),
           label = "Select rank to plot: ",
           choices = ""
         ),
-        
+
         selectInput(
           ns("Ord1"),
           label = "Select variable to order sample (X axis): ",
           choices = ""
         ),
-        
+
         selectInput(
           ns("Fact1"),
           label = "Select variable for changing X axis tick labels and color categories: ",
@@ -55,20 +55,20 @@ mod_compo_ui <- function(id){
   )
   )
 }
-    
+
 # Module Server
-    
+
 #' @rdname mod_compo
 #' @export
 #' @keywords internal
-#' @import plotly 
+#' @import plotly
 #' @importFrom microbiome aggregate_top_taxa
 #' @importFrom reshape2 melt
 #' @importFrom ranomaly bars_fun
-    
+
 mod_compo_server <- function(input, output, session, r = r){
   ns <- session$ns
-  
+
   observe({
     updateSelectInput(session, "RankCompo",
                       choices = rank_names(r$data16S()),
@@ -78,10 +78,10 @@ mod_compo_server <- function(input, output, session, r = r){
     updateSelectInput(session, "Ord1",
                       choices = r$data16S()@sam_data@names)
   })
-  
+
   compo <- eventReactive(input$go1, {
     LL=list()
-    
+
     print("compo")
     print(r$rowselect())
     print(r$data16S())
@@ -92,21 +92,21 @@ mod_compo_server <- function(input, output, session, r = r){
       if( r$RankGlom() == "ASV"){
         Fdata <- prune_taxa(r$asvselect(), Fdata)
       }
-      
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE)
-      
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE)
-      
+
+      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL)
+
+      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL)
+
       LL
     }, message="Processing, please wait...")
-    
+
   })
-  
+
   output$compo1 <- renderPlotly({
     LL <- compo()
     LL$p1
   })
-  
+
   output$compo2 <- renderPlotly({
     LL <- compo()
     LL$p2
@@ -118,21 +118,20 @@ mod_compo_server <- function(input, output, session, r = r){
     if( r$RankGlom() == "ASV"){
       Fdata <- prune_taxa(r$asvselect(), Fdata)
     }
-    
+
     print(sample_sums(Fdata))
   })
-  
-  
+
+
 }
 
 # to improve
-# order bars according to factors from metadata table. to improve, need ,to color by factor with different label ticks 
-# 
+# order bars according to factors from metadata table. to improve, need ,to color by factor with different label ticks
+#
 
-    
+
 ## To be copied in the UI
 # mod_compo_ui("compo_ui_1")
-    
+
 ## To be copied in the server
 # callModule(mod_compo_server, "compo_ui_1")
- 
