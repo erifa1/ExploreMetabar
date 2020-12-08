@@ -4,17 +4,17 @@
 #'
 #' @param id,input,output,session Internal parameters for {shiny}.
 #'
-#' @noRd 
+#' @noRd
 #'
-#' @importFrom shiny NS tagList 
+#' @importFrom shiny NS tagList
 mod_asvenn_ui <- function(id){
   ns <- NS(id)
   tagList(
-    
+
     fluidPage(
-      
-      infoBox("", 
-              "Select conditions to highlight shared taxa", 
+
+      infoBox("",
+              "Select conditions to highlight shared taxa",
               icon = icon("info-circle"), fill=TRUE, width = 10),
       box(
         selectInput(
@@ -40,49 +40,49 @@ mod_asvenn_ui <- function(id){
     )
   )
 }
-    
+
 #' asvenn Server Function
 #'
-#' @noRd 
-#' 
+#' @noRd
+#'
 #' @importFrom futile.logger flog.threshold
 #' @importFrom grid grid.draw
 #' @importFrom grDevices rainbow
 #' @importFrom VennDiagram calculate.overlap
 #' @importFrom VennDiagram venn.diagram
 #' @importFrom ranomaly ASVenn_fun
-#' 
+#'
 
 mod_asvenn_server <- function(input, output, session, r=r){
   ns <- session$ns
- 
+
   observe({
     updateSelectInput(session, "Fact1",
                       choices = r$data16S()@sam_data@names)
   })
-  
+
 # output$lvls1 <- reactive({
 #   level1 <- na.omit(levels(as.factor(sample_data(data)[,input$Fact1]@.Data[[1]])) )
 #   level1
 # })
-  
+
 output$lvls1 = renderUI({
   req(input$Fact1)
   level1 <- na.omit(levels(as.factor(sample_data(r$data16S())[,input$Fact1]@.Data[[1]])) )
-  checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :", 
+  checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :",
                      choices = level1, inline = TRUE, selected = level1[1:3])
-  
+
 })
-  
+
 resVenn <- eventReactive(input$go1, {   #TF
   req(r$subglom(), r$asvselect())
-  
+
   data <- prune_taxa(taxa_sums(r$subglom()) > input$minAb, r$subglom())
   data <- prune_taxa(r$asvselect(), data)
   print(data)
-  
-  resVenn = ASVenn_fun(data = data, output = "./ASVenn/", rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE)
-  
+
+  resVenn = ASVenn_fun(data = data, output = NULL, rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE)
+
   resVenn
 })
 
@@ -94,7 +94,7 @@ output$venn1 <- renderPlot({
         return(NULL)
         }
 })
-  
+
 output$tabvenn1 <-DT::renderDataTable({
   resVenn()$TABf #tabvenn1()
 }, filter="top", options = list(scrollX = TRUE))
@@ -105,14 +105,13 @@ output$otable_download <- downloadHandler(
     write.table(tabvenn1(), file, sep="\t", row.names=FALSE)
   }
 )
-  
-  
-  
+
+
+
 }
-    
+
 ## To be copied in the UI
 # mod_asvenn_ui("asvenn_ui_1")
-    
+
 ## To be copied in the server
 # callModule(mod_asvenn_server, "asvenn_ui_1")
- 

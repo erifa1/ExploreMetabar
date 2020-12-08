@@ -20,7 +20,7 @@ repository with:
 
 ``` r
 install.packages("devtools")
-devtools::install_git("https://exploremetabar-private:D-tWuQTDEuy9pqdE7vro@forgemia.inra.fr/umrf/ExploreMetabar.git")
+devtools::install_git("https://forgemia.inra.fr/umrf/exploremetabar")
 ```
 
 ## To run Shiny app
@@ -29,6 +29,11 @@ devtools::install_git("https://exploremetabar-private:D-tWuQTDEuy9pqdE7vro@forge
 library(ExploreMetabar)
 ExploreMetabar::run_app()
 ```
+
+## On ShinyApps.io
+
+To test ExploreMetabar:
+https://erifa1.shinyapps.io/exploremetabar/
 
 <!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->
 

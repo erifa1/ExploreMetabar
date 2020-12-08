@@ -1,5 +1,5 @@
 # Deploy a Prod-Ready, Robust Shiny Application.
-# 
+#
 # 4. Test my package
 
 devtools::test()
@@ -27,10 +27,13 @@ golem::add_dockerfile_heroku()
 options(repos = BiocManager::repositories())
 options()$repos
 
+devtools::install_gitlab("umrf/ranomaly", host = "https://forgemia.inra.fr/", force = TRUE)
 ## list all dependencies
 rsconnect::appDependencies()
 
 ### installed package need to be same as deployed!!!
+#test appli
+rsconnect::deployApp(appName="test_xplrMeta")
 
-rsconnect::deployApp()
-
+# deploy master
+rsconnect::deployApp(appName="exploremetabar")
