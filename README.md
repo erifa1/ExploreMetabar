@@ -2,6 +2,7 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # ExploreMetabar
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4317188.svg)](https://doi.org/10.5281/zenodo.4317188)
 
 <!-- badges: start -->
 
