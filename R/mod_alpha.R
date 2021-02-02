@@ -26,7 +26,7 @@ mod_alpha_ui <- function(id){
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =
                        list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                            "InvSimpson", "Fisher"),
+                            "InvSimpson"),
                      selected = c("Shannon")
         ),
         numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 1, max = NA),
@@ -94,7 +94,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     print(data)
     
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                                                     "InvSimpson", "Fisher") )
+                                                     "InvSimpson") )
     row.names(alphatab) = sample_names(data)
       
     LL=list()
