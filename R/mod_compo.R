@@ -32,16 +32,17 @@ mod_compo_ui <- function(id){
 
         selectInput(
           ns("Ord1"),
-          label = "Select variable to order sample (X axis): ",
+          label = "Select variable to order/split samples (X axis): ",
           choices = ""
         ),
 
         selectInput(
           ns("Fact1"),
-          label = "Select variable for changing X axis tick labels and color categories: ",
+          label = "Select variable for changing X axis tick labels (for unsplitted plots):",
           choices = ""
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
+        checkboxInput(ns("checkbox1"), label = "Splitted plots", value = FALSE),
         actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
@@ -93,9 +94,9 @@ mod_compo_server <- function(input, output, session, r = r){
         Fdata <- prune_taxa(r$asvselect(), Fdata)
       }
 
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL)
+      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = input$checkbox1)
 
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL)
+      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = input$checkbox1)
 
       LL
     }, message="Processing, please wait...")
@@ -124,10 +125,6 @@ mod_compo_server <- function(input, output, session, r = r){
 
 
 }
-
-# to improve
-# order bars according to factors from metadata table. to improve, need ,to color by factor with different label ticks
-#
 
 
 ## To be copied in the UI

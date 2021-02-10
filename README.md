@@ -16,6 +16,8 @@ differential analysis.
 
 ## Installation
 
+R3.6.3 is required. For Windows, [Rtools](https://cran.r-project.org/bin/windows/Rtools/) and [git](https://git-scm.com/download/win) are required.
+
 You can install the development version of ExploreMetabar from this
 repository with:
 
