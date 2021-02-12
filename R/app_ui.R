@@ -5,18 +5,19 @@ app_ui <- function() {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
-    # List the first level UI elements here 
+    # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(title = "Explore Metabar",
                                   tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/exploremetabar")), #, target="_blank"
                                   tags$li(class="dropdown",tags$a(icon("clinic-medical"),href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues"))
                                   ),
-                  
+
                   dashboardSidebar(
                     sidebarMenu(
                       # menuItem("Transform phyloseq object", tabName = "Transform", icon = icon("leaf")),
-                      menuItem("Metadatas/Subset", tabName = "input_select", icon = icon("diagnoses")),
-                      menuItem("Check ASVtable", tabName = "export_asvtable", icon = icon("table")),
+                      menuItem("Input Data", tabName= 'data_loading', icon=icon("diagnoses")),
+                      # menuItem("Metadatas/Subset", tabName = "input_select", icon = icon("diagnoses")),
+                      # menuItem("Check ASVtable", tabName = "export_asvtable", icon = icon("table")),
                       menuItem("Community Composition", tabName = "tab_compo", icon = icon("chart-pie")),
                       menuItem("Alpha diversity", tabName = "tab_alpha", icon = icon("chart-bar")),
                       menuItem("Beta diversity ", tabName = "tab_beta", icon = icon("chart-bar")),
@@ -27,15 +28,18 @@ app_ui <- function() {
                       # menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )
                   ),
-                  
+
                   dashboardBody(
                     tabItems(
-                      tabItem(tabName = "input_select",
-                              mod_metadata_subset_ui("metadata_subset_ui_1")
+                      tabItem(tabName = 'data_loading',
+                              mod_data_loading_ui("data_loading_ui_1")
                       ),
-                      tabItem(tabName = "export_asvtable",
-                              mod_export_asvtaxtable_ui("export_asvtaxtable_ui_1")
-                      ),
+                      # tabItem(tabName = "input_select",
+                      #         mod_metadata_subset_ui("metadata_subset_ui_1")
+                      # ),
+                      # tabItem(tabName = "export_asvtable",
+                      #         mod_export_asvtaxtable_ui("export_asvtaxtable_ui_1")
+                      # ),
                       tabItem(tabName = "tab_compo",
                               mod_compo_ui("compo_ui_1")
                       ),
@@ -63,17 +67,17 @@ app_ui <- function() {
                     )
                   )
     )
-    
+
   )
 }
 
 #' @import shiny
 golem_add_external_resources <- function(){
-  
+
   addResourcePath(
     'www', system.file('app/www', package = 'ExploreMetabar')
   )
- 
+
   tags$head(
     golem::activate_js(),
     golem::favicon()

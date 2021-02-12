@@ -93,7 +93,7 @@ merge_table <- function(input, table, table_raw){
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
 
-  rawtaxasum1 <-  table_raw %>%   ## here need raw counts 
+  rawtaxasum1 <-  table_raw %>%   ## here need raw counts
     taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
@@ -263,9 +263,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       # print(str(as.data.frame(as.matrix(ttable))))
       FTAB = as.data.frame(joinGlom)
     }
-
     FTAB
-
   })
 
   output$otable1 <- DT::renderDataTable({
