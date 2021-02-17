@@ -10,9 +10,7 @@
 mod_asvenn_ui <- function(id){
   ns <- NS(id)
   tagList(
-
     fluidPage(
-
       infoBox("",
               "Select conditions to highlight shared taxa",
               icon = icon("info-circle"), fill=TRUE, width = 10),
@@ -34,7 +32,7 @@ mod_asvenn_ui <- function(id){
       ),
       box(
         downloadButton(outputId = ns("otable_download"), label = "Download Table"),
-        dataTableOutput(ns("tabvenn1")),
+        DT::dataTableOutput(ns("tabvenn1")),
         title = "Venn table:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
       )
     )
@@ -57,8 +55,9 @@ mod_asvenn_server <- function(input, output, session, r=r){
   ns <- session$ns
 
   observe({
+    req(r$phyloseq_filtered())
     updateSelectInput(session, "Fact1",
-                      choices = r$data16S()@sam_data@names)
+                      choices = r$phyloseq_filtered()@sam_data@names)
   })
 
 # output$lvls1 <- reactive({
@@ -66,45 +65,41 @@ mod_asvenn_server <- function(input, output, session, r=r){
 #   level1
 # })
 
-output$lvls1 = renderUI({
-  req(input$Fact1)
-  level1 <- na.omit(levels(as.factor(sample_data(r$data16S())[,input$Fact1]@.Data[[1]])) )
-  checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :",
-                     choices = level1, inline = TRUE, selected = level1[1:3])
+  output$lvls1 = renderUI({
+    req(input$Fact1, r$phyloseq_filtered())
+    level1 <- na.omit(levels(as.factor(sample_data(r$phyloseq_filtered())[,input$Fact1]@.Data[[1]])) )
+    checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :",
+                       choices = level1, inline = TRUE, selected = level1[1:3])
 
-})
+  })
 
-resVenn <- eventReactive(input$go1, {   #TF
-  req(r$subglom(), r$asvselect())
+  resVenn <- eventReactive(input$go1, {   #TF
+    req(r$phyloseq_filtered())
+    resVenn = ASVenn_fun(data = r$phyloseq_filtered(), output = NULL, rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE)
 
-  data <- prune_taxa(taxa_sums(r$subglom()) > input$minAb, r$subglom())
-  data <- prune_taxa(r$asvselect(), data)
-  print(data)
+    resVenn
+  })
 
-  resVenn = ASVenn_fun(data = data, output = NULL, rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE)
+  output$venn1 <- renderPlot({
+    invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
+    if(length(input$lvls1) >= 2 & length(input$lvls1) <= 7){
+        resVenn()$venn_plot
+    }else{showNotification("Choose 2 to 7 levels...", type="error", duration = 5)
+          return(NULL)
+          }
+  })
 
-  resVenn
-})
+  output$tabvenn1 <-DT::renderDataTable({
+    resVenn()$TABf #tabvenn1()
+  }, filter="top", options = list(scrollX = TRUE))
 
-output$venn1 <- renderPlot({
-  invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
-  if(length(input$lvls1) >= 2 & length(input$lvls1) <= 7){
-      resVenn()$venn_plot
-  }else{showNotification("Choose 2 to 7 levels...", type="error", duration = 5)
-        return(NULL)
-        }
-})
-
-output$tabvenn1 <-DT::renderDataTable({
-  resVenn()$TABf #tabvenn1()
-}, filter="top", options = list(scrollX = TRUE))
-
-output$otable_download <- downloadHandler(
-  filename = "venn_table.csv",
-  content = function(file) {
-    write.table(tabvenn1(), file, sep="\t", row.names=FALSE)
-  }
-)
+  output$otable_download <- downloadHandler(
+    filename = "venn_table.csv",
+    content = function(file) {
+      req(tabvenn1())
+      write.table(tabvenn1(), file, sep="\t", row.names=FALSE)
+    }
+  )
 
 
 

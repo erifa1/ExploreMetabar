@@ -18,12 +18,21 @@ mod_compo_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-
       infoBox("",
               "Use phyloseq object without taxa merging step.",
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
+        radioButtons(
+          ns("compo_norm_bool"),
+          label = "Use normalized data",
+          inline = TRUE,
+          choices = list(
+            "Raw" = 0 ,
+            "Normalized" = 1
+          ), selected = 0
+        ),
+        
         selectInput(
           ns("RankCompo"),
           label = "Select rank to plot: ",
@@ -70,33 +79,30 @@ mod_compo_server <- function(input, output, session, r = r){
   ns <- session$ns
 
   observe({
+    req(r$phyloseq_filtered())
     updateSelectInput(session, "RankCompo",
-                      choices = rank_names(r$data16S()),
-                      selected = "Genus")
+                      choices = rank_names(r$phyloseq_filtered()),
+                      selected = r$rank_glom())
     updateSelectInput(session, "Fact1",
-                      choices = r$data16S()@sam_data@names)
+                      choices = r$phyloseq_filtered()@sam_data@names)
     updateSelectInput(session, "Ord1",
-                      choices = r$data16S()@sam_data@names)
+                      choices = r$phyloseq_filtered()@sam_data@names)
   })
 
   compo <- eventReactive(input$go1, {
+    cat(file=stderr(),'Creating plots...',"\n")
+    req(input$compo_norm_bool, input$topTax, input$Ord1, input$Fact1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm)
     LL=list()
+    if(input$compo_norm_bool==0){
+      Fdata <- r$phyloseq_filtered()
+    }
+    if(input$compo_norm_bool==1){
+      Fdata <- r$phyloseq_filtered_norm()
+    }
 
-    print("compo")
-    print(r$rowselect())
-    print(r$data16S())
-    print(r$asvselect())
     withProgress({
-      Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
-      Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
-      if( r$RankGlom() == "ASV"){
-        Fdata <- prune_taxa(r$asvselect(), Fdata)
-      }
-
       LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL)
-
       LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL)
-
       LL
     }, message="Processing, please wait...")
 
@@ -113,12 +119,13 @@ mod_compo_server <- function(input, output, session, r = r){
   })
 
   output$totalsum1 <- renderPrint({
-    Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
-    Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
-    if( r$RankGlom() == "ASV"){
-      Fdata <- prune_taxa(r$asvselect(), Fdata)
+    req(input$compo_norm_bool)
+    if(input$compo_norm_bool==0){
+      Fdata <- r$phyloseq_filtered()
     }
-
+    if(input$compo_norm_bool==1){
+      Fdata <- r$phyloseq_filtered_norm()
+    }
     print(sample_sums(Fdata))
   })
 

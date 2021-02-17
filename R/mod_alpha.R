@@ -23,13 +23,22 @@ mod_alpha_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
       
       box(
-        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                     choices =
-                       list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                            "InvSimpson"),
-                     selected = c("Shannon")
+        # radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+        #              choices =
+        #                list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+        #                     "InvSimpson"),
+        #              selected = c("Shannon")
+        # ),
+        radioButtons(
+          ns("alpha_norm_bool"),
+          label = "Use normalized data",
+          inline = TRUE,
+          choices = list(
+            "Raw" = 0 ,
+            "Normalized" = 1
+          ), selected = 1
         ),
-        numericInput(ns("minAb"), "Minimum raw abundance:", 1, min = 1, max = NA),
+        
         selectInput(
           ns("Fact1"),
           label = "Select factor to test: ",
@@ -37,25 +46,35 @@ mod_alpha_ui <- function(id){
         ),
         checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE), 
         
-        actionButton(ns("go1"), "Run Alpha Diversity", icon = icon("play-circle"),
+        actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
 
       box(
-        dataTableOutput(ns("alphaout")),
+        DT::dataTableOutput(ns("alphaout")),
         downloadButton(outputId = ns("alpha_download"), label = "Download Table", icon = icon("download"), class = "butt",
                        style="background-color: #3b9ef5"),
-        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = TRUE
+        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = FALSE
       ),
-      box(
+      box(        
+        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                     choices =
+                       list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+                            "InvSimpson"),
+                     selected = c("Shannon")
+        ),
         plotlyOutput(ns("plot2")),
         width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
       ),
       box(
-        downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")), 
-        dataTableOutput(ns("boxstats")),
+        h3("ANOVA results"),
         box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
+        
+        h3("TukeyHSD test results"),
+        downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")), 
+        DT::dataTableOutput(ns("boxstats")),
+        
         width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
       )
     )
@@ -77,22 +96,25 @@ mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
   
   observe({
+    req(r$phyloseq_filtered())
     updateSelectInput(session, "Fact1",
-                      choices = r$data16S()@sam_data@names)
+                      choices = r$phyloseq_filtered()@sam_data@names)
   })
   
   
-  alpha1 <- eventReactive(input$go1, {
-    if(is.null(r$subdata())){return(NULL)}
-    print(input$metrics)
-    print(input$minAb)
+  alpha1 <- eventReactive(input$launch_alpha,{
+    cat(file=stderr(), 'computing alpha1...', "\n")
+    req(r$phyloseq_filtered(), input$alpha_norm_bool,  r$phyloseq_filtered_norm())
     
-    data <- prune_taxa(taxa_sums(r$subdata()) > input$minAb, r$subdata())
-    if(r$RankGlom() == "ASV"){
-      data <- prune_taxa(r$asvselect(), data)
+    if(input$alpha_norm_bool==0){
+      data <- r$phyloseq_filtered()
     }
-    print(data)
-    
+    if(input$alpha_norm_bool==1){
+      data <- r$phyloseq_filtered_norm()
+    }
+
+    # data <- r$phyloseq_filtered()
+
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
                                                      "InvSimpson") )
     row.names(alphatab) = sample_names(data)
@@ -100,15 +122,17 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL=list()
     LL$alphatab = as.data.frame(alphatab)
     LL$data = data
-    
+    cat(file=stderr(), 'computing alpha1 done.', "\n")
     LL
   })
   
-  output$alphaout <- renderDataTable({
-    if(is.null(alpha1())){return(NULL)}
+  
+  output$alphaout <- DT::renderDataTable({
     LL = alpha1()
     LL$alphatab
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE)) ##filter = "top",
+  }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+  
+   ##filter = "top",
 
   output$alpha_download <- downloadHandler(
     filename = "alpha_index.csv",
@@ -116,22 +140,18 @@ mod_alpha_server <- function(input, output, session, r = r){
       LL = alpha1()
       write.table(LL$alphatab, file, sep="\t", col.names=NA)}
   )
-  
+ 
 
-boxtab <- reactive(
-  {
+  boxtab <- reactive({
+    req(r$sdat(), input$checkbox1, input$Fact1, r$phyloseq_filtered())
     print("plotAlpha")
     LL = alpha1()
-    sdat = tibble::rownames_to_column(as.data.frame(as.matrix(r$subdata()@sam_data)))
-    alphatab =  tibble::rownames_to_column(LL$alphatab)
-    
-    print(head(sdat))
-    print(head(alphatab))
-    boxtab <- dplyr::left_join(sdat, alphatab, by = "rowname")
-    print(names(boxtab))
-    
-    print(input$checkbox1)
 
+    metadata = tibble::rownames_to_column(r$sdat())
+    alphatab =  tibble::rownames_to_column(LL$alphatab)
+
+
+    boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
     if(input$checkbox1){
       print("ORDER factor")
       fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
@@ -139,62 +159,67 @@ boxtab <- reactive(
     }
 
     if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
-    print(head(boxtab))
     
-    boxtab$Depth <- sample_sums(r$subdata())
-    
-    boxtab  
+    boxtab$Depth <- sample_sums(r$phyloseq_filtered())
+
+    boxtab
   }
 )
 
-  
-output$plot2 <- renderPlotly({
+
+  output$plot2 <- renderPlotly({
    plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
            color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
      layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack')
  })
 
-  
+
   reacalpha <- reactive({
-   anova_data = boxtab()
-   form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
-   anova_res1 <- aov( as.formula(form1), anova_data)
-   outhsd <- HSD.test(anova_res1,input$Fact1)
-
-   LL = list()
-   LL$form1 = form1
-   LL$aov1 = summary(anova_res1)
-   LL$groups1 = outhsd$groups[levels(anova_data[,input$Fact1]),]
-   LL$stats1 = outhsd$means[levels(anova_data[,input$Fact1]),]
-
-   LL
+    req(input$metrics, input$Fact1)
+    cat(file = stderr(), "reacalpha", "\n") 
+    anova_data = boxtab()
+    
+    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
+    anova_res1 <- aov( as.formula(form1), anova_data)
+    # outhsd <- HSD.test(anova_res1,input$Fact1)
+    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{input$Fact1}\")")
+    eval(parse(text=fun))
+    
+    # tukey_hsd <- TukeyHSD(glue::glue("anova_data${input$Fact1}"))
+    # print(tukey_hsd)
+    LL = list()
+    LL$form1 = form1
+    LL$aov1 = summary(anova_res1)
+    # LL$groups1 = outhsd$groups[levels(anova_data[,input$Fact1]),]
+    fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
+    eval(parse(text=fun))
+    
+    # LL$stats1 = outhsd$means[levels(anova_data[,input$Fact1]),]
+    # LL$stats1 = tukey_hsd$means[levels(anova_data[,input$Fact1]),]
+    LL
  })
 
  output$testalpha <- renderPrint({
    req(reacalpha)
    LL = reacalpha()
-   
    cat("ANOVA\n##########\n")
    print(LL$form1)
    print(LL$aov1)
-   cat("\nHSD.test groups\n##########\n")
-   print(LL$groups1)
-   
  })
- 
- output$boxstats <- renderDataTable({
+
+ output$boxstats <- DT::renderDataTable({
    req(reacalpha)
    LL = reacalpha()
-   LL$stats1
+   LL$groups1
  }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
- 
+
  output$boxtab_download <- downloadHandler(
    filename = "alpha_boxplot_stats.csv",
    content = function(file) {
+     req(reacalpha)
      LL = reacalpha()
-     write.table(LL$stats1, file, sep="\t", col.names=NA)}
+     write.table(LL$groups1, file, sep="\t", col.names=NA)}
  )
-  
 }
     
 ## To be copied in the UI
