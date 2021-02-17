@@ -5,6 +5,7 @@ app_ui <- function() {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
+    # shinyjs::useShinyjs(), # used for onclick function from shinyjs package.
     # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(title = "Explore Metabar",

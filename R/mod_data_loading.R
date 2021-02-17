@@ -31,17 +31,18 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          solidHeader = TRUE, status = "primary", title ="Metadata table", collapsible=TRUE, collapsed=FALSE, width=12,
+          solidHeader = TRUE, status = "primary", title ="STEP 1: Select your samples", collapsible=TRUE, collapsed=FALSE, width=12,
           fluidPage(
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your metadata.")
           ),
           DT::dataTableOutput(ns("metadata_table")),
-          actionButton(ns('update_metadata'), "Update Sample", class='butt2')
+          # actionButton(ns('update_metadata'), "Update Sample", class = "btn-warning")
+          shinyBS::bsButton(ns('update_metadata'), "Update Sample", style = "primary", type="action")
         )
       ),
       fluidRow(
         box(
-          title = "Select Your Taxonomy Rank", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
+          title = "STEP 2: Select Your Taxonomy Rank and filtering options", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
           selectInput(
             ns("rank_glom"),
             label='Select rank to merge taxonomy table',
@@ -57,7 +58,7 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          solidHeader = TRUE, status = "primary", title ="Taxonomy table", collapsible=TRUE, collapsed=FALSE, width=12,
+          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa", collapsible=TRUE, collapsed=FALSE, width=12,
           fluidPage(
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
           ),
@@ -222,10 +223,18 @@ mod_data_loading_server <- function(input, output, session, r=r){
     r_values$phyobj_tmp <- physeq
     
   })
+  
+  # shinyjs::onclick("update_metadata",{
+  #   print("click")
+  #   shinyBS::updateButton(session, "update_metadata", style="success")
+  # })
+  
 
   observeEvent(input$update_metadata, {
     cat(file=stderr(), 'button update_metadata', "\n")
+    # shinyBS::updateButton(session, "update_metadata", style="success")
     subset_samples()
+    
     # print(r_values$phyobj_sub_samples)
   },
   ignoreNULL = TRUE, ignoreInit = TRUE)
