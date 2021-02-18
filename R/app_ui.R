@@ -23,7 +23,8 @@ app_ui <- function() {
                       menuItem("Beta diversity ", tabName = "tab_beta", icon = icon("chart-bar")),
                       menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("microscope")),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
-                      menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope"))#,
+                      menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
+                      menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree"))
                       # menuItem("PLN network", tabName = "tab_networkpln", icon = icon("project-diagram")),
                       # menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )

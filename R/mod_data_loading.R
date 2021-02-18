@@ -9,6 +9,7 @@
 #' @importFrom shiny NS tagList
 #' @import phyloseq
 #' @import DT
+#' @import Biostrings
 #' 
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -102,7 +103,7 @@ mod_data_loading_ui <- function(id){
           downloadButton(outputId = ns("raw_refseq_download"), label = "Download raw FASTA sequences")
         ),
         box(
-          title = 'Download RAW tables', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
+          title = 'Download filtered tables', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
           downloadButton(outputId = ns("filt_otable_download"), label = "Download filtered ASV table"),
           downloadButton(outputId = ns("filt_norm_otable_download"), label = "Download filtered and normalized ASV table"),
           downloadButton(outputId = ns("filt_rdata_download"), label = "Download filtered Phyloseq object"),
@@ -116,7 +117,7 @@ mod_data_loading_ui <- function(id){
 
 
 merge_table <- function(rank, table){
-  print("Merge tables")
+  # print("Merge tables")
   FNGdata <- table
   if(rank=="ASV"){
     rank1 = "Species"
@@ -124,7 +125,7 @@ merge_table <- function(rank, table){
   else{
     rank1 = rank
   }
-  print("ttable")
+  # print("ttable")
   ttable <- FNGdata %>%
     tax_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
@@ -137,21 +138,21 @@ merge_table <- function(rank, table){
     otu_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
-  print("otable")
+  # print("otable")
   
   rawtaxasum1 <-  table %>%
     taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
   names(rawtaxasum1)[2] <- "RawAbundanceSum"
-  print("taxsum")
+  # print("taxsum")
   joinGlom <-
     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
     mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
     dplyr::left_join(otable, by = "rowname")
   
   if(rank=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
-    print("add sequence to dataframe")
+    # print("add sequence to dataframe")
     showNotification("Sequences added to dataframe.", type="message", duration = 5)
     refseq1 <- FNGdata %>%
       refseq %>%
@@ -265,7 +266,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
     cat(file=stderr(), 'filter_taxonomy...', "\n")
     tmp <- r_values$phyobj_sub_samples
-    print(rank_names(tmp))
+    # print(rank_names(tmp))
     withProgress({
       if(input$rank_glom != 'ASV'){
         tmp <- tax_glom(tmp, input$rank_glom)
@@ -290,7 +291,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     r_values$phyobj_taxglom <- tmp
     
     r_values$phyobj_tmp <- tmp
-    print(rank_names(r_values$phyobj_taxglom))
+    # print(rank_names(r_values$phyobj_taxglom))
     cat(file=stderr(), 'filter_taxonomy done.', "\n")
   })
   
@@ -334,7 +335,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       dplyr::left_join(otable, by = "rowname")
 
     if(input$rank_glom=="ASV" & !is.null(refseq(phyloseq_obj, errorIfNULL=FALSE)) ){
-      print("add sequence to dataframe")
+      # print("add sequence to dataframe")
       showNotification("Sequences added to dataframe.", type="message", duration = 5)
       refseq1 <- phyloseq_obj %>%
         refseq %>%
@@ -405,7 +406,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       },message = "VST normalization, please wait...")
     }
     r_values$phyobj_norm <- FNGdata
-    print(r_values$phyobj_norm)
+    # print(r_values$phyobj_norm)
   })
   
   observeEvent(input$norm, {
@@ -458,7 +459,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     filename = "filt_norm_asv_table.csv",
     content = function(file) {
       req(r_values$phyobj_norm)
-      write.table(merge_table(input$rank_glom, r_values$phyobj_norm), file, sep="\t", row.names=FALSE)
+      Biostrings::write.table(merge_table(input$rank_glom, r_values$phyobj_norm), file, sep="\t", row.names=FALSE)
     }
   )
   
@@ -485,7 +486,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     content = function(file) {
       req(r_values$phyobj_final)
       if(!is.null(refseq(r_values$phyobj_final, errorIfNULL=FALSE))){
-        writeXStringSet(refseq(r_values$phyobj_final), file)
+        Biostrings::writeXStringSet(refseq(r_values$phyobj_final), file)
       }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
     }
   )
