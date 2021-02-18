@@ -83,10 +83,10 @@ mod_compo_server <- function(input, output, session, r = r){
   compo <- eventReactive(input$go1, {
     LL=list()
 
-    print("compo")
-    print(r$rowselect())
-    print(r$data16S())
-    print(r$asvselect())
+    # print("compo")
+    # print(r$rowselect())
+    # print(r$data16S())
+    # print(r$asvselect())
     withProgress({
       Fdata <- prune_samples(sample_names(r$data16S())[r$rowselect()], r$data16S())
       Fdata <- prune_taxa(taxa_sums(Fdata) > 0, Fdata)
@@ -94,9 +94,10 @@ mod_compo_server <- function(input, output, session, r = r){
         Fdata <- prune_taxa(r$asvselect(), Fdata)
       }
 
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = input$checkbox1)
+      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = input$checkbox1) %>% config(toImageButtonOptions = list(format = "svg"))
+      
 
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = input$checkbox1)
+      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = input$checkbox1) %>% config(toImageButtonOptions = list(format = "svg"))
 
       LL
     }, message="Processing, please wait...")

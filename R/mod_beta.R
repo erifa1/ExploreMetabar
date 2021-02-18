@@ -137,7 +137,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
     p1 <- plot_samples(data, ord1() , color = input$Fact1 ) + theme_bw() +
       ggtitle(paste( input$ordination, input$metrics, sep = "+" )) + stat_ellipse()
-    ggplotly(p1)
+    ggplotly(p1) %>% config(toImageButtonOptions = list(format = "svg"))
   })
 
 
