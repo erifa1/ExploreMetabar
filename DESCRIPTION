@@ -40,7 +40,8 @@ Imports:
     agricolae,
     DESeq2,
     PLNmodels,
-    pkgload
+    pkgload,
+    Biostrings
 Remotes:
     github::omegahat/XML,
     bioc::3.10/rhdf5,

@@ -52,7 +52,10 @@ app_ui <- function() {
                       ),
                       tabItem(tabName = "tab_asvenn",
                               mod_asvenn_ui("asvenn_ui_1")
-                      )#,
+                      ),
+                      tabItem(tabName = "source_tracker",
+                              mod_source_tracker_ui("source_tracker_ui_1")
+                      )
                       # tabItem(tabName = "tab_networkpln",
                       #         mod_networkpln_ui("networkpln_ui_1")
                       # ),
