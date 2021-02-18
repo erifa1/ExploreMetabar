@@ -49,8 +49,10 @@ mod_beta_ui <- function(id){
         ),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
-      box(plotly::plotlyOutput(ns("plot1")),
-          title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE),
+      box(
+        plotly::plotlyOutput(ns("plot1")),
+        title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE
+      ),
       box(
         title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
         uiOutput(ns("factor2")),
@@ -118,7 +120,7 @@ mod_beta_server <- function(input, output, session, r = r){
       ggtitle(paste( input$ordination, input$metrics, sep = "+" )) + stat_ellipse()
     print(p1)
     cat(file=stderr(), "betaplot1 fun done.", "\n")
-    ggplotly(p1)
+    ggplotly(p1) %>% config(toImageButtonOptions = list(format = "svg"))
   })
 
 
@@ -127,6 +129,15 @@ mod_beta_server <- function(input, output, session, r = r){
     betaplot1()
     }, message = "Plot Beta...")
   })
+  
+  # output$download_svg <- downloadHandler(
+  #   filename = 'beta_div.svg',
+  #   content = function(file){
+  #     req(betaplot1())
+  #     p <- betaplot1()
+  #     orca(p)
+  #   }
+  # )
 
 
   betatest <- eventReactive(input$go1, {
