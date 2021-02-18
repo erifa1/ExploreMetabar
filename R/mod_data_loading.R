@@ -14,6 +14,10 @@ mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
+      infoBox("", 
+        HTML(paste("New interface to select your data.", br(), "You must validate each step by clicking each button, even if you did not make any modification.", br())), 
+        icon = icon("info-circle"), fill=TRUE, width = 10
+      ),
       fluidRow(
         box(
           title = "Input phyloseq object", status = "warning", solidHeader = TRUE,
@@ -37,7 +41,7 @@ mod_data_loading_ui <- function(id){
           ),
           DT::dataTableOutput(ns("metadata_table")),
           # actionButton(ns('update_metadata'), "Update Sample", class = "btn-warning")
-          shinyBS::bsButton(ns('update_metadata'), "Update Sample", style = "primary", type="action")
+          shinyBS::bsButton(ns('update_metadata'), "Update Sample", type="action")
         )
       ),
       fluidRow(
@@ -68,7 +72,7 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          title = 'Normalisation options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
+          title = 'STEP 4: Normalisation options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
           radioButtons(
             ns("norm_method"),
             label = "Normalization : ",
@@ -332,7 +336,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     if(input$rank_glom=="ASV" & !is.null(refseq(phyloseq_obj, errorIfNULL=FALSE)) ){
       print("add sequence to dataframe")
       showNotification("Sequences added to dataframe.", type="message", duration = 5)
-      refseq1 <- FNGdata %>%
+      refseq1 <- phyloseq_obj %>%
         refseq %>%
         as.data.frame %>%
         tibble::rownames_to_column() %>%

@@ -8,13 +8,15 @@ app_ui <- function() {
     # shinyjs::useShinyjs(), # used for onclick function from shinyjs package.
     # List the first level UI elements here
     dashboardPage(skin = "red",
-                  dashboardHeader(title = "Explore Metabar",
+                  dashboardHeader(
+                                  title = "Explore Metabar",
                                   tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/exploremetabar")), #, target="_blank"
                                   tags$li(class="dropdown",tags$a(icon("clinic-medical"),href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues"))
                                   ),
 
                   dashboardSidebar(
                     sidebarMenu(
+                      style = "position: fixed; overflow: visible",
                       menuItem("Input Data", tabName= 'data_loading', icon=icon("diagnoses")),
                       menuItem("Community Composition", tabName = "tab_compo", icon = icon("chart-pie")),
                       menuItem("Alpha diversity", tabName = "tab_alpha", icon = icon("chart-bar")),

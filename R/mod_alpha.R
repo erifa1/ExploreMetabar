@@ -23,22 +23,6 @@ mod_alpha_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
       
       box(
-        # radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-        #              choices =
-        #                list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-        #                     "InvSimpson"),
-        #              selected = c("Shannon")
-        # ),
-        radioButtons(
-          ns("alpha_norm_bool"),
-          label = "Use normalized data",
-          inline = TRUE,
-          choices = list(
-            "Raw" = 0 ,
-            "Normalized" = 1
-          ), selected = 1
-        ),
-        
         selectInput(
           ns("Fact1"),
           label = "Select factor to test: ",
@@ -104,17 +88,10 @@ mod_alpha_server <- function(input, output, session, r = r){
   
   alpha1 <- eventReactive(input$launch_alpha,{
     cat(file=stderr(), 'computing alpha1...', "\n")
-    req(r$phyloseq_filtered(), input$alpha_norm_bool,  r$phyloseq_filtered_norm())
+    req(r$phyloseq_filtered(),  r$phyloseq_filtered_norm())
     
-    if(input$alpha_norm_bool==0){
-      data <- r$phyloseq_filtered()
-    }
-    if(input$alpha_norm_bool==1){
-      data <- r$phyloseq_filtered_norm()
-    }
-
-    # data <- r$phyloseq_filtered()
-
+    data <- r$phyloseq_filtered()
+    
     alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
                                                      "InvSimpson") )
     row.names(alphatab) = sample_names(data)
