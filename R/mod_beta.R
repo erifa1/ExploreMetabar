@@ -118,7 +118,6 @@ mod_beta_server <- function(input, output, session, r = r){
     cat(file=stderr(), "betaplot1 fun plot_samples", "\n")
     p1 <- plot_samples(data, ord1 , color = input$beta_fact1 ) + theme_bw() +
       ggtitle(paste( input$ordination, input$metrics, sep = "+" )) + stat_ellipse()
-    print(p1)
     cat(file=stderr(), "betaplot1 fun done.", "\n")
     ggplotly(p1) %>% config(toImageButtonOptions = list(format = "svg"))
   })

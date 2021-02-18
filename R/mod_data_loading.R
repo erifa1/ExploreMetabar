@@ -401,7 +401,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     if(input$norm_method == 3){
       withProgress({
         otable <- FGdata@otu_table@.Data+1
-        otableVST <- varianceStabilizingTransformation(otable, fitType='local')
+        otableVST <- DESeq2::varianceStabilizingTransformation(otable, fitType='local')
         FNGdata <- FGdata; FNGdata@otu_table@.Data <- otableVST
       },message = "VST normalization, please wait...")
     }
