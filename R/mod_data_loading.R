@@ -64,7 +64,7 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa", collapsible=TRUE, collapsed=FALSE, width=12,
+          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa", collapsible=TRUE, collapsed=TRUE, width=12,
           fluidPage(
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
           ),
@@ -216,7 +216,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$metadata_table <- DT::renderDataTable({
     sdat()
-  }, filter="top",options = list(pageLength = 10, scrollX = TRUE))
+  }, filter="top",options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
 
   subset_samples <- reactive({
     req(r_values$phyobj_initial)
@@ -359,7 +359,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$taxonomy_table <- DT::renderDataTable({
     render_taxonomy_table()
-  }, filter="top", options = list(pageLength = 10, scrollX = TRUE))
+  }, filter="top", options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
 
 
   subset_taxa <- reactive({
