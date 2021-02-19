@@ -10,6 +10,7 @@
 #' @import phyloseq
 #' @import DT
 #' @import Biostrings
+#' @import phyloseq.extended
 #' 
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -269,7 +270,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
     # print(rank_names(tmp))
     withProgress({
       if(input$rank_glom != 'ASV'){
-        tmp <- tax_glom(tmp, input$rank_glom)
+        # tmp <- tax_glom(tmp, input$rank_glom)
+        tmp <- phyloseq.extended::fast_tax_glom(tmp, input$rank_glom)
         FGnames <- tax_table(tmp)[,input$rank_glom]
         nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
         taxa_names(tmp) <- nnames
