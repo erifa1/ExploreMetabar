@@ -32,8 +32,7 @@ mod_beta_ui <- function(id){
         ),
 
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                     choices =
-                       list("bray", "jaccard", "unifrac", "wunifrac"),
+                     choices ='',
                      selected = c("bray")
         ),
 
@@ -47,6 +46,8 @@ mod_beta_ui <- function(id){
           label = "Select main factor to test + color plot: ",
           choices = ''
         ),
+        actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       box(
@@ -89,6 +90,18 @@ mod_beta_server <- function(input, output, session, r = r){
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
 
+  observe({
+    req(r$phyloseq_filtered())
+    if(is.null(phy_tree(r$phyloseq_filtered(), errorIfNULL=FALSE))){
+      print("no phytree beta metrics update")
+      ch1 = list("bray", "jaccard")
+    }else{
+      ch1 = list("bray", "jaccard", "unifrac", "wunifrac")
+    }
+    updateRadioButtons(session, "metrics",
+                      choices = ch1, inline = TRUE)
+  })
+
 
   output$factor2 = renderUI({
     req(input$beta_fact1, r$phyloseq_filtered())
@@ -104,7 +117,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  betaplot1 <- reactive({
+  betaplot1 <- eventReactive(input$launch_beta,{
     cat(file=stderr(), "betaplot1 fun...", "\n")
     req(input$ordination, input$metrics, input$beta_norm_bool, input$beta_fact1, r$phyloseq_filtered, r$phyloseq_filtered_norm)
     if(input$beta_norm_bool==0){
@@ -128,7 +141,7 @@ mod_beta_server <- function(input, output, session, r = r){
     betaplot1()
     }, message = "Plot Beta...")
   })
-  
+
   # output$download_svg <- downloadHandler(
   #   filename = 'beta_div.svg',
   #   content = function(file){
@@ -206,4 +219,3 @@ mod_beta_server <- function(input, output, session, r = r){
 
 ## To be copied in the server
 # callModule(mod_mod_beta_server, "mod_beta_ui_1")
- 
