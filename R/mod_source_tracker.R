@@ -62,11 +62,11 @@ mod_source_tracker_server <- function(input, output, session, r = r){
   
   observe({
     req(r$sdat(), input$src_fact1, input$sources_box, r_values$factor_list)
-    src_box <- input$sources_box
+    src_box <- as.vector(input$sources_box)
     print(src_box)
     sink.list <- as.list(r_values$factor_list)
     print(sink.list)
-    sink.list <- sink.list[src_box]
+    # sink.list <- sink.list[-src_box]
     print(sink.list)
     # tmp <- r$sdat()
     # uniq.name <- unique(tmp[,input$src_fact1])
