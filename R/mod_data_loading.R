@@ -213,10 +213,21 @@ mod_data_loading_server <- function(input, output, session, r=r){
   sdat <- reactive({
     as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
+  
+  rowCallback <- c(
+    "function(row, data){",
+    "  for(var i=0; i<data.length; i++){",
+    "    if(data[i] === null){",
+    "      $('td:eq('+i+')', row).html('NA')",
+    "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+    "    }",
+    "  }",
+    "}"  
+  )
 
   output$metadata_table <- DT::renderDataTable({
     sdat()
-  }, filter="top",options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
+  }, filter="top",options = list(pageLength = 10, scrollX = TRUE, rowCallback = JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
     req(r_values$phyobj_initial)
