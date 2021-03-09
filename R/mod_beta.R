@@ -51,7 +51,10 @@ mod_beta_ui <- function(id){
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
       box(
-        plotly::plotlyOutput(ns("plot1")),
+        shinycustomloader::withLoader(
+          plotly::plotlyOutput(ns("plot1")),
+          type = "html", loader = "loader4"
+        ),
         title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE
       ),
       box(
@@ -115,41 +118,58 @@ mod_beta_server <- function(input, output, session, r = r){
       inline = TRUE
     )
   })
-
-
-  betaplot1 <- eventReactive(input$launch_beta,{
-    cat(file=stderr(), "betaplot1 fun...", "\n")
-    req(input$ordination, input$metrics, input$beta_norm_bool, input$beta_fact1, r$phyloseq_filtered, r$phyloseq_filtered_norm)
+  
+  physeq <- reactive({
+    req(r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
     if(input$beta_norm_bool==0){
-      data <- r$phyloseq_filtered()
+      data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
     }
     if(input$beta_norm_bool==1){
       data <- r$phyloseq_filtered_norm()
     }
-    cat(file=stderr(), "betaplot1 fun ordinate", "\n")
-    ord1 = ordinate(data, input$ordination, input$metrics)
-    cat(file=stderr(), "betaplot1 fun plot_samples", "\n")
-    p1 <- plot_samples(data, ord1 , color = input$beta_fact1 ) + theme_bw() +
-      ggtitle(paste( input$ordination, input$metrics, sep = "+" )) + stat_ellipse()
-    cat(file=stderr(), "betaplot1 fun done.", "\n")
-    ggplotly(p1) %>% config(toImageButtonOptions = list(format = "svg"))
+    data
   })
+  
+  physeq_dist <- reactive({
+    req(input$metrics)
+    phyloseq::distance(physeq(), method = input$metrics)
+  })
+  
+  ord <- reactive({
+    req(input$ordination)
+    phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
+  })
+  
+  
+  base_plot <- reactive({
+    p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
+    p$layers[[1]] <- NULL
 
+    xrange <- c()
+    xrange[1] <- layer_scales(p)$x$range$range[1] - abs(layer_scales(p)$x$range$range[1])*2
+    xrange[2] <- layer_scales(p)$x$range$range[2] + abs(layer_scales(p)$x$range$range[2])*2
+    
+    yrange <- c()
+    yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*2
+    yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*2
+    return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
+  })
+  
 
   output$plot1 <- plotly::renderPlotly({
+    beta_plot()
+  })
+  
+  beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
-    betaplot1()
+      p <- base_plot()$plot
+      p <- p + aes(color = !!sym(input$beta_fact1))
+      p <- p + stat_ellipse(aes(group = !!sym(input$beta_fact1)))
+      p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
+      p <- p + geom_point() + theme_bw()
+      ggplotly(p) %>% config(toImageButtonOptions = list(format = "svg"))
     }, message = "Plot Beta...")
   })
-
-  # output$download_svg <- downloadHandler(
-  #   filename = 'beta_div.svg',
-  #   content = function(file){
-  #     req(betaplot1())
-  #     p <- betaplot1()
-  #     orca(p)
-  #   }
-  # )
 
 
   betatest <- eventReactive(input$go1, {
