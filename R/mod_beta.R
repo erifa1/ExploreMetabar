@@ -118,7 +118,7 @@ mod_beta_server <- function(input, output, session, r = r){
       inline = TRUE
     )
   })
-  
+
   physeq <- reactive({
     req(r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
     if(input$beta_norm_bool==0){
@@ -129,37 +129,37 @@ mod_beta_server <- function(input, output, session, r = r){
     }
     data
   })
-  
+
   physeq_dist <- reactive({
     req(input$metrics)
     phyloseq::distance(physeq(), method = input$metrics)
   })
-  
+
   ord <- reactive({
     req(input$ordination)
     phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
   })
-  
-  
+
+
   base_plot <- reactive({
     p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
     p$layers[[1]] <- NULL
 
     xrange <- c()
-    xrange[1] <- layer_scales(p)$x$range$range[1] - abs(layer_scales(p)$x$range$range[1])*2
-    xrange[2] <- layer_scales(p)$x$range$range[2] + abs(layer_scales(p)$x$range$range[2])*2
-    
+    xrange[1] <- layer_scales(p)$x$range$range[1] - abs(layer_scales(p)$x$range$range[1])*3
+    xrange[2] <- layer_scales(p)$x$range$range[2] + abs(layer_scales(p)$x$range$range[2])*3
+
     yrange <- c()
-    yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*2
-    yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*2
+    yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*3
+    yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*3
     return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
   })
-  
+
 
   output$plot1 <- plotly::renderPlotly({
     beta_plot()
   })
-  
+
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
       p <- base_plot()$plot
