@@ -74,12 +74,13 @@ plot_krona<-function(physeq,output,variable, trim=F){
   # Melt the OTU table and merge associated metadata
   df<-psmelt(physeq)
   # Fetch only Abundance, Description and taxonomic rank names columns
-  df<-df[ ,c("Abundance", variable, rank_names(physeq)) ]
+
+  phyla <- intersect(rank_names(physeq), colnames(df))
+  df<-df[ ,c("Abundance", variable, phyla) ]
   # Make sure there are no spaces left
   df[,2]<-gsub(" |\\(|\\)","",df[,2])
   # Convert the field of interest as factor.
   df[,2]<-as.factor(df[,2])
-  
   # Create a directory for krona files
   dir.create(output)
   
@@ -187,7 +188,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
   )
   
   get_krona_plot <- reactive({
-    req(input$krona_select, input$krona_exclud)
+    req(input$krona_select)
     cat(file=stderr(),"Drawing krona...", "\n")
     df <- resVenn()$TABf
     
@@ -224,13 +225,14 @@ mod_asvenn_server <- function(input, output, session, r=r){
     
     phy_obj <- prune_samples(sample_sums(phy_obj) > 0, phy_obj)
     print(phy_obj)
+    phy_obj@sam_data$sample.id <- rownames(sample_data(phy_obj))
     cat(file=stderr(),"plot_krona...")
     fun <- glue::glue("sample_data(phy_obj)${input$Fact1}")
     if(input$krona_glom==1){
       plot_krona(phy_obj, '/tmp/krona', variable = input$Fact1, trim=T)
     }
     else{
-      plot_krona(phy_obj, '/tmp/krona', variable = 'X.SampleID', trim=T)
+      plot_krona(phy_obj, '/tmp/krona', variable = 'sample.id', trim=T)
     }
     
     cat(file=stderr(),'done.', "\n")
