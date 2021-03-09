@@ -64,7 +64,7 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa, preview abundances & representative sequences", collapsible=TRUE, collapsed=TRUE, width=12,
+          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa, preview abundances & representative sequences", collapsible=TRUE, collapsed=FALSE, width=12,
           fluidPage(
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
           ),
@@ -213,10 +213,21 @@ mod_data_loading_server <- function(input, output, session, r=r){
   sdat <- reactive({
     as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
+  
+  rowCallback <- c(
+    "function(row, data){",
+    "  for(var i=0; i<data.length; i++){",
+    "    if(data[i] === null){",
+    "      $('td:eq('+i+')', row).html('NA')",
+    "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+    "    }",
+    "  }",
+    "}"  
+  )
 
   output$metadata_table <- DT::renderDataTable({
     sdat()
-  }, filter="top",options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
+  }, filter="top",options = list(pageLength = 10, scrollX = TRUE, rowCallback = JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
     req(r_values$phyobj_initial)
@@ -292,14 +303,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
       if(input$rank_glom != 'ASV'){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
-
-      # phyloseq::rank_names(tmp) <- phyloseq::rank_names(tmp)[1:match(input$rank_glom, rank_names(tmp))]
-
-
+      
       r_values$phyobj_taxglom <- tmp
 
       r_values$phyobj_tmp <- tmp
-      # print(rank_names(r_values$phyobj_taxglom))
+
       cat(file=stderr(), 'filter_taxonomy done.', "\n")
     },message = "Update taxonomy, please wait...")
   })
@@ -522,6 +530,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # final filtered object
   r$phyloseq_filtered <- reactive({
     r_values$phyobj_final
+    # r_values$phyobj_initial
   })
 
 
