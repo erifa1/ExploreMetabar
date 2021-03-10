@@ -15,7 +15,7 @@ app_server <- function(input, output,session) {
   callModule(mod_taxaboxplot_server, "taxaboxplot_ui_1", session = session, r = r)
   callModule(mod_diffanalysis_server, "diffanalysis_ui_1", session = session, r = r)
   callModule(mod_asvenn_server, "asvenn_ui_1", session = session, r = r)
-  callModule(mod_source_tracker_server, "source_tracker_ui_1", r = r)
+  callModule(mod_source_tracker_server, "source_tracker_ui_1", session = session, r = r)
   # callModule(mod_diffexplore_server, "diffexplore_ui_1", session = session, r = r)
   # callModule(mod_networkpln_server, "networkpln_ui_1", session = session, r = r)
 

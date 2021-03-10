@@ -2,11 +2,12 @@
 #'
 #' @description A shiny Module.
 #'
-#' @param id,input,output,session Internal parameters for {shiny}.
+#' @param id,input,output,session,r Internal parameters for {shiny}.
 #'
 #' @noRd 
 #'
 #' @importFrom shiny NS tagList 
+#' 
 mod_source_tracker_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -21,16 +22,15 @@ mod_source_tracker_ui <- function(id){
             )
           ),
           fluidRow(
-            checkboxGroupInput(
-              ns('sources_box'), label = 'Choose your sources', choices=''
-            ),
-            radioButtons(
-              ns('sink_radio'), label='Choose your sink', choices = ''
-            ),
+            uiOutput(ns("sources_box")),
+            uiOutput(ns("sink_radio")),
+          ),
+          fluidRow(
+            actionButton(ns('src_go'), label='Launch', style = "material-circle", color = "primary", icon = icon('play'))
           )
         ),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-      ) 
+      )
     )
   )
 }
@@ -38,8 +38,11 @@ mod_source_tracker_ui <- function(id){
 #' source_tracker Server Function
 #'
 #' @noRd 
+#' 
+#' 
 mod_source_tracker_server <- function(input, output, session, r = r){
   ns <- session$ns
+  
   r_values <- reactiveValues(factor_list=NULL)
   
   observe({
@@ -48,35 +51,30 @@ mod_source_tracker_server <- function(input, output, session, r = r){
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
   
-  observe({
+  output$sources_box <- renderUI({
     req(r$sdat(), input$src_fact1)
-    tmp <- r$sdat()
-    uniq.name <- unique(tmp[,input$src_fact1])
-    indices <- 1:length(uniq.name)
-    choices.list <- as.list(setNames(indices, uniq.name))
-    r_values$factor_list <- choices.list
-    updateCheckboxGroupInput(session, 'sources_box',
-                             choices = choices.list)
-    
+    levels <- na.omit(levels(r$sdat()[,input$src_fact1]))
+    checkboxGroupButtons(ns('sources_box'), "Choose your sources:", choices=levels, justified = TRUE, checkIcon = list(yes = icon("ok", lib = "glyphicon")))
   })
   
-  observe({
-    req(r$sdat(), input$src_fact1, input$sources_box, r_values$factor_list)
-    src_box <- as.vector(input$sources_box)
-    print(src_box)
-    sink.list <- as.list(r_values$factor_list)
-    print(sink.list)
-    # sink.list <- sink.list[-src_box]
-    print(sink.list)
-    # tmp <- r$sdat()
-    # uniq.name <- unique(tmp[,input$src_fact1])
-    # indices <- 1:length(uniq.name)
-    # print(uniq.name)
-    # print(indices)
-    # choices.list <- as.list(setNames(indices, uniq.name))
-    # print(choices.list)
-    # updateRadioButtons(session, 'sink_radio',
-    #                   choices = choices.list)
+  output$sink_radio <- renderUI({
+    req(input$sources_box)
+    levels <- na.omit(levels(r$sdat()[,input$src_fact1]))
+    ch <- dplyr::setdiff(levels, input$sources_box )
+    radioGroupButtons(ns('sink_radio'), "Choose your sink", choices=ch, justified = TRUE, checkIcon = list(yes = icon("ok", lib = "glyphicon")))
+  })
+  
+  
+  launch_sourceTracker <- reactive({
+    # phy_obj <- r$phyloseq_filtered()
+    ff <- glue::glue("tt <- r$sdat()${input$src_fact1} %in% c(input$sources_box, input$sink_radio )")
+    print(ff)
+    eval(parse(text=ff))
+  })
+  
+  srcTracker_reactive <- eventReactive(input$src_go, {
+    cat(file=stderr(), 'launch sourceTracker...')
+    launch_sourceTracker()
   })
   
 }
@@ -86,4 +84,3 @@ mod_source_tracker_server <- function(input, output, session, r = r){
     
 ## To be copied in the server
 # callModule(mod_source_tracker_server, "source_tracker_ui_1")
- 

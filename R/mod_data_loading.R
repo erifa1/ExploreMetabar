@@ -529,8 +529,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   # final filtered object
   r$phyloseq_filtered <- reactive({
-    r_values$phyobj_final
-    # r_values$phyobj_initial
+    # r_values$phyobj_final
+    r_values$phyobj_initial
   })
 
 
@@ -550,8 +550,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
   r$sdat <- reactive({
-    req(r_values$phyobj_final)
-    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_final)))
+    # req(r_values$phyobj_final)
+    # as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_final)))
+    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
 
 }

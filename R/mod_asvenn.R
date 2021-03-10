@@ -2,7 +2,7 @@
 #'
 #' @description A shiny Module.
 #'
-#' @param id,input,output,session Internal parameters for {shiny}.
+#' @param id,input,output,session,r Internal parameters for {shiny}.
 #'
 #' @noRd
 #'
@@ -137,7 +137,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   output$lvls1 = renderUI({
     req(input$Fact1, r$phyloseq_filtered())
-    level1 <- na.omit(levels(as.factor(sample_data(r$phyloseq_filtered())[,input$Fact1]@.Data[[1]])) )
+    level1 <- na.omit(levels(r$sdat()[,input$Fact1]))
     checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :",
                        choices = level1, inline = TRUE, selected = level1[1:3])
 
