@@ -168,7 +168,7 @@ mod_source_tracker_server <- function(input, output, session, r = r){
   })
   
   get_box_plot <- reactive({
-    tmp <- reshape2::melt(srcTracker_reactive()$proportions, id.vars='SampleType')
+    tmp <- reshape2::melt(srcTracker_reactive()$proportions, id.vars=input$src_fact1)
     ggplot2::ggplot(tmp, aes(x=variable, y=value, fill=variable)) + 
       geom_boxplot() +
       ggtitle("SourceTracker Proportion per sources found in sink") + 
