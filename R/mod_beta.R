@@ -60,10 +60,12 @@ mod_beta_ui <- function(id){
       box(
         title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
         uiOutput(ns("factor2")),
+        uiOutput(ns("interac_factor")),
         actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        h3('ADONIS formula:'),
+        verbatimTextOutput(ns("adonis_formula")),
         h2('Permanova Adonis Test Result: '),
         DT::dataTableOutput(ns('adonistest')),
-        #verbatimTextOutput(ns("adonistest")),
         h2('Pairwise Adonis Test Results: '),
         DT::dataTableOutput(ns("adonispairwisetest")),
         h2('Dispersion results:'),
@@ -114,6 +116,19 @@ mod_beta_server <- function(input, output, session, r = r){
     checkboxGroupInput(
       ns("Fact2"),
       label = "Select covariable(s) to test: ",
+      choices = Fchoices,
+      inline = TRUE
+    )
+  })
+  
+  output$interac_factor <- renderUI({
+    req(input$beta_fact1, r$phyloseq_filtered())
+    facts = r$phyloseq_filtered()@sam_data@names
+    Fchoices = facts[facts != input$beta_fact1]
+    
+    checkboxGroupInput(
+      ns("interFactor"),
+      label = "Select interaction factor(s) to test: ",
       choices = Fchoices,
       inline = TRUE
     )
@@ -170,6 +185,23 @@ mod_beta_server <- function(input, output, session, r = r){
       ggplotly(p) %>% config(toImageButtonOptions = list(format = "svg"))
     }, message = "Plot Beta...")
   })
+  
+  get_formula <- reactive({
+    req(input$metrics, input$beta_fact1)
+    form <- glue::glue('{input$metrics}.dist ~ Depth + ')
+    if(!is.null(input$Fact2)){
+      cov1 = paste(input$Fact2, collapse = " + ")
+      form <- paste(form, glue::glue('{cov1} + {input$beta_fact1}'), sep='')
+    }
+    else if(!is.null(input$interFactor)){
+      cov1 = paste(input$interFactor, collapse = "*")
+      form <- paste(form, glue::glue('{input$beta_fact1}*{cov1}'), sep='')
+    }
+    else{
+      form <- paste(form, glue::glue('{input$beta_fact1}'), sep='')
+    }
+    return(form)
+  })
 
 
   betatest <- eventReactive(input$go1, {
@@ -198,20 +230,17 @@ mod_beta_server <- function(input, output, session, r = r){
     disper.anova <- anova(res.disper)
     disper.tukey <- TukeyHSD(res.disper)
 
-    if(is.null(input$Fact2)){
-      form1 = glue::glue('{input$metrics}.dist ~ Depth + {input$beta_fact1}')
-    }else{
-      cov1 = paste(input$Fact2, collapse = " + ")
-      form1 = glue::glue('{input$metrics}.dist ~ Depth + {cov1} + {input$beta_fact1}')
-    }
-
-    res.adonis = adonis(as.formula(form1), data = mdata, permutations = 1000)
+    res.adonis = vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
 
     fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$beta_fact1], p.adjust.m = "fdr")')
     # fun <- glue::glue('res.pairwise = TukeyHSD(res.adonis, \"{input$beta_fact1}\")') <- marche pas TukeyHSD ne prend pas en charge les résultats d'adonis.
     eval(parse(text=fun))
 
-    return(list(res.adonis = res.adonis$aov.tab, res.pairwise = res.pairwise, res.disper = res.disper, disper.anova = disper.anova, disper.tukey = disper.tukey ))
+    return(list(form = get_formula(), res.adonis = data.frame(res.adonis), res.pairwise = res.pairwise, res.disper = res.disper, disper.anova = disper.anova, disper.tukey = disper.tukey ))
+  })
+  
+  output$adonis_formula <- renderText({
+    print(betatest()$form)
   })
 
 
