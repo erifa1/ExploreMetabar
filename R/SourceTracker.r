@@ -300,7 +300,7 @@
     for(i in 1:N){
         sink <- test[i,]
         D <- sum(sink) # sink sample depth
-        incProgress(i,detail= paste0('Passes: ', i, ' on ', N))
+        incProgress(1,detail= paste0('Passes: ', i, ' on ', N))
         # precalculate denominator for Pr(env in sample)
         p_v_denominator = max(1,(D-1) + V*beta)
         
