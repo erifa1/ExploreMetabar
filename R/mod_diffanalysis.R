@@ -31,25 +31,25 @@ mod_diffanalysis_ui <- function(id){
                      verbatimTextOutput(ns("print1")),
                      actionButton(ns("go1"), "Run DESeq2", icon = icon("play-circle"),
                                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     dataTableOutput(ns("deseqTab"))
+                     DT::dataTableOutput(ns("deseqTab"))
 
                      ),
             tabPanel("MetaGenomeSeq",
                      h1("Run MGseq with same settings:"),
                      actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle"),
                                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     dataTableOutput(ns("MGseqTab"))
+                     DT::dataTableOutput(ns("MGseqTab"))
             ),
             tabPanel("MetaCoder",
                      h1("Run Metacoder with same settings:"),
                      actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle"),
                                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     dataTableOutput(ns("mtcoderTab"))
+                     DT::dataTableOutput(ns("mtcoderTab"))
             ),
             # tabPanel("Wilcox non parametric test",
             #          h1("Run Wilcox tests with same settings:"),
             #          actionButton(ns("go3"), "Run Wilcox"),
-            #          dataTableOutput(ns("WilcoxTab"))
+            #          DT::dataTableOutput(ns("WilcoxTab"))
             # ),
             tabPanel("Merge results",
                      h1("Merge results of differential analysis:"),
@@ -57,7 +57,7 @@ mod_diffanalysis_ui <- function(id){
                      box(
                      downloadButton(outputId = ns("merge_download"), label = "Download Table"),
                      downloadButton(outputId = ns("fasta_download"), label = "Download FASTA"),
-                     dataTableOutput(ns("mergeTab")),
+                     DT::dataTableOutput(ns("mergeTab")),
                      title = "Aggregate table:", width = 12, status = "primary", solidHeader = TRUE),
                      
                      box(
@@ -105,24 +105,25 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
   ns <- session$ns
   
   output$factor1 = renderUI({
+    req(r$phyloseq_filtered())
     selectInput(
       ns("Fact1"),
       label = "Select factor to test: ",
-      choices = r$subglom()@sam_data@names
+      choices = r$phyloseq_filtered()@sam_data@names
     )
   })
   
   output$cond1 = renderUI({
-    req(input$Fact1)
+    req(input$Fact1, r$phyloseq_filtered())
     selectInput(ns("Cond1"), 
       label = "Select Condition 1 to compare: ", 
-      choices = unique(r$subglom()@sam_data[,input$Fact1])
+      choices = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
       )
   })
   
   output$cond2 = renderUI({
-    req(input$Cond1)
-    Conds = unique(r$subglom()@sam_data[,input$Fact1])
+    req(input$Cond1, input$Fact1, r$phyloseq_filtered())
+    Conds = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
     if(length(Conds) <= 2){
       print(Conds)
       choices2 = Conds
@@ -151,33 +152,32 @@ print(choices2)
     output$print1 <- renderPrint({
       # req(input$Fact1)
       # print(input$Fact1)
-      # print(unique(r$subglom()@sam_data[,input$Fact1]))
-      print(data1())
+      # print(unique(r$phyloseq_filtered()@sam_data[,input$Fact1]))
       cat("\n")
       print( glue("Compare {input$Cond1} and {input$Cond2} ") )
       
-      # print(head(tax_table(r$subglom())))
+      # print(head(tax_table(r$phyloseq_filtered())))
     })
     
     
     #Taxonomy subset (asvselect)
-    data1 <- reactive({
-      req(r$asvselect(), r$subglom())
-      Fdata <- prune_taxa(r$asvselect(), r$subglom())
-      Fdata
-    })
+    # data1 <- reactive({
+    #   req(r$asvselect(), r$phyloseq_filtered())
+    #   Fdata <- prune_taxa(r$asvselect(), r$phyloseq_filtered())
+    #   Fdata
+    # })
     
     
     deseqDA = eventReactive(input$go1, {
       
       withProgress({
         
-      req(input$Fact1, input$Cond1, input$Cond2, data1())
+      req(input$Fact1, input$Cond1, input$Cond2, r$phyloseq_filtered())
       
       print("deseqtophy")
-      fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+      fun <- glue(" tmp <- subset_samples(r$phyloseq_filtered(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
-      print("prunetaxa")
+      # print("prunetaxa")
       tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
       tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
       fun = glue ("deseq <- phyloseq_to_deseq2(tmp, ~ {input$Fact1})")
@@ -204,14 +204,14 @@ print(choices2)
       
 
     output$deseqTab <- DT::renderDataTable({
-      req(deseqDA(), input$Alpha1)
+      req(deseqDA(), input$Alpha1, r$phyloseq_filtered())
       
       res <- deseqDA()
       # Construct table
-      ttable1 <- as.data.frame(data1()@tax_table@.Data) %>%
+      ttable1 <- as.data.frame(r$phyloseq_filtered()@tax_table@.Data) %>%
         rownames_to_column()
       
-      sseq1 <- as.data.frame(data1()@refseq) %>%
+      sseq1 <- as.data.frame(r$phyloseq_filtered()@refseq) %>%
         rownames_to_column() 
       
       if(nrow(sseq1) != 0){sseq1 <- rename(sseq1, sequence = 2)}
@@ -237,13 +237,13 @@ print(choices2)
       
       withProgress({
         
-        req(input$Fact1, input$Cond1, input$Cond2, data1())
+        req(input$Fact1, input$Cond1, input$Cond2, r$phyloseq_filtered())
         
-        fun <- glue(" tmp <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+        fun <- glue(" tmp <- subset_samples(r$phyloseq_filtered(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
         eval(parse(text=fun))
         tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
         tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
-        print(tmp)
+        # print(tmp)
         print(head(otu_table(tmp)))
         print("MGseqtophy")
         tax_table(tmp) <- NULL #problem with taxonomy table conversion
@@ -289,7 +289,7 @@ print(choices2)
       
       withProgress({
       
-      req(input$Fact1, input$Cond1, input$Cond2, data1())
+      req(input$Fact1, input$Cond1, input$Cond2, r$phyloseq_filtered())
       
       mean_ratio <- function(abund_1, abund_2) {
         log_ratio <- log2(mean(abund_1) / mean(abund_2))
@@ -302,7 +302,7 @@ print(choices2)
              wilcox_p_value = wilcox.test(abund_1, abund_2)$p.value)
       }
       
-      fun <- glue(" psobj <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+      fun <- glue(" psobj <- subset_samples(r$phyloseq_filtered(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
       eval(parse(text=fun))
       psobj <- prune_taxa(taxa_sums(psobj) >= 1, psobj)
       psobj <- prune_samples(sample_sums(psobj) >=1, psobj)
@@ -345,8 +345,8 @@ print(choices2)
     wilcoxDA = eventReactive(input$go3, {
       
       withProgress({
-        
-        fun <- glue(" tmp <- subdata <- subset_samples(data1(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
+        req(r$phyloseq_filtered(), input$Fact1, input$Cond1, input$Cond2)
+        fun <- glue(" tmp <- subdata <- subset_samples(r$phyloseq_filtered(), {input$Fact1} %in% c('{input$Cond1}','{input$Cond2}')) ")
         eval(parse(text=fun))
         
         print("format")
@@ -443,7 +443,7 @@ print(choices2)
     mergeList <- reactive({
       
       withProgress({
-        
+      req(input$Alpha1, input$Cond1, input$Cond2, input$Fact1)
       print("merge")
       # req(wilcoxDA(), mtcoderDA(), deseqDA(), mgSeqDA(), input$Alpha1)
       
@@ -509,7 +509,7 @@ print(choices2)
         # input$Cond2="Soil"
 
         print('Calculating mean relative abundance...')
-        data = data1()
+        data = r$phyloseq_filtered()
         normf = function(x){ x/sum(x) }
         data.norm <- transform_sample_counts(data, normf)
         otableNORM <- otu_table(data.norm)
@@ -583,14 +583,17 @@ print(choices2)
     
     output$merge_download <- downloadHandler(
       filename = "aggregate_table.csv",
-      content = function(file) {write.table(mergeList()$TABf, file, sep="\t", row.names=FALSE)}
+      content = function(file) {
+        req(mergeList())
+        write.table(mergeList()$TABf, file, sep="\t", row.names=FALSE)
+      }
     )
     
     output$fasta_download <- downloadHandler(
       filename = "signif_seqs.fasta",
       content = function(file) {
-        req(mergeList())
-        if(!is.null(refseq(data1(), errorIfNULL=FALSE))){
+        req(mergeList(), r$phyloseq_filtered())
+        if(!is.null(refseq(r$phyloseq_filtered(), errorIfNULL=FALSE))){
           writeXStringSet(mergeList()$signifseqs, file)
         }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
       }
@@ -599,7 +602,7 @@ print(choices2)
     
     reacbarplot1 <- reactive({
       print("plot")
-      req(mergeList())
+      req(mergeList(), input$Nmeth, input$minAb, input$Nfeat)
       TABf = mergeList()$TABf
       ttax = mergeList()$ttax
       # Barplot
@@ -618,8 +621,8 @@ print(choices2)
       
       if(nrow(TABbar)!=0){
         print("Plot")
-        print(r$RankGlom())
-        if(r$RankGlom() == "ASV"){
+        print(r$rank_glom())
+        if(r$rank_glom() == "ASV"){
           TABbar$tax = paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
         }else{
           TABbar$tax = TABbar$ListAllOtu

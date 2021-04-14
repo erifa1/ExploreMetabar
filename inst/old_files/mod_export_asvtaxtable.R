@@ -78,53 +78,53 @@ mod_export_asvtaxtable_ui <- function(id){
 #' @importFrom Biostrings writeXStringSet
 
 # Merge table function to export phyloseq object to single table with taxonomy, abundance and sequence
-merge_table <- function(input, table, table_raw){
-  print("Merge tables")
-  FNGdata <- table
-  if(input$RankGlom=="ASV"){rank1 = "Species"}else{rank1 = input$RankGlom}
-  ttable <- FNGdata %>%
-    tax_table() %>%
-    as.data.frame(stringsAsFactors = FALSE) %>%
-    dplyr::select(1:rank1) %>%
-    tibble::rownames_to_column() %>%
-    as.matrix() %>% as.data.frame()
-  otable <- FNGdata %>%
-    otu_table() %>%
-    as.data.frame(stringsAsFactors = FALSE) %>%
-    tibble::rownames_to_column()
-
-  rawtaxasum1 <-  table_raw %>%   ## here need raw counts 
-    taxa_sums() %>%
-    as.data.frame %>%
-    tibble::rownames_to_column()
-  names(rawtaxasum1)[2] <- "RawAbundanceSum"
-
-  joinGlom <-
-    dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
-    mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
-    dplyr::left_join(otable, by = "rowname")
-
-  if(input$RankGlom=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
-    print("add sequence to dataframe")
-    showNotification("Sequences added to dataframe.", type="message", duration = 5)
-    refseq1 <- FNGdata %>%
-      refseq %>%
-      as.data.frame %>%
-      tibble::rownames_to_column() %>%
-      rename(sequences = x)
-
-    joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
-      dplyr::rename(asvname = rowname)
-    FTAB = as.data.frame(joinGlom2)
-  }else{
-    showNotification("No refseq in object.", type="error", duration = 5)
-    dplyr::rename(joinGlom, asvname = rowname)
-    # print(str(as.data.frame(as.matrix(ttable))))
-    FTAB = as.data.frame(joinGlom)
-  }
-  print(head(FTAB[,5]))
-  return(FTAB)
-}
+# merge_table <- function(input, table, table_raw){
+#   print("Merge tables")
+#   FNGdata <- table
+#   if(input$RankGlom=="ASV"){rank1 = "Species"}else{rank1 = input$RankGlom}
+#   ttable <- FNGdata %>%
+#     tax_table() %>%
+#     as.data.frame(stringsAsFactors = FALSE) %>%
+#     dplyr::select(1:rank1) %>%
+#     tibble::rownames_to_column() %>%
+#     as.matrix() %>% as.data.frame()
+#   otable <- FNGdata %>%
+#     otu_table() %>%
+#     as.data.frame(stringsAsFactors = FALSE) %>%
+#     tibble::rownames_to_column()
+# 
+#   rawtaxasum1 <-  table_raw %>%   ## here need raw counts
+#     taxa_sums() %>%
+#     as.data.frame %>%
+#     tibble::rownames_to_column()
+#   names(rawtaxasum1)[2] <- "RawAbundanceSum"
+# 
+#   joinGlom <-
+#     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
+#     mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
+#     dplyr::left_join(otable, by = "rowname")
+# 
+#   if(input$RankGlom=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
+#     print("add sequence to dataframe")
+#     showNotification("Sequences added to dataframe.", type="message", duration = 5)
+#     refseq1 <- FNGdata %>%
+#       refseq %>%
+#       as.data.frame %>%
+#       tibble::rownames_to_column() %>%
+#       rename(sequences = x)
+# 
+#     joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
+#       dplyr::rename(asvname = rowname)
+#     FTAB = as.data.frame(joinGlom2)
+#   }else{
+#     showNotification("No refseq in object.", type="error", duration = 5)
+#     dplyr::rename(joinGlom, asvname = rowname)
+#     # print(str(as.data.frame(as.matrix(ttable))))
+#     FTAB = as.data.frame(joinGlom)
+#   }
+#   print(head(FTAB[,5]))
+#   return(FTAB)
+# }
 
 
 mod_export_asvtaxtable_server <- function(input, output, session, r = r){
@@ -263,9 +263,7 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
       # print(str(as.data.frame(as.matrix(ttable))))
       FTAB = as.data.frame(joinGlom)
     }
-
     FTAB
-
   })
 
   output$otable1 <- DT::renderDataTable({
@@ -346,7 +344,6 @@ mod_export_asvtaxtable_server <- function(input, output, session, r = r){
   r$subtax <- reactive(
     subtax()
   )
-
 
 }
 

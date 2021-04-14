@@ -1,23 +1,25 @@
   # Set options here
   options(golem.app.prod = FALSE) # TRUE = production mode, FALSE = development mode
-  
+
   # Detach all loaded packages and clean your environment
   golem::detach_all_attached()
   # rm(list=ls(all.names = TRUE))
-  
+
   # Document and reload your package
   golem::document_and_reload()
-  
+
   # Run the application
   devtools::load_all(".")
   ExploreMetabar::run_app()
 
+# one line test
+options(golem.app.prod = FALSE);golem::detach_all_attached();golem::document_and_reload();devtools::load_all(".");ExploreMetabar::run_app()
   # # Deploy
   # options(repos = BiocManager::repositories()); getOption("repos")
   # rsconnect::deployApp("~/Repository/LRF/shiny_app/ExploreMetabar/")
   # rsconnect::appDependencies("~/Repository/LRF/shiny_app/ExploreMetabar/")
-  
-  
+
+
   # package     version       source
   # 1              AlgDesign       1.2.0         CRAN
   # 2          AnnotationDbi      1.48.0 Bioconductor
@@ -255,4 +257,3 @@
   # 234                 yaml       2.2.1         CRAN
   # 235             zlibbioc      1.32.0 Bioconductor
   # 236                  zoo       1.8-7         CRAN
-  
