@@ -22,6 +22,7 @@ app_ui <- function() {
                       menuItem("Alpha diversity", tabName = "tab_alpha", icon = icon("chart-bar")),
                       menuItem("Beta diversity ", tabName = "tab_beta", icon = icon("chart-bar")),
                       menuItem("Boxplot/Tests", tabName = "tab_boxplot", icon = icon("microscope")),
+                      menuItem('Heatmap', tabName = 'heatmap', icon = icon('chart-bar')),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
                       menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree"))
@@ -55,6 +56,9 @@ app_ui <- function() {
                       ),
                       tabItem(tabName = "source_tracker",
                               mod_source_tracker_ui("source_tracker_ui_1")
+                      ),
+                      tabItem(tabName = "heatmap",
+                              mod_heatmap_ui("heatmap_ui_1")
                       )
                       # tabItem(tabName = "tab_networkpln",
                       #         mod_networkpln_ui("networkpln_ui_1")
