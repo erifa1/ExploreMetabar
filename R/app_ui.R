@@ -1,6 +1,8 @@
 #' @import shiny
 #' @import shinydashboard
 #' @import shinyWidgets
+#' @import shinyjs
+
 app_ui <- function() {
   tagList(
     # Leave this function for adding external resources
@@ -31,6 +33,7 @@ app_ui <- function() {
                   ),
 
                   dashboardBody(
+                    
                     tabItems(
                       tabItem(tabName = 'data_loading',
                               mod_data_loading_ui("data_loading_ui_1")
@@ -64,6 +67,7 @@ app_ui <- function() {
                       # )
                     )
                   )
+                  
     )
 
   )

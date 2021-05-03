@@ -41,6 +41,12 @@ mod_alpha_ui <- function(id){
                        style="background-color: #3b9ef5"),
         width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = FALSE
       ),
+      box(
+        DT::dataTableOutput(ns("alphagrp")),
+        downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table", icon = icon("download"), class = "butt",
+                       style="background-color: #3b9ef5"),
+        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes by group", collapsible = TRUE, collapsed = FALSE
+      ),
       box(        
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices =
@@ -78,6 +84,7 @@ mod_alpha_ui <- function(id){
 
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
+
   
   observe({
     req(r$phyloseq_filtered())
@@ -109,8 +116,36 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$alphatab
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
   
-   ##filter = "top",
-
+  alphagrp_table <- reactive({
+    alpha.table <- alpha1()$alphatab
+    metadata = tibble::rownames_to_column(r$sdat())
+    metadata <- select(metadata, rowname, input$Fact1)
+    alpha.table =  tibble::rownames_to_column(alpha.table)
+    alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
+    print(alpha.table)
+    alpha.table[,'rowname'] <- NULL
+    save(alpha.table,file="debug.rdata")
+    alpha.table <- alpha.table %>% 
+      group_by_at(input$Fact1) %>% 
+      summarise(
+        tibble(
+          across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"), 
+          across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+        )
+      )
+    return(alpha.table)
+  })
+  
+  output$alphagrp <- DT::renderDataTable({
+    alphagrp_table()
+  }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+  
+  output$alphagrp_download <- downloadHandler(
+    filename = "alphagrp_index.csv",
+    content = function(file) {
+      write.table(alphagrp_table(), file, sep="\t", col.names=NA)}
+  )  
+  
   output$alpha_download <- downloadHandler(
     filename = "alpha_index.csv",
     content = function(file) {
