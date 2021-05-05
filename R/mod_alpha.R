@@ -85,7 +85,6 @@ mod_alpha_ui <- function(id){
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "Fact1",
@@ -122,9 +121,9 @@ mod_alpha_server <- function(input, output, session, r = r){
     metadata <- select(metadata, rowname, input$Fact1)
     alpha.table =  tibble::rownames_to_column(alpha.table)
     alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
-    print(alpha.table)
+
     alpha.table[,'rowname'] <- NULL
-    save(alpha.table,file="debug.rdata")
+
     alpha.table <- alpha.table %>% 
       group_by_at(input$Fact1) %>% 
       summarise(
