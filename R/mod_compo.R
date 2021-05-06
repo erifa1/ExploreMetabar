@@ -83,7 +83,7 @@ mod_compo_server <- function(input, output, session, r = r){
       shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
-  
+
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "RankCompo",
@@ -107,8 +107,8 @@ mod_compo_server <- function(input, output, session, r = r){
     }
 
     withProgress({
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL)
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL)
+      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split=input$checkbox1)
+      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split=input$checkbox1)
       LL
     }, message="Processing, please wait...")
 
