@@ -11,6 +11,7 @@
 #' @import DT
 #' @import Biostrings
 #' @import phyloseq.extended
+#' @import shinyBS
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -42,7 +43,7 @@ mod_data_loading_ui <- function(id){
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your metadata.")
           ),
           DT::dataTableOutput(ns("metadata_table")),
-          shinyBS::bsButton(inputId = ns('update_metadata'), label = "Update Sample", block = F, style = 'danger')
+          shinyBS::bsButton(inputId = ns('update_metadata'), label = "Update Sample", block = F, style = 'danger', type='action')
         )
       ),
       fluidRow(
@@ -58,7 +59,7 @@ mod_data_loading_ui <- function(id){
           # numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
           # numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
           numericRangeInput(ns("minPrev"), "Minimum taxa prevalence in samples:", c(1,1), width = NULL, separator = " to "),
-          shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger')
+          shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger', type='action')
           # actionButton(ns('update_taxo'), "Update Taxonomy", class='butt2')
         )
       ),
@@ -69,7 +70,7 @@ mod_data_loading_ui <- function(id){
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
           ),
           DT::dataTableOutput(ns("taxonomy_table")),
-          shinyBS::bsButton(inputId = ns('subset_taxo'), label = "Update Taxonomy", block = F, style = 'danger')
+          shinyBS::bsButton(inputId = ns('subset_taxo'), label = "Update Taxonomy", block = F, style = 'danger', type='action')
           # actionButton(ns('subset_taxo'), "Update Taxonomy", class='butt2')
         )
       ),
@@ -87,7 +88,7 @@ mod_data_loading_ui <- function(id){
               "VST (variance stabilizing transformation)" = 3
             ), selected = 1
           ),
-          shinyBS::bsButton(inputId = ns('norm'), label = "Normalize", block = F, style = 'danger')
+          shinyBS::bsButton(inputId = ns('norm'), label = "Normalize", block = F, style = 'danger', type='action')
           # actionButton(ns('norm'), "Normalize", class='butt2')
         ),
         box(
@@ -229,7 +230,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$metadata_table <- DT::renderDataTable({
     sdat()
-  }, filter="top",options = list(pageLength = 10, scrollX = TRUE, rowCallback = JS(rowCallback)), server=TRUE)
+  }, filter="top",options = list(pageLength = 5, scrollX = TRUE, rowCallback = JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
     req(r_values$phyobj_initial)
