@@ -42,7 +42,7 @@ Imports:
     PLNmodels,
     pkgload,
     Biostrings,
-    shinyjs
+    bslib
 Remotes:
     github::omegahat/XML,
     bioc::3.10/rhdf5,

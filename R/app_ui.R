@@ -18,6 +18,7 @@ app_ui <- function() {
 
                   dashboardSidebar(
                     sidebarMenu(
+                      id="tabs",
                       style = "position: fixed; overflow: visible",
                       menuItem("Input Data", tabName= 'data_loading', icon=icon("diagnoses")),
                       menuItem("Community Composition", tabName = "tab_compo", icon = icon("chart-pie")),
@@ -34,7 +35,7 @@ app_ui <- function() {
                   ),
 
                   dashboardBody(
-                    
+
                     tabItems(
                       tabItem(tabName = 'data_loading',
                               mod_data_loading_ui("data_loading_ui_1")
@@ -71,7 +72,7 @@ app_ui <- function() {
                       # )
                     )
                   )
-                  
+
     )
 
   )

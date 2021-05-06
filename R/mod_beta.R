@@ -89,6 +89,13 @@ mod_beta_ui <- function(id){
 mod_beta_server <- function(input, output, session, r = r){
   ns <- session$ns
 
+  observeEvent(r$tabs$tabselected, {
+    if(r$tabs$tabselected=='tab_beta' && !isTruthy(r$phyloseq_filtered())){
+      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
+    }
+  })
+  
+    
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "beta_fact1",
