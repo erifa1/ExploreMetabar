@@ -63,6 +63,13 @@ mod_heatmap_ui <- function(id){
 #' @noRd 
 mod_heatmap_server <- function(input, output, session, r){
   ns <- session$ns
+  
+  observeEvent(r$tabs$tabselected, {
+    if(r$tabs$tabselected=='heatmap' && !isTruthy(r$phyloseq_filtered())){
+      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
+    }
+  })
+  
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "src_fact1",

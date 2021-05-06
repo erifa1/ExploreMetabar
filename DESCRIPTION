@@ -41,7 +41,8 @@ Imports:
     DESeq2,
     PLNmodels,
     pkgload,
-    Biostrings
+    Biostrings,
+    bslib
 Remotes:
     github::omegahat/XML,
     bioc::3.10/rhdf5,

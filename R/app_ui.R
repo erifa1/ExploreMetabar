@@ -1,7 +1,7 @@
 #' @import shiny
 #' @import shinydashboard
 #' @import shinyWidgets
-app_ui <- function() {
+app_ui <- function(id) {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
@@ -16,6 +16,7 @@ app_ui <- function() {
 
                   dashboardSidebar(
                     sidebarMenu(
+                      id="tabs",
                       style = "position: fixed; overflow: visible",
                       menuItem("Input Data", tabName= 'data_loading', icon=icon("diagnoses")),
                       menuItem("Community Composition", tabName = "tab_compo", icon = icon("chart-pie")),

@@ -5,8 +5,15 @@ options(shiny.maxRequestSize=30*1024^2)
 
 app_server <- function(input, output,session) {
 
-  r <- reactiveValues()
-
+  r <- reactiveValues(
+    tabs = reactiveValues()
+  )
+  
+  observe({
+    r$tabs$tabselected <- input$tabs
+  })
+  
+  
   # List the first level callModules here
   callModule(mod_data_loading_server, "data_loading_ui_1", session=session, r=r)
   callModule(mod_compo_server, "compo_ui_1", session = session, r = r)

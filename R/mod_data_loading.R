@@ -42,8 +42,7 @@ mod_data_loading_ui <- function(id){
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your metadata.")
           ),
           DT::dataTableOutput(ns("metadata_table")),
-          # actionButton(ns('update_metadata'), "Update Sample", class = "btn-warning")
-          shinyBS::bsButton(ns('update_metadata'), "Update Sample", type="action")
+          shinyBS::bsButton(inputId = ns('update_metadata'), label = "Update Sample", block = F, style = 'danger')
         )
       ),
       fluidRow(
@@ -59,7 +58,8 @@ mod_data_loading_ui <- function(id){
           # numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
           # numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
           numericRangeInput(ns("minPrev"), "Minimum taxa prevalence in samples:", c(1,1), width = NULL, separator = " to "),
-          actionButton(ns('update_taxo'), "Update Taxonomy", class='butt2')
+          shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger')
+          # actionButton(ns('update_taxo'), "Update Taxonomy", class='butt2')
         )
       ),
       fluidRow(
@@ -69,7 +69,8 @@ mod_data_loading_ui <- function(id){
             h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
           ),
           DT::dataTableOutput(ns("taxonomy_table")),
-          actionButton(ns('subset_taxo'), "Update Taxonomy", class='butt2')
+          shinyBS::bsButton(inputId = ns('subset_taxo'), label = "Update Taxonomy", block = F, style = 'danger')
+          # actionButton(ns('subset_taxo'), "Update Taxonomy", class='butt2')
         )
       ),
       fluidRow(
@@ -86,7 +87,8 @@ mod_data_loading_ui <- function(id){
               "VST (variance stabilizing transformation)" = 3
             ), selected = 1
           ),
-          actionButton(ns('norm'), "Normalize", class='butt2')
+          shinyBS::bsButton(inputId = ns('norm'), label = "Normalize", block = F, style = 'danger')
+          # actionButton(ns('norm'), "Normalize", class='butt2')
         ),
         box(
           title = 'Phyloseq final object', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
@@ -241,18 +243,29 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   })
 
-  # shinyjs::onclick("update_metadata",{
-  #   print("click")
-  #   shinyBS::updateButton(session, "update_metadata", style="success")
-  # })
-
+  #update button color when clicked
+  observeEvent(input$update_metadata,{
+    shinyBS::updateButton(session = session, ns('update_metadata'), block = F, style = 'success')
+    shinyBS::updateButton(session = session, ns('update_taxo'), block = F, style = 'danger')
+    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
+    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
+  })
+  observeEvent(input$update_taxo,{
+    shinyBS::updateButton(session = session, ns('update_taxo'), block = F, style = 'success')
+    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
+    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
+  })
+  observeEvent(input$subset_taxo,{
+    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'success')
+    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
+  })
+  observeEvent(input$norm,{
+    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'success')
+  })
 
   observeEvent(input$update_metadata, {
     cat(file=stderr(), 'button update_metadata', "\n")
-    # shinyBS::updateButton(session, "update_metadata", style="success")
     subset_samples()
-
-    # print(r_values$phyobj_sub_samples)
   },
   ignoreNULL = TRUE, ignoreInit = TRUE)
 

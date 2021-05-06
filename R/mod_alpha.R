@@ -14,10 +14,14 @@
 #' @export 
 #' @importFrom shiny NS tagList 
 #' @import plotly
+#' @import shinyalert
+#' @import bslib
 mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
+      theme = bslib::bs_theme(version=4),
+      useShinyalert(),
       infoBox("", 
               "Use phyloseq object without taxa merging step.", 
               icon = icon("info-circle"), fill=TRUE, width = 10),
@@ -79,6 +83,13 @@ mod_alpha_ui <- function(id){
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
   
+  observeEvent(r$tabs$tabselected, {
+    if(r$tabs$tabselected=='tab_alpha' && !isTruthy(r$phyloseq_filtered())){
+      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
+    }
+  })
+  
+  
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "Fact1",
@@ -86,8 +97,11 @@ mod_alpha_server <- function(input, output, session, r = r){
   })
   
   
+  
+  
   alpha1 <- eventReactive(input$launch_alpha,{
     cat(file=stderr(), 'computing alpha1...', "\n")
+    print(input$tabs)
     req(r$phyloseq_filtered(),  r$phyloseq_filtered_norm())
     
     data <- r$phyloseq_filtered()
