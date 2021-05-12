@@ -13,7 +13,7 @@
 #' @keywords internal
 #' @export
 #' @importFrom shiny NS tagList
-#' @import plotly
+#' @importFrom plotly plotlyOutput
 mod_compo_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -71,7 +71,7 @@ mod_compo_ui <- function(id){
 #' @rdname mod_compo
 #' @export
 #' @keywords internal
-#' @import plotly
+#' @importFrom plotly renderPlotly
 #' @importFrom microbiome aggregate_top_taxa
 #' @importFrom reshape2 melt
 #' @importFrom ranomaly bars_fun

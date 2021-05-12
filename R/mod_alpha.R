@@ -13,7 +13,7 @@
 #' @keywords internal
 #' @export
 #' @importFrom shiny NS tagList
-#' @import plotly
+#' @importFrom plotly plotlyOutput
 #' @import shinyalert
 #' @import bslib
 mod_alpha_ui <- function(id){
@@ -82,7 +82,7 @@ mod_alpha_ui <- function(id){
 #' @keywords internal
 #' @import phyloseq
 #' @importFrom DT datatable
-#' @import plotly
+#' @importFrom plotly renderPlotly config layout
 #' @importFrom agricolae HSD.test
 #' @importFrom gtools mixedsort
 

@@ -9,7 +9,7 @@
 #' @importFrom shiny NS tagList
 #' @import phyloseq
 #' @import DT
-#' @import Biostrings
+#' @importFrom Biostrings writeXStringSet
 #' @import phyloseq.extended
 #' @import shinyBS
 #'
@@ -216,7 +216,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   sdat <- reactive({
     as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
-  
+
   rowCallback <- c(
     "function(row, data){",
     "  for(var i=0; i<data.length; i++){",
@@ -225,7 +225,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
     "    }",
     "  }",
-    "}"  
+    "}"
   )
 
   output$metadata_table <- DT::renderDataTable({
@@ -317,7 +317,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       if(input$rank_glom != 'ASV'){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
-      
+
       r_values$phyobj_taxglom <- tmp
 
       r_values$phyobj_tmp <- tmp

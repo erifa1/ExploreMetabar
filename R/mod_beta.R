@@ -86,6 +86,7 @@ mod_beta_ui <- function(id){
 #'
 #' @importFrom vegan vegdist
 #' @importFrom vegan adonis
+#' @importFrom plotly ggplotly
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){

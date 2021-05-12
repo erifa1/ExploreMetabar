@@ -22,6 +22,9 @@ golem::add_dockerfile_shinyproxy()
 golem::add_dockerfile_heroku()
 
 
+#Document update
+devtools::document(roclets = c('rd', 'collate', 'namespace'))
+
 # shinyappIO
 
 options(repos = BiocManager::repositories())
