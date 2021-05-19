@@ -1,5 +1,4 @@
 #' @import shiny
-#' @import shinyBS
 #' @import rhdf5
 options(shiny.maxRequestSize=30*1024^2)
 

@@ -7,6 +7,7 @@
 #' @noRd 
 #'
 #' @importFrom shiny NS tagList 
+#' @importFrom ggplot2 ggplot
 #' 
 mod_source_tracker_ui <- function(id){
   ns <- NS(id)

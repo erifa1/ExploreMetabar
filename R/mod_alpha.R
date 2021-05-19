@@ -13,7 +13,7 @@
 #' @keywords internal
 #' @export
 #' @importFrom shiny NS tagList
-#' @import plotly
+#' @importFrom plotly plotlyOutput
 #' @import shinyalert
 #' @import bslib
 mod_alpha_ui <- function(id){
@@ -58,7 +58,7 @@ mod_alpha_ui <- function(id){
                             "InvSimpson"),
                      selected = c("Shannon")
         ),
-        plotlyOutput(ns("plot2")),
+        plotly::plotlyOutput(ns("plot2")),
         width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
       ),
       box(
@@ -120,7 +120,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$alphatab = as.data.frame(alphatab)
     LL$data = data
     cat(file=stderr(), 'computing alpha1 done.', "\n")
-    LL
+    return(LL)
   })
 
 

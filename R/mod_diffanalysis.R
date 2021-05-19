@@ -99,6 +99,7 @@ mod_diffanalysis_ui <- function(id){
 #' @importFrom Biobase pData
 #' @importFrom taxa filter_obs
 #' @importFrom VennDiagram venn.diagram
+#' @importFrom ggplot2 ggplot
 
     
 mod_diffanalysis_server <- function(input, output, session, r = r){
@@ -634,11 +635,11 @@ print(choices2)
           TABbar$tax = TABbar$ListAllOtu
         }
         
-          p<-ggplot(data=TABbar, aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
+          p<-ggplot2::ggplot(data=TABbar, aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
           geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
           coord_flip() + theme_bw() +
           scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5))
-        ggplotly(p)
+        plotly::ggplotly(p)
         
       }else{
         print("No ASV to plot")

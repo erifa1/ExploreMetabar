@@ -1,17 +1,18 @@
 #' data_loading UI Function
 #'
-#' @description A shiny Module.
+#' @description Module for loading phyloseq object from rdata file. This module allows to filter and select samples and taxa prior to analysis.
 #'
 #' @param id,input,output,session Internal parameters for {shiny}.
 #'
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @import phyloseq
-#' @import DT
-#' @import Biostrings
-#' @import phyloseq.extended
-#' @import shinyBS
+#' @importFrom phyloseq sample_data nsamples prune_samples prune_taxa taxa_sums
+#' @importFrom DT dataTableOutput renderDataTable JS
+#' @importFrom Biostrings writeXStringSet
+#' @importFrom phyloseq.extended fast_tax_glom
+#' @importFrom shinyBS bsButton updateButton
+#' @importFrom glue glue
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -185,7 +186,7 @@ merge_table <- function(rank, table){
 #' @noRd
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
-  # r_values <- reactiveValues(phyobj_initial=phyloseq_data(), phyobj_sub_samples=NULL, phyobj_taxglom=NULL, phyobj_final=NULL)
+  
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
   phyloseq_data <- reactive({
@@ -230,7 +231,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$metadata_table <- DT::renderDataTable({
     sdat()
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE, rowCallback = JS(rowCallback)), server=TRUE)
+  }, filter="top",options = list(pageLength = 5, scrollX = TRUE, rowCallback = DT::JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
     req(r_values$phyobj_initial)

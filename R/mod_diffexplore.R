@@ -13,7 +13,7 @@
 #' @keywords internal
 #' @export 
 #' @importFrom shiny NS tagList 
-#' @import ggplot2
+#' @importFrom ggplot2 ggplot
 
 mod_diffexplore_ui <- function(id){
   ns <- NS(id)
@@ -78,7 +78,7 @@ mod_diffexplore_server <- function(input, output, session, r = r){
     TABbar$tax = paste( substr(TABbar[,"Species"],1,40),"...","_", TABbar[,"seqid"], sep="")
     # print(head(TABbar))
     
-    p<-ggplot(data=TABbar[1:50,], aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
+    p<-ggplot2::ggplot(data=TABbar[1:50,], aes(x=reorder(tax, -abs(DESeqLFC)), y=DESeqLFC, fill=Condition ) ) +
       geom_bar(stat="identity", alpha = 0.7) + ggtitle("") + labs(x='Features') +
       coord_flip() + theme_bw() +
       scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5))
