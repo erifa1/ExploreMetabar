@@ -36,7 +36,7 @@ ExploreMetabar::run_app()
 ## On ShinyApps.io
 
 To test ExploreMetabar:
-https://erifa1.shinyapps.io/exploremetabar/
+https://erifa1.shinyapps.io/exploremetabar/ (old version)
 
 <!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->
 

@@ -27,16 +27,27 @@ devtools::document(roclets = c('rd', 'collate', 'namespace'))
 
 # shinyappIO
 
-options(repos = BiocManager::repositories())
+options(repos = c(BiocManager::repositories()))
+
 options()$repos
 
-devtools::install_gitlab("umrf/ranomaly", host = "https://forgemia.inra.fr/", force = TRUE)
+
+devtools::install_github("erifa1/ranomaly", force = TRUE)
+devtools::install_github("mahendra-mariadassou/phyloseq-extended", force = TRUE, ref = "dev")
+#github::mahendra-mariadassou/phyloseq-extended
 ## list all dependencies
 rsconnect::appDependencies()
 
 ### installed package need to be same as deployed!!!
+# phangorn github
+# ranomaly github
 #test appli
+attachment::att_amend_desc()
+options(repos = c(BiocManager::repositories()))
+rsconnect::configureApp("test_xplrMeta", size="xlarge")
 rsconnect::deployApp(appName="test_xplrMeta")
 
 # deploy master
+options(repos = c(BiocManager::repositories()))
+rsconnect::configureApp("APPNAME", size="xlarge")
 rsconnect::deployApp(appName="exploremetabar")
