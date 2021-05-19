@@ -67,10 +67,12 @@ mod_beta_ui <- function(id){
         h2('Permanova Adonis Test Result: '),
         DT::dataTableOutput(ns('adonistest')),
         h2('Pairwise Adonis Test Results: '),
-        DT::dataTableOutput(ns("adonispairwisetest")),
-        h2('Dispersion results:'),
+        DT::dataTableOutput(ns("adonispairwisetest"))
+      ),
+      box(
+        title = "Dispersion results:", width = 12, status = "primary", solidHeader = TRUE,
         h3('Boxplots distance to centroid for each group:'),
-        plotOutput(ns("dispersionPlot")),
+        plotlyOutput(ns("dispersionPlot")),
         h3('Anova on dispersion:'),
         DT::dataTableOutput(ns("dispersionTable")),
         h3('TukeyHSD test on dispersion'),
@@ -84,6 +86,7 @@ mod_beta_ui <- function(id){
 #'
 #' @importFrom vegan vegdist
 #' @importFrom vegan adonis
+#' @importFrom plotly ggplotly
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){
@@ -94,8 +97,8 @@ mod_beta_server <- function(input, output, session, r = r){
       shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
-  
-    
+
+
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "beta_fact1",
@@ -259,7 +262,14 @@ mod_beta_server <- function(input, output, session, r = r){
     betatest()$res.pairwise
   })
 
-  output$dispersionPlot <- renderPlot({boxplot(betatest()$res.disper, col=unique(betatest()$res.disper$group),las=2)})
+  output$dispersionPlot <- renderPlotly({
+    df1 = cbind.data.frame(distances = betatest()$res.disper$distances, group = betatest()$res.disper$group)
+    print(head(df1))
+   plot_ly(df1, x = ~group, y = ~distances,
+           color = ~group, type = 'box') %>%
+     layout(title="", yaxis = list(title = "Distance to centroid"), xaxis = list(title = 'Group'), barmode = 'stack') %>%
+    config(toImageButtonOptions = list(format = "svg"))
+ })
 
   output$dispersionTable <- DT::renderDataTable({
     betatest()$disper.anova

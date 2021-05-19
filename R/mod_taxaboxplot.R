@@ -1,5 +1,5 @@
 # Module UI
-  
+
 #' @title   mod_taxaboxplot_ui and mod_taxaboxplot_server
 #' @description  A shiny Module.
 #'
@@ -11,19 +11,19 @@
 #' @rdname mod_taxaboxplot
 #'
 #' @keywords internal
-#' @export 
-#' @import plotly
-#' @importFrom shiny NS tagList 
+#' @export
+#' @importFrom plotly plotlyOutput
+#' @importFrom shiny NS tagList
 mod_taxaboxplot_ui <- function(id){
   ns <- NS(id)
   tagList(
-    
+
     fluidPage(
-      
-      infoBox("Reminder :", 
-              "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module", 
+
+      infoBox("Reminder :",
+              "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module",
               icon = icon("info-circle"), fill=TRUE, width = 10),
-      
+
       box(
         selectInput(
           ns("boxplot_fact1"),
@@ -34,7 +34,7 @@ mod_taxaboxplot_ui <- function(id){
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
       ),
-      
+
       box(
       h2(icon("diagnoses"),"Click on feature below to generate boxplot:"),
       DT::dataTableOutput(ns("pvalout1")),
@@ -49,38 +49,38 @@ mod_taxaboxplot_ui <- function(id){
       box(verbatimTextOutput(ns("wilcoxprint")),
           title = "Raw Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE)
     )
-    
+
   )
 }
-    
+
 # Module Server
-    
+
 #' @rdname mod_taxaboxplot
 #' @export
 #' @keywords internal
-#' @import plotly
+#' @importFrom plotly plot_ly renderPlotly
 #' @importFrom DT datatable
 #' @importFrom DT formatStyle
 #' @importFrom DT formatRound
 #' @importFrom DT styleInterval
-    
+
 mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
-  
+
   observeEvent(r$tabs$tabselected, {
     if(r$tabs$tabselected=='tab_boxplot' && !isTruthy(r$phyloseq_filtered())){
       shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
-  
-  
+
+
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "boxplot_fact1",
                       choices = r$phyloseq_filtered()@sam_data@names)
-    
+
   })
-  
+
   LjoinGlom <- reactive({
     req(r$phyloseq_filtered(), r$rank_glom())
     withProgress({
@@ -248,12 +248,11 @@ output$wilcoxDT <- DT::renderDataTable({
       group_map(~ summary(.x))
   })
 
-  
+
 }
-    
+
 ## To be copied in the UI
 # mod_taxaboxplot_ui("taxaboxplot_ui_1")
-    
+
 ## To be copied in the server
 # callModule(mod_taxaboxplot_server, "taxaboxplot_ui_1")
- 
