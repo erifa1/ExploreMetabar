@@ -9,8 +9,7 @@ Authors@R: c(
   person(given = "Sebastien",
   family = "Theil",
   role = c("aut"),
-  email = "sebastien.theil@inrae.fr")
-)
+  email = "sebastien.theil@inrae.fr") )
 Description: Shiny application to explore metabarcoding data (16S, ITS...)
 License: MIT + file LICENSE
 URL: https://forgemia.inra.fr/umrf/exploremetabar
