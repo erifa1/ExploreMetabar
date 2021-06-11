@@ -124,8 +124,9 @@ mod_data_loading_ui <- function(id){
 merge_table <- function(rank, table){
   # print("Merge tables")
   FNGdata <- table
+  rnames <- phyloseq::rank_names(FNGdata)
   if(rank=="ASV"){
-    rank1 = "Species"
+    rank1 = rnames[length(rnames)]
   }
   else{
     rank1 = rank
@@ -338,9 +339,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
       cat(file=stderr(), 'render_taxonomy_table fun', "\n")
 
       phyloseq_obj <- r_values$phyobj_tmp
-
+      rnames <- phyloseq::rank_names(phyloseq_obj)
       if(input$rank_glom=="ASV"){
-        rank1 = "Species"
+        rank1 = rnames[length(rnames)]
       }
       else{
         rank1 = input$rank_glom
