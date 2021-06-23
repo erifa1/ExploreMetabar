@@ -10,7 +10,6 @@
 #' @importFrom phyloseq sample_data nsamples prune_samples prune_taxa taxa_sums
 #' @importFrom DT dataTableOutput renderDataTable JS
 #' @importFrom Biostrings writeXStringSet
-#' @importFrom phyloseq.extended fast_tax_glom
 #' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
 #'
@@ -301,7 +300,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
         if(input$rank_glom != 'ASV'){
           if(nsamples(tmp)>1000){
             showNotification("Phylogentic tree removed, too much samples...", type="message", duration = 5)
-            tmp <- phyloseq.extended::fast_tax_glom(tmp, input$rank_glom)
+            tmp <- fast_tax_glom(tmp, input$rank_glom)
           }else{
             tmp <- tax_glom(tmp, input$rank_glom)
           }

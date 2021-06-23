@@ -39,7 +39,6 @@ Imports:
     microbiome,
     pairwiseAdonis,
     phyloseq,
-    phyloseq.extended,
     PLNmodels,
     plotly,
     purrr,
