@@ -21,12 +21,13 @@ golem::add_dockerfile_shinyproxy()
 ## 5.2 If you want to deploy to Heroku
 golem::add_dockerfile_heroku()
 
+#debug, add in code
+save(list = ls(all.names = TRUE), file = "debug.rdata", envir = environment())
 
 #Document update
 devtools::document(roclets = c('rd', 'collate', 'namespace'))
 
 # shinyappIO
-
 options(repos = c(BiocManager::repositories()))
 
 options()$repos

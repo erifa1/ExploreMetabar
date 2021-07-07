@@ -83,11 +83,8 @@ mod_diffanalysis_ui <- function(id){
 #' @rdname mod_diffanalysis
 #' @export
 #' @keywords internal
-#' @importFrom DESeq2 estimateSizeFactors
-#' @importFrom DESeq2 DESeq
-#' @importFrom DESeq2 results
-#' @importFrom DESeq2 counts
-#' @import metacoder
+#' @importFrom DESeq2 estimateSizeFactors DESeq results counts
+#' @importFrom metacoder parse_phyloseq zero_low_counts filter_obs calc_taxon_abund calc_n_samples compare_groups
 #' @import phyloseq
 #' @import tibble
 #' @import dplyr
@@ -97,7 +94,6 @@ mod_diffanalysis_ui <- function(id){
 #' @importFrom broom tidy
 #' @import metagenomeSeq
 #' @importFrom Biobase pData
-#' @importFrom taxa filter_obs
 #' @importFrom VennDiagram venn.diagram
 #' @importFrom ggplot2 ggplot
 
@@ -319,10 +315,11 @@ print(choices2)
       psobj <- transform_sample_counts(psobj, normf)
       
       print('Zeroing low counts...')
+      data(ranks_ref)
       obj <- parse_phyloseq(psobj, class_regex = "(.*)", class_key = "taxon_name")
       obj$data$otu_table <- zero_low_counts(obj, "otu_table", min_count = 1000, use_total = TRUE)
       no_reads <- rowSums(obj$data$otu_table[, obj$data$sample_data$sample_id]) == 0
-      obj <- filter_obs(obj, "otu_table", ! no_reads, drop_taxa = TRUE)
+      obj <- metacoder::filter_obs(obj, "otu_table", ! no_reads, drop_taxa = TRUE)
       if(nrow(obj$data$otu_table)==0){return(NULL)}
       
       print('Calculating taxon abundance...')
