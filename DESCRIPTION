@@ -1,15 +1,15 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
 Version: 0.0.0.9000
-Authors@R: c(
-  person(given = "Etienne",
-  family = "Rifa",
-  role = c("cre", "aut"),
-  email = "etienne.rifa@inrae.fr"),
-  person(given = "Sebastien",
-  family = "Theil",
-  role = c("aut"),
-  email = "sebastien.theil@inrae.fr") )
+Authors@R: 
+    c(person(given = "Etienne",
+             family = "Rifa",
+             role = c("cre", "aut"),
+             email = "etienne.rifa@inrae.fr"),
+      person(given = "Sebastien",
+             family = "Theil",
+             role = "aut",
+             email = "sebastien.theil@inrae.fr"))
 Description: Shiny application to explore metabarcoding data (16S, ITS...)
 License: MIT + file LICENSE
 URL: https://forgemia.inra.fr/umrf/exploremetabar
@@ -52,7 +52,6 @@ Imports:
     shinydashboard,
     shinyjs,
     shinyWidgets,
-    taxa,
     tibble,
     tidyr,
     vegan,
