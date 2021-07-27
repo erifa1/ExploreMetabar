@@ -12,6 +12,7 @@
 #' @importFrom Biostrings writeXStringSet
 #' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
+#' @importFrom futile.logger flog.info flog.debug
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -545,7 +546,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # final filtered object
   r$phyloseq_filtered <- reactive({
     r_values$phyobj_final
-    # r_values$phyobj_initial
+    #r_values$phyobj_initial
   })
 
 
@@ -567,7 +568,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$sdat <- reactive({
     req(r_values$phyobj_final)
     as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_final)))
-    # as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
+    #as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
 
 }
