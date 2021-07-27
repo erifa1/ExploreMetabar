@@ -31,10 +31,6 @@ fast_tax_glom differs from [tax_glom()] in three important ways:
 The "archetype" (OTU name) and sequence for each group are chosen as those from the most abundant taxa
 within that group (for compatibility with [tax_glom()])
 }
-\examples{
-data(food)
-fast_tax_glom(food, "Species")
-}
 \seealso{
 [tax_glom()], [merge_taxa()]
 }
