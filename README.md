@@ -16,6 +16,20 @@ differential analysis.
 
 ## Installation
 
+On ubuntu 18.04 those libraries are needed:
+```{r}
+remotes::system_requirements(path = '.', os="ubuntu", os_release = "18.04")
+ [1] "apt-get install -y software-properties-common" "add-apt-repository -y ppa:cran/libgit2"       
+ [3] "apt-get update"                                "apt-get install -y make"                      
+ [5] "apt-get install -y zlib1g-dev"                 "apt-get install -y libicu-dev"                
+ [7] "apt-get install -y git"                        "apt-get install -y pandoc"                    
+ [9] "apt-get install -y libxml2-dev"                "apt-get install -y libcurl4-openssl-dev"      
+[11] "apt-get install -y libssl-dev"                 "apt-get install -y libgit2-dev"               
+[13] "apt-get install -y libglpk-dev"                "apt-get install -y libgmp3-dev"               
+[15] "apt-get install -y libjpeg-dev"                "apt-get install -y libpng-dev"
+```
+
+
 R3.6.3 is required. For Windows, [Rtools](https://cran.r-project.org/bin/windows/Rtools/) and [git](https://git-scm.com/download/win) are required.
 
 You can install the development version of ExploreMetabar from this
