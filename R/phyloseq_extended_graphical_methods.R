@@ -60,9 +60,6 @@
 #' @seealso [tax_glom()], [merge_taxa()]
 #' @importFrom tibble column_to_rownames
 #' @importFrom dplyr as_tibble mutate group_by_at arrange slice select
-#' @examples
-#' data(food)
-#' fast_tax_glom(food, "Species")
 fast_tax_glom <- function(physeq, taxrank = rank_names(physeq)[1], bad_empty = c("", " ", "\t")) {
   rank_number <- match(taxrank, rank_names(physeq))
   if (is.na(rank_number)) {
