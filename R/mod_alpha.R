@@ -106,9 +106,8 @@ mod_alpha_server <- function(input, output, session, r = r){
 
 
   alpha1 <- eventReactive(input$launch_alpha,{
-    cat(file=stderr(), 'computing alpha1...', "\n")
-    print(input$tabs)
-    req(r$phyloseq_filtered(),  r$phyloseq_filtered_norm())
+    flog.info('computing alpha1...')
+    req(r$phyloseq_filtered())
 
     data <- r$phyloseq_filtered()
 
@@ -119,7 +118,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL=list()
     LL$alphatab = as.data.frame(alphatab)
     LL$data = data
-    cat(file=stderr(), 'computing alpha1 done.', "\n")
+    flog.info('computing alpha1 done.')
     return(LL)
   })
 
@@ -167,9 +166,9 @@ mod_alpha_server <- function(input, output, session, r = r){
   )
 
 
-  boxtab <- reactive({
+  boxtab <- eventReactive(input$launch_alpha,{
     req(r$sdat(), input$checkbox1, input$Fact1, r$phyloseq_filtered())
-    print("plotAlpha")
+    flog.info('boxtab function')
     LL = alpha1()
 
     metadata = tibble::rownames_to_column(r$sdat())
@@ -177,16 +176,20 @@ mod_alpha_server <- function(input, output, session, r = r){
 
 
     boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
+
     if(input$checkbox1){
       print("ORDER factor")
-      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
+      fun = glue::glue( "boxtab${input$Fact1} <- forcats::fct_relevel(boxtab[[input$Fact1]])")
       eval(parse(text=fun))
     }
 
-    if( !any(names(boxtab)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(boxtab, sample.id = rowname) }
+    if( !any(names(boxtab)=="sample.id") ) {
+      print("change rowname to sample.id")
+      dplyr::rename(boxtab, sample.id = rowname)
+    }
 
     boxtab$Depth <- sample_sums(r$phyloseq_filtered())
-
+    
     boxtab
   }
 )
@@ -200,29 +203,26 @@ mod_alpha_server <- function(input, output, session, r = r){
  })
 
 
-  reacalpha <- reactive({
+  reacalpha <- eventReactive(input$launch_alpha,{
     req(input$metrics, input$Fact1)
-    cat(file = stderr(), "reacalpha", "\n")
+    flog.info('reacalpha')
+    
     anova_data = boxtab()
 
     form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
     anova_res1 <- aov( as.formula(form1), anova_data)
-    # outhsd <- HSD.test(anova_res1,input$Fact1)
+
     fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{input$Fact1}\")")
     eval(parse(text=fun))
 
-    # tukey_hsd <- TukeyHSD(glue::glue("anova_data${input$Fact1}"))
-    # print(tukey_hsd)
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-    # LL$groups1 = outhsd$groups[levels(anova_data[,input$Fact1]),]
+
     fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
     eval(parse(text=fun))
 
-    # LL$stats1 = outhsd$means[levels(anova_data[,input$Fact1]),]
-    # LL$stats1 = tukey_hsd$means[levels(anova_data[,input$Fact1]),]
-    LL
+    return(LL)
  })
 
  output$testalpha <- renderPrint({
