@@ -81,7 +81,7 @@ mod_alpha_ui <- function(id){
 #' @export
 #' @keywords internal
 #' @import phyloseq
-#' @importFrom DT datatable
+#' @importFrom DT renderDataTable
 #' @importFrom plotly renderPlotly config layout
 #' @importFrom agricolae HSD.test
 #' @importFrom gtools mixedsort
