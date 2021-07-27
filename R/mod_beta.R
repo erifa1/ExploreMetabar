@@ -9,6 +9,7 @@
 #'
 #' @importFrom shiny NS tagList
 #' @importFrom pairwiseAdonis pairwise.adonis
+#' @importFrom DT dataTableOutput
 
 mod_beta_ui <- function(id){
   ns <- NS(id)
@@ -87,6 +88,7 @@ mod_beta_ui <- function(id){
 #' @importFrom vegan vegdist
 #' @importFrom vegan adonis
 #' @importFrom plotly ggplotly
+#' @importFrom DT renderDataTable
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){
@@ -254,11 +256,11 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  output$adonistest <- renderDataTable({
+  output$adonistest <- DT::renderDataTable({
     betatest()$res.adonis
   })
 
-  output$adonispairwisetest <- renderDataTable({
+  output$adonispairwisetest <- DT::renderDataTable({
     betatest()$res.pairwise
   })
 
