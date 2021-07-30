@@ -52,6 +52,7 @@ mod_compo_ui <- function(id){
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         checkboxInput(ns("checkbox1"), label = "Splitted plots", value = FALSE),
+        checkboxInput(ns("checkbox2"), label = "Merge samples", value = FALSE),
         actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
@@ -83,11 +84,17 @@ mod_compo_server <- function(input, output, session, r = r){
       shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
+  
+  observeEvent(input$go1,{
+    if(input$RankCompo==''){
+      shinyalert(title = "Oops", text="You must provide a rank to plot.", type='error')
+    }
+  })
 
   observe({
     req(r$phyloseq_filtered())
     updateSelectInput(session, "RankCompo",
-                      choices = rank_names(r$phyloseq_filtered()),
+                      choices = phyloseq::rank_names(r$phyloseq_filtered()),
                       selected = r$rank_glom())
     updateSelectInput(session, "Fact1",
                       choices = r$phyloseq_filtered()@sam_data@names)
@@ -104,6 +111,11 @@ mod_compo_server <- function(input, output, session, r = r){
     }
     if(input$compo_norm_bool==1){
       Fdata <- r$phyloseq_filtered_norm()
+    }
+
+    if(input$checkbox2==TRUE){
+      Fdata <- phyloseq::merge_samples(Fdata, group=input$Fact1, fun=mean)
+      sample_data(Fdata)[[input$Fact1]] <- sample_names(Fdata)
     }
 
     withProgress({
