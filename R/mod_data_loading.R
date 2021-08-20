@@ -216,7 +216,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
   sdat <- reactive({
-    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
+    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
   })
 
   rowCallback <- c(
@@ -351,7 +351,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       as.data.frame(stringsAsFactors = FALSE) %>%
       dplyr::select(1:rank1) %>%
       tibble::rownames_to_column() %>%
-      as.matrix() %>% as.data.frame()
+      as.matrix() %>% as.data.frame(stringsAsFactors = TRUE)
 
       otable <- phyloseq_obj %>%
       otu_table() %>%
@@ -380,11 +380,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
         joinGlom2 <- dplyr::left_join(joinGlom, refseq1, by = "rowname") %>%
         dplyr::rename(asvname = rowname)
-        FTAB = as.data.frame(joinGlom2)
+        FTAB = as.data.frame(joinGlom2, stringsAsFactors = TRUE)
       }else{
         showNotification("No refseq in object.", type="error", duration = 5)
         dplyr::rename(joinGlom, asvname = rowname)
-        FTAB = as.data.frame(joinGlom)
+        FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
       cat(file=stderr(), 'render_taxonomy_table done.', "\n")
       return(FTAB)
