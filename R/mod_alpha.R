@@ -102,24 +102,25 @@ mod_alpha_server <- function(input, output, session, r = r){
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
 
-
-
-
   alpha1 <- eventReactive(input$launch_alpha,{
-    flog.info('computing alpha1...')
-    req(r$phyloseq_filtered())
-
-    data <- r$phyloseq_filtered()
-
-    alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                                                     "InvSimpson") )
-    row.names(alphatab) = sample_names(data)
-
-    LL=list()
-    LL$alphatab = as.data.frame(alphatab)
-    LL$data = data
-    flog.info('computing alpha1 done.')
-    return(LL)
+    withProgress(message = 'Computing alpha diversity tables', min=0, max=10, value = 0,{
+      flog.info('computing alpha1...')
+      req(r$phyloseq_filtered())
+  
+      data <- r$phyloseq_filtered()
+      setProgress(value = 5, detail = 'estimate richness')
+      alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+                                                       "InvSimpson") )
+      row.names(alphatab) = sample_names(data)
+  
+      LL=list()
+      LL$alphatab = as.data.frame(alphatab)
+      LL$data = data
+      flog.info('computing alpha1 done.')
+      setProgress(value = 10, detail = 'done')
+      return(LL)
+      
+    })
   })
 
 
@@ -129,6 +130,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
 
   alphagrp_table <- reactive({
+    withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
     metadata = tibble::rownames_to_column(r$sdat())
     metadata <- select(metadata, rowname, input$Fact1)
@@ -136,7 +138,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
 
     alpha.table[,'rowname'] <- NULL
-
+    
     alpha.table <- alpha.table %>%
       group_by_at(input$Fact1) %>%
       summarise(
@@ -146,6 +148,8 @@ mod_alpha_server <- function(input, output, session, r = r){
         )
       )
     return(alpha.table)
+    setProgress(value = 10, detail = 'done')
+    })
   })
 
   output$alphagrp <- DT::renderDataTable({
@@ -168,6 +172,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
   boxtab <- eventReactive(input$launch_alpha,{
     req(r$sdat(), input$checkbox1, input$Fact1, r$phyloseq_filtered())
+    withProgress(message = 'Boxplot table', min=0, max=10, value = 0,{
     flog.info('boxtab function')
     LL = alpha1()
 
@@ -176,7 +181,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
 
     boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
-
+    
     if(input$checkbox1){
       print("ORDER factor")
       fun = glue::glue( "boxtab${input$Fact1} <- forcats::fct_relevel(boxtab[[input$Fact1]])")
@@ -189,24 +194,28 @@ mod_alpha_server <- function(input, output, session, r = r){
     }
 
     boxtab$Depth <- sample_sums(r$phyloseq_filtered())
-    
+    setProgress(value = 10, detail = 'done')
     boxtab
+    })  
   }
 )
 
 
   output$plot2 <- renderPlotly({
-   plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
+    withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
+    plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
            color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
      layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack') %>%
     config(toImageButtonOptions = list(format = "svg"))
+    
+  })
  })
 
 
-  reacalpha <- eventReactive(input$launch_alpha,{
+  reacalpha <- reactive({
     req(input$metrics, input$Fact1)
     flog.info('reacalpha')
-    
+    withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
     anova_data = boxtab()
 
     form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
@@ -221,16 +230,23 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
     eval(parse(text=fun))
-
+    
+    setProgress(value = 10, detail = 'done')
+    
+    })
+    flog.info('done')
     return(LL)
  })
-
+  
+ alpha_test <- eventReactive(input$launch_alpha,{
+  t <- reacalpha()
+  return(t)
+ })
+ 
  output$testalpha <- renderPrint({
-   req(reacalpha)
-   LL = reacalpha()
-   cat("ANOVA\n##########\n")
-   print(LL$form1)
-   print(LL$aov1)
+   tt <- alpha_test()
+   print(tt$form1)
+   print(tt$aov1)
  })
 
  output$boxstats <- DT::renderDataTable({

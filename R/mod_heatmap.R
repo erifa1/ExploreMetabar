@@ -43,16 +43,22 @@ mod_heatmap_ui <- function(id){
             label = "Ecological distance method ",
             choices = c("bray", "jaccard", "dpcoa", "unifrac", "wunifrac"),
             selected = 'NMDS'
-          )
+          ),
+          actionButton(ns("launch_heatmap"), "Launch heatmap", icon = icon("play-circle"),
+                       style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         )
       ),
-      fluidRow(
-        box(title = "Heatmap", width=12, height = 12, status = 'primary', solidHeader = FALSE,
-          shinycustomloader::withLoader(
-            plotOutput(ns('heatmap_plot')),
-            type = "html", loader = "loader1"
-          )
-        )
+      dropdown(
+        tags$h3("Plot size"),
+        sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
+        sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value= 600),
+        style = "unite",
+        icon = icon('gear'),
+        width = "300px"
+      ),
+      shinycustomloader::withLoader(
+        plotOutput(ns('heatmap_plot')),
+      type = "html", loader = "loader1"
       )
     )
   )
@@ -76,17 +82,27 @@ mod_heatmap_server <- function(input, output, session, r){
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
   
-  get_heatmap <- reactive({
+  get_heatmap <- eventReactive(input$launch_heatmap,{
     req(input$src_fact1, r$phyloseq_filtered())
     phyloseq::plot_heatmap(r$phyloseq_filtered(), method = input$ord.method, distance = input$dist, sample.label = input$src_fact1)
   })
   
-  output$heatmap_plot <- renderPlot(
-    withProgress(message = 'Computing heatmap...',{
-      get_heatmap()
-    })
-    
-  )
+  plot_height <- reactive({
+    return(input$plot_height)
+  })
+  
+  plot_width <- reactive({
+    return(input$plot_width)
+  })
+  
+  observe({
+    output$heatmap_plot <- renderPlot({
+      withProgress(message = 'Computing heatmap...',{
+        get_heatmap()
+      })
+    }, height = plot_height(), width = plot_width())
+  })
+  
 }
     
 ## To be copied in the UI
