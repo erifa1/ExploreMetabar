@@ -20,7 +20,7 @@ mod_heatmap_ui <- function(id){
                     h4("New Heatmap module."),
                     h5("Ecology organized heatmap. Row an columns are organized using ordination methods (NMDS, PCA) and computed on ecological distances (bray, unifrac, jaccard)."),
                     h5("Please cite: "), 
-                    h5(tags$a(href="https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-45")) )
+                    h5(tags$a(href="https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-45", "doi:10.1186/1471-2105-11-45")) )
                 ),
                 icon = icon("info-circle"), fill=TRUE, width = 12
         )

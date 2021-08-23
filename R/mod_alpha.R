@@ -171,7 +171,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
 
   boxtab <- eventReactive(input$launch_alpha,{
-    req(r$sdat(), input$checkbox1, input$Fact1, r$phyloseq_filtered())
+    req(r$sdat(), input$Fact1, r$phyloseq_filtered())
     withProgress(message = 'Boxplot table', min=0, max=10, value = 0,{
     flog.info('boxtab function')
     LL = alpha1()
@@ -184,7 +184,8 @@ mod_alpha_server <- function(input, output, session, r = r){
     
     if(input$checkbox1){
       print("ORDER factor")
-      fun = glue::glue( "boxtab${input$Fact1} <- forcats::fct_relevel(boxtab[[input$Fact1]])")
+      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
+
       eval(parse(text=fun))
     }
 

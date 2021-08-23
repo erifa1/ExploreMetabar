@@ -51,8 +51,9 @@ mod_compo_ui <- function(id){
           choices = ""
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
-        checkboxInput(ns("checkbox1"), label = "Splitted plots", value = FALSE),
-        checkboxInput(ns("checkbox2"), label = "Merge samples", value = FALSE),
+        radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3), 
+        selected = 1),
+
         actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
@@ -113,15 +114,22 @@ mod_compo_server <- function(input, output, session, r = r){
       Fdata <- r$phyloseq_filtered_norm()
     }
 
-    if(input$checkbox2==TRUE){
-      Fdata <- phyloseq::merge_samples(Fdata, group=input$Fact1, fun=mean)
-      sample_data(Fdata)[[input$Fact1]] <- sample_names(Fdata)
-    }
-
     withProgress({
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split=input$checkbox1)
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split=input$checkbox1)
+      if(input$radio1 == 3){
+        cat(file=stderr(),'Merged...',"\n")
+        Fdata <- phyloseq::merge_samples(Fdata, group=input$Fact1, fun=mean)
+        sample_data(Fdata)[[input$Fact1]] <- sample_names(Fdata)
+        split1 = FALSE
+
+      }else{
+        if(input$radio1 == 1 | input$radio1 == 3){split1 = FALSE}else{split1 = TRUE}
+        cat(file=stderr(),'Std...',"\n")
+      }
+
+      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1) #input$checkbox1
+      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = split1) #input$checkbox1
       LL
+
     }, message="Processing, please wait...")
 
   })

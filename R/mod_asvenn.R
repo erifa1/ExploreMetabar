@@ -145,7 +145,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
   output$lvls1 = renderUI({
     req(input$Fact1, r$phyloseq_filtered())
     level1 <- na.omit(levels(r$sdat()[,input$Fact1]))
-    checkboxGroupInput(ns("lvls1"), label = "Select up to 7 levels :",
+    checkboxGroupInput(ns("lvls1"), label = "Select up to 5 levels :",
                        choices = level1, inline = TRUE, selected = level1[1:3])
 
   })
@@ -175,9 +175,9 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   output$venn1 <- renderPlot({
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
-    if(length(input$lvls1) >= 2 & length(input$lvls1) <= 7){
+    if(length(input$lvls1) >= 2 & length(input$lvls1) <= 5){
         resVenn()$venn_plot
-    }else{showNotification("Choose 2 to 7 levels...", type="error", duration = 5)
+    }else{showNotification("Choose 2 to 5 levels...", type="error", duration = 5)
           return(NULL)
           }
   })
