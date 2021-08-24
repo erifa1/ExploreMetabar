@@ -1,7 +1,7 @@
 
 # ExploreMetabar
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4317188.svg)](https://doi.org/10.5281/zenodo.4317188)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5245195.svg)](https://doi.org/10.5281/zenodo.5245195)
 
 
 ExploreMetabar is a shiny application used to explore metabarcoding data
@@ -58,7 +58,7 @@ sudo docker run -it -p 3838:3838 erifa1/exploremetabar:v1.002
 
 ## Citation 
 
-Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.0, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317188
+Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.0, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.5245195
 
 
 
