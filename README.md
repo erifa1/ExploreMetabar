@@ -1,36 +1,36 @@
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # ExploreMetabar
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4317188.svg)](https://doi.org/10.5281/zenodo.4317188)
 
-<!-- badges: start -->
-
-<!-- [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental) -->
-
-<!-- badges: end -->
 
 ExploreMetabar is a shiny application used to explore metabarcoding data
-(16S, ITS) with interactive plots, integrated statistical test, and
+(16S, ITS) with interactive plots, integrated statistical tests, and
 differential analysis.
+
+## Online instance 
+
+ExploreMetabar is hosted on [migale bioinformatics facility](https://migale.inrae.fr/) and available at this link:
+ 
+**[https://shiny.migale.inrae.fr/app/exploremetabar](https://shiny.migale.inrae.fr/app/exploremetabar)**
+
 
 ## Installation
 
+R3.6.3 or upper is required.
+
+
+* **Linux (recommended)**
+
 On ubuntu 18.04 those libraries are needed:
-```{r}
-remotes::system_requirements(path = '.', os="ubuntu", os_release = "18.04")
- [1] "apt-get install -y software-properties-common" "add-apt-repository -y ppa:cran/libgit2"       
- [3] "apt-get update"                                "apt-get install -y make"                      
- [5] "apt-get install -y zlib1g-dev"                 "apt-get install -y libicu-dev"                
- [7] "apt-get install -y git"                        "apt-get install -y pandoc"                    
- [9] "apt-get install -y libxml2-dev"                "apt-get install -y libcurl4-openssl-dev"      
-[11] "apt-get install -y libssl-dev"                 "apt-get install -y libgit2-dev"               
-[13] "apt-get install -y libglpk-dev"                "apt-get install -y libgmp3-dev"               
-[15] "apt-get install -y libjpeg-dev"                "apt-get install -y libpng-dev"
+
+```bash
+apt-get update && apt-get install -y  git-core libcurl4-openssl-dev libgit2-dev libglpk-dev libgmp-dev libicu-dev libpng-dev libssl-dev libxml2-dev make pandoc pandoc-citeproc zlib1g-dev libtiff-dev libjpeg-dev libbz2-dev libgmp3-dev software-properties-common
 ```
 
+* Windows
 
-R3.6.3 is required. For Windows, [Rtools](https://cran.r-project.org/bin/windows/Rtools/) and [git](https://git-scm.com/download/win) are required.
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/) and [git](https://git-scm.com/download/win) are required.
 
 You can install the development version of ExploreMetabar from this
 repository with:
@@ -40,32 +40,28 @@ install.packages("devtools")
 devtools::install_git("https://forgemia.inra.fr/umrf/exploremetabar")
 ```
 
-## To run Shiny app
+### To run Shiny app
 
 ``` r
 library(ExploreMetabar)
 ExploreMetabar::run_app()
 ```
 
-## On ShinyApps.io
+## Docker
 
-To test ExploreMetabar:
-https://erifa1.shinyapps.io/exploremetabar/ (old version)
+To install ExploreMetabar via docker environment:
 
-<!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->
+```bash
+sudo docker pull erifa1/exploremetabar:v1.002
+sudo docker run -it -p 3838:3838 erifa1/exploremetabar:v1.002
+```
 
-<!-- ```{r cars} -->
+## Citation 
 
-<!-- summary(cars) -->
+Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.0, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317188
 
-<!-- ``` -->
 
-<!-- You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. -->
 
-<!-- You can also embed plots, for example: -->
 
-<!-- ```{r pressure, echo = FALSE} -->
 
-<!-- plot(pressure) -->
 
-<!-- ``` -->

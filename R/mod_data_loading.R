@@ -187,6 +187,7 @@ merge_table <- function(rank, table){
 #' @noRd
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
+  cat(file=stderr(), '\n#############################\nRunning ExploreMetabar v1.0.0', "\n#############################\n\n")
 
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
