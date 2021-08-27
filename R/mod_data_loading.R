@@ -77,7 +77,7 @@ mod_data_loading_ui <- function(id){
       ),
       fluidRow(
         box(
-          title = 'STEP 4: Normalisation options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
+          title = 'STEP 4: Normalization options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
           radioButtons(
             ns("norm_method"),
             label = "Normalization : ",
@@ -208,7 +208,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     # fun = glue::glue("return(ne${names(obj)})")
     # eval(parse(text = fun))
 
-    print(r_values$phyobj_initial)
+    r_values$phyobj_initial
   })
 
   output$phy_prev <- renderPrint({
@@ -242,8 +242,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     physeq <- phyloseq::prune_samples(phyloseq::sample_names(r_values$phyobj_initial)[input$metadata_table_rows_all],r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
     cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
-    r_values$phyobj_sub_samples <- physeq
-    r_values$phyobj_tmp <- physeq
+    r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
   })
 
@@ -321,9 +320,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
 
-      r_values$phyobj_taxglom <- tmp
-
-      r_values$phyobj_tmp <- tmp
+      cat(file=stderr(), 'glom object', "\n")
+      print(tmp)
+      r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
       cat(file=stderr(), 'filter_taxonomy done.', "\n")
     },message = "Update taxonomy, please wait...")

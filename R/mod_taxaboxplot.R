@@ -68,25 +68,25 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
 
   observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='tab_boxplot' && !isTruthy(r$phyloseq_filtered())){
+    if(r$tabs$tabselected=='tab_boxplot' && !isTruthy(r$phyloseq_filtered_norm())){
       shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
 
 
   observe({
-    req(r$phyloseq_filtered())
+    req(r$phyloseq_filtered_norm())
     updateSelectInput(session, "boxplot_fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = r$phyloseq_filtered_norm()@sam_data@names)
 
   })
 
   LjoinGlom <- reactive({
-    req(r$phyloseq_filtered(), r$rank_glom())
+    req(r$phyloseq_filtered_norm(), r$rank_glom())
     withProgress({
       print("melting table")
       # data.melt <- psmelt(Fdata)
-      Fdata <- r$phyloseq_filtered() #r$dat()
+      Fdata <- r$phyloseq_filtered_norm() #r$dat()
 
       #If taxa names begin with a number
       if(any(grepl("^[0-9].*$", taxa_names(Fdata)))) {

@@ -12,8 +12,10 @@ app_ui <- function() {
     dashboardPage(skin = "red",
                   dashboardHeader(
                                   title = "Explore Metabar",
-                                  tags$li(class="dropdown",tags$a(icon("gitlab"),href="https://forgemia.inra.fr/umrf/exploremetabar")), #, target="_blank"
-                                  tags$li(class="dropdown",tags$a(icon("clinic-medical"),href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues"))
+                                  tags$li(class="dropdown",tags$a(icon("gitlab"), headerText = "Source code",href="https://forgemia.inra.fr/umrf/exploremetabar", target="_blank")),
+                                  tags$li(class="dropdown",tags$a(icon("clinic-medical"), headerText = "Issues",href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues", target="_blank")),
+                                  tags$li(class="dropdown",tags$a(icon("twitter"), headerText = "Share", href="
+https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20application%20to%20explore%20amplicon%20targeted%20metagenomic%20data.%20%23inrae%20%23microbiome%20%23amplicon&url=https%3A%2F%2Fforgemia.inra.fr%2Fumrf%2Fexploremetabar", target="_blank"))
                                   ),
 
                   dashboardSidebar(

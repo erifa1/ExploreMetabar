@@ -128,6 +128,12 @@ mod_compo_server <- function(input, output, session, r = r){
 
       LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1) #input$checkbox1
       LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = split1) #input$checkbox1
+      
+      if(input$compo_norm_bool==1){
+        LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1) #input$checkbox1
+      }
+
+
       LL
 
     }, message="Processing, please wait...")
