@@ -56,6 +56,7 @@ mod_data_loading_ui <- function(id){
             choices='',
             selected = 1,
           ),
+          shinyBS::bsButton(inputId = ns('update_taxo0'), label = "Launch glom", block = F, style = 'danger', type='action'),
           numericRangeInput(ns("minAb"), "Minimum taxa overall raw abundance:", c(1,1), width = NULL, separator = " to "),
           # numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
           # numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
@@ -290,29 +291,36 @@ mod_data_loading_server <- function(input, output, session, r=r){
     updateNumericRangeInput(session, 'minPrev',"Minimum taxa prevalence in samples:", value=c(1,max(nsamples(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
+  glom_taxo0 <- reactive({
+    req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
+    cat(file=stderr(), 'filter_taxonomy...', "\n")
+    tmp <- r_values$phyobj_sub_samples
+    # print(rank_names(tmp))
+    withProgress({
+      if(input$rank_glom != 'ASV'){
+        if(nsamples(tmp)>1000){
+          showNotification("Phylogentic tree removed, too much samples...", type="message", duration = 5)
+          tmp <- fast_tax_glom(tmp, input$rank_glom)
+        }else{
+          tmp <- tax_glom(tmp, input$rank_glom)
+          print(tmp)
+        }
+        FGnames <- tax_table(tmp)[,input$rank_glom]
+        nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
+        taxa_names(tmp) <- nnames
+      }
+    }, message = 'Taxonomy agglomeration, please wait.')
+    r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
+  })
+
   glom_taxo <- reactive({
     withProgress({
-
-      req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-      cat(file=stderr(), 'filter_taxonomy...', "\n")
-      tmp <- r_values$phyobj_sub_samples
-      # print(rank_names(tmp))
-      withProgress({
-        if(input$rank_glom != 'ASV'){
-          if(nsamples(tmp)>1000){
-            showNotification("Phylogentic tree removed, too much samples...", type="message", duration = 5)
-            tmp <- fast_tax_glom(tmp, input$rank_glom)
-          }else{
-            tmp <- tax_glom(tmp, input$rank_glom)
-          }
-          FGnames <- tax_table(tmp)[,input$rank_glom]
-          nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
-          taxa_names(tmp) <- nnames
-        }
-      }, message = 'Taxonomy agglomeration, please wait.')
-
+      tmp <- r_values$phyobj_taxglom0
       tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
+      print(max(taxa_sums(tmp)))
+      print(input$minAb[2])
       tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
+      print(tmp)
       prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
       taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
       tmp <- prune_taxa(taxToKeep1, tmp)
@@ -327,6 +335,10 @@ mod_data_loading_server <- function(input, output, session, r=r){
       cat(file=stderr(), 'filter_taxonomy done.', "\n")
     },message = "Update taxonomy, please wait...")
   })
+
+  observeEvent(input$update_taxo0, {
+    glom_taxo0()
+  },ignoreInit = TRUE)
 
   observeEvent(input$update_taxo, {
     glom_taxo()
