@@ -73,6 +73,7 @@ mod_beta_ui <- function(id){
       box(
         title = "Dispersion results:", width = 12, status = "primary", solidHeader = TRUE,
         h3('Boxplots distance to centroid for each group:'),
+        checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
         plotlyOutput(ns("dispersionPlot")),
         h3('Anova on dispersion:'),
         DT::dataTableOutput(ns("dispersionTable")),
@@ -264,9 +265,25 @@ mod_beta_server <- function(input, output, session, r = r){
     betatest()$res.pairwise
   })
 
-  output$dispersionPlot <- renderPlotly({
+
+  dfdisper <- reactive({
+    cat(file=stderr(),'dfdisper ...',"\n")
+    
     df1 = cbind.data.frame(distances = betatest()$res.disper$distances, group = betatest()$res.disper$group)
     print(head(df1))
+
+    if(input$order1){
+      print("ORDER factor")
+      df1$group = factor( df1$group, levels = gtools::mixedsort(levels(df1$group)) ) 
+    }
+    cat(file=stderr(),'Done ...',"\n")
+    
+    df1
+  })
+
+
+  output$dispersionPlot <- renderPlotly({
+   df1 <- dfdisper()
    plot_ly(df1, x = ~group, y = ~distances,
            color = ~group, type = 'box') %>%
      layout(title="", yaxis = list(title = "Distance to centroid"), xaxis = list(title = 'Group'), barmode = 'stack') %>%
