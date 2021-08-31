@@ -40,7 +40,9 @@ mod_taxaboxplot_ui <- function(id){
       DT::dataTableOutput(ns("pvalout1")),
       title = "Features:", width = 12, status = "warning", solidHeader = TRUE
       ),
-      box(plotlyOutput(ns("boxplot1")), #, height=500
+      box(
+          checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
+          plotlyOutput(ns("boxplot1")), #, height=500
           title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
           ),
       # verbatimTextOutput(ns("sids2")),
@@ -185,15 +187,33 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     return(select1)
   })
 
+
+  ordertable1 <- reactive({
+
+    LL = listBP()
+    stab <- LL$pval
+    joinGlom <- LL$joinGlom
+    print(joinGlom[1:10,1:10])
+      if(input$order1){
+        print("ORDER factor")
+        print(str(joinGlom))
+        fun = glue::glue( "joinGlom${input$boxplot_fact1} = factor( joinGlom${input$boxplot_fact1}, levels = gtools::mixedsort(unique(joinGlom${input$boxplot_fact1})) ) " )
+        eval(parse(text=fun))
+      }
+
+      joinGlom
+
+    })
+
+
   output$boxplot1 <- renderPlotly({
     if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
     print("Boxplot")
     LL = listBP()
     stab <- LL$pval
-    joinGlom <- LL$joinGlom
+    joinGlom <- ordertable1()
     select1  <- stab[input$pvalout1_row_last_clicked,1]
-    print(head(joinGlom))
-    print(str(joinGlom))
+    
     plot_ly(joinGlom, x = as.formula(glue("~ {input$boxplot_fact1}")), y = as.formula(glue("~ {select1}")),
             color = as.formula(glue("~{input$boxplot_fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
       layout(title=select1, yaxis = list(title = glue('{input$NORM} abundance')), xaxis = list(title = 'Samples'), barmode = 'stack')
