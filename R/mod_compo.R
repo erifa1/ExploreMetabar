@@ -54,14 +54,18 @@ mod_compo_ui <- function(id){
         radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
         selected = 1),
 
-        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
+        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"), 
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-      ),
+        ),
+
       box(plotlyOutput(ns("compo2")),
+      #   actionButton(ns("zoomin1"), "Zoom in",
+      #                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),   #open plotly in a new tab. todo
+
           title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),
-      box(plotlyOutput(ns("compo3")),
-          title = "VST Normalized abundance:", width = 12, status = "primary", solidHeader = TRUE),
+      # box(plotlyOutput(ns("compo3")),
+      #     title = "VST Normalized abundance:", width = 12, status = "primary", solidHeader = TRUE),
       box(plotlyOutput(ns("compo1")),
           title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE),
       box(verbatimTextOutput(ns("totalsum1")),
@@ -107,16 +111,18 @@ mod_compo_server <- function(input, output, session, r = r){
 
   compo <- eventReactive(input$go1, {
     cat(file=stderr(),'Creating plots...',"\n")
-    req(input$compo_norm_bool, input$topTax, input$Ord1, input$Fact1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm)
+    req(input$topTax, input$Ord1, input$Fact1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm) #input$compo_norm_bool, 
     LL=list()
     # if(input$compo_norm_bool==0){
       Fdata <- r$phyloseq_filtered()
+      print(Fdata)
     # }
     # if(input$compo_norm_bool==1){
-      Fdatanorm <- Fdata
-      otable <- Fdatanorm@otu_table@.Data+1
-      otableVST <- DESeq2::varianceStabilizingTransformation(otable, fitType='local')
-      Fdatanorm@otu_table@.Data <- otableVST
+      # Fdatanorm <- Fdata
+      # otable <- Fdatanorm@otu_table@.Data+1
+      # otableVST <- DESeq2::varianceStabilizingTransformation(otable, fitType='local')
+      # Fdatanorm@otu_table@.Data <- otableVST
+      # print(Fdatanorm)
     # }
 
     withProgress({
@@ -135,9 +141,7 @@ mod_compo_server <- function(input, output, session, r = r){
       LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = split1, ylab = "Relative abundance") #input$checkbox1
 
 
-      LL$p3 = bars_fun(data = Fdatanorm, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1, ylab = "VST normalized abundance") #input$checkbox1
-
-
+      # LL$p3 = bars_fun(data = Fdatanorm, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1, ylab = "VST normalized abundance") #input$checkbox1
 
       LL
 
@@ -145,29 +149,25 @@ mod_compo_server <- function(input, output, session, r = r){
 
   })
 
+
+
   output$compo1 <- renderPlotly({
     LL <- compo()
-    LL$p1
+    LL$p1 %>% config(toImageButtonOptions = list(format = "svg"))
   })
 
   output$compo2 <- renderPlotly({
     LL <- compo()
-    LL$p2
+    LL$p2 %>% config(toImageButtonOptions = list(format = "svg"))
   })
 
-  output$compo3 <- renderPlotly({
-    LL <- compo()
-    LL$p3
-  })
+  # output$compo3 <- renderPlotly({
+  #   LL <- compo()
+  #   LL$p3
+  # })
 
   output$totalsum1 <- renderPrint({
-    req(input$compo_norm_bool)
-    if(input$compo_norm_bool==0){
       Fdata <- r$phyloseq_filtered()
-    }
-    if(input$compo_norm_bool==1){
-      Fdata <- r$phyloseq_filtered_norm()
-    }
     print(sample_sums(Fdata))
   })
 
