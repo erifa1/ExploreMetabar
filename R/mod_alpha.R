@@ -215,7 +215,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
   reacalpha <- reactive({
     req(input$metrics, input$Fact1)
-    flog.info('reacalpha')
+    cat(file=stderr(),'Alpha tests...',"\n")
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
     anova_data = boxtab()
 
@@ -235,16 +235,17 @@ mod_alpha_server <- function(input, output, session, r = r){
     setProgress(value = 10, detail = 'done')
     
     })
-    flog.info('done')
+    cat(file=stderr(),'Done...',"\n")
     return(LL)
  })
   
- alpha_test <- eventReactive(input$launch_alpha,{
+ alpha_test <- reactive({
   t <- reacalpha()
   return(t)
  })
  
  output$testalpha <- renderPrint({
+  req(input$metrics)
    tt <- alpha_test()
    print(tt$form1)
    print(tt$aov1)
