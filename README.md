@@ -8,10 +8,10 @@ ExploreMetabar is a shiny application used to explore metabarcoding data
 (16S, ITS) with interactive plots, integrated statistical tests, and
 differential analysis.
 
-## Online instance 
+## Online instance
 
 ExploreMetabar is hosted on [migale bioinformatics facility](https://migale.inrae.fr/) and available at this link:
- 
+
 **[https://shiny.migale.inrae.fr/app/exploremetabar](https://shiny.migale.inrae.fr/app/exploremetabar)**
 
 
@@ -52,16 +52,10 @@ ExploreMetabar::run_app()
 To install ExploreMetabar via docker environment:
 
 ```bash
-sudo docker pull erifa1/exploremetabar:v1.002
-sudo docker run -it -p 3838:3838 erifa1/exploremetabar:v1.002
+sudo docker pull erifa1/exploremetabar:v1.0.1
+sudo docker run -it -p 3838:3838 erifa1/exploremetabar:v1.0.1
 ```
 
-## Citation 
+## Citation
 
-Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.0, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.5245195
-
-
-
-
-
-
+Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.1, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.5245195
