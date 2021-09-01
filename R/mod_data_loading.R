@@ -171,7 +171,7 @@ merge_table <- function(rank, table){
       dplyr::rename(asvname = rowname)
     FTAB = as.data.frame(joinGlom2)
   }else{
-    showNotification("No refseq in object.", type="error", duration = 5)
+    showNotification("No refseq in object.", type="error", duration = 3)
     dplyr::rename(joinGlom, asvname = rowname)
     # print(str(as.data.frame(as.matrix(ttable))))
     FTAB = as.data.frame(joinGlom)
@@ -394,7 +394,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
         dplyr::rename(asvname = rowname)
         FTAB = as.data.frame(joinGlom2, stringsAsFactors = TRUE)
       }else{
-        showNotification("No refseq in object.", type="error", duration = 5)
+        showNotification("No refseq in object.", type="error", duration = 3)
         dplyr::rename(joinGlom, asvname = rowname)
         FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
@@ -558,7 +558,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # final filtered object
   r$phyloseq_filtered <- reactive({
     r_values$phyobj_final
-    #r_values$phyobj_initial
+    # r_values$phyobj_initial #dev
   })
 
 
@@ -566,6 +566,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$phyloseq_filtered_norm <- reactive({
     req(r_values$phyobj_norm)
     r_values$phyobj_norm
+    # r_values$phyobj_initial #dev
   })
 
   r$norm_method <- reactive({

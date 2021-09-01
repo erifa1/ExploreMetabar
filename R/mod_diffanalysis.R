@@ -62,7 +62,7 @@ mod_diffanalysis_ui <- function(id){
 
                      box(
                        sliderInput(ns("Nmeth"), "Number of diff. methods :",
-                                   min = 1, max = 3, value = 3
+                                   min = 1, max = 3, value = 1
                        ),
                      numericInput(ns("minAb"), "Minimum mean relative abundance:", value = 0.001, min = 0, max = 1, step = 1000),
                      sliderInput(ns("Nfeat"), "Number of features to plot:",
