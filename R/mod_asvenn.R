@@ -189,8 +189,8 @@ mod_asvenn_server <- function(input, output, session, r=r){
   output$otable_download <- downloadHandler(
     filename = "venn_table.csv",
     content = function(file) {
-      req(tabvenn1())
-      write.table(tabvenn1(), file, sep="\t", row.names=FALSE)
+      req(resVenn())
+      write.table(resVenn()$TABf, file, sep="\t", row.names=FALSE)
     }
   )
   
