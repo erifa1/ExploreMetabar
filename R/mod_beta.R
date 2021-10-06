@@ -86,38 +86,6 @@ mod_beta_ui <- function(id){
   )
 }
 
-plot_ord <- function(ord, sdat, ordination = "MDS", axe1=1, axe2=2, fact1){
-  if(ordination == "MDS"){
-    df <- ord$vectors
-    df <- df[,axe1:axe2]
-    df <- rownames_to_column(as.data.frame(df), var = 'sample.id')
-  }
-  else if(ordination == "NMDS"){
-    
-  }
-  else if(ordination == "CCA"){
-    
-  }
-  else if(ordination == "RDA"){
-    
-  }
-  else{
-    errorCondition("Ordination not supported.")
-  }
-  
-  sdat <- as.data.frame(as.matrix(sdat), stringAsFactors=T)
-  sdat <- rownames_to_column(as.data.frame(sdat), var = 'sample.id')
-  
-  df <- full_join(x=df, y=sdat, by='sample.id')
-  
-  fig <- plotly::plot_ly(df, type='scatter', mode='markers', x = ~df[,2], y = ~df[,3], color = ~df[[fact1]])
-  fig <- fig %>% plotly::add_trace(
-    text = paste0('sample ID:', df$sample.id,
-                  '<br>', fact1, ':', df[[fact1]]),
-    showlegend = F
-  )
-  return(fig)
-}
 
 
 #' mod_beta Server Function
@@ -206,6 +174,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   base_plot <- reactive({
+    print(ord()$points)
     p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
     p$layers[[1]] <- NULL
 
@@ -224,22 +193,18 @@ mod_beta_server <- function(input, output, session, r = r){
     beta_plot()
   })
 
+
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
-      fig <- plot_ord(ord = ord(), sdat = r$sdat(), ordination = input$ordination, axe1 = 1, axe2 = 2, input$beta_fact1)
-      return(fig)
+      sample.id = sample_names(physeq())
+      p <- base_plot()$plot
+      p <- p + aes(color = !!sym(input$beta_fact1), sample.id = sample.id)
+      p <- p + stat_ellipse(aes(group = !!sym(input$beta_fact1)))
+      p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
+      p <- p + geom_point() + theme_bw()
+      ggplotly(p, tooltip=c("x", "y", "sample.id")) %>% config(toImageButtonOptions = list(format = "svg"))
     }, message = "Plot Beta...")
   })
-  # beta_plot <- eventReactive(input$launch_beta, {
-  #   withProgress({
-  #     p <- base_plot()$plot
-  #     p <- p + aes(color = !!sym(input$beta_fact1))
-  #     p <- p + stat_ellipse(aes(group = !!sym(input$beta_fact1)))
-  #     p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
-  #     p <- p + geom_point() + theme_bw()
-  #     ggplotly(p) %>% config(toImageButtonOptions = list(format = "svg"))
-  #   }, message = "Plot Beta...")
-  # })
 
   get_formula <- reactive({
     req(input$metrics, input$beta_fact1)
