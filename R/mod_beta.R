@@ -10,6 +10,8 @@
 #' @importFrom shiny NS tagList
 #' @importFrom pairwiseAdonis pairwise.adonis
 #' @importFrom DT dataTableOutput
+#' @importFrom plotly plot_ly
+#' @importFrom plotly add_trace
 
 mod_beta_ui <- function(id){
   ns <- NS(id)
@@ -84,23 +86,23 @@ mod_beta_ui <- function(id){
   )
 }
 
-plot_ord <- function(ord, sdat, method = "MDS", axe1=1, axe2=2, fact1){
-  if(method == "MDS"){
+plot_ord <- function(ord, sdat, ordination = "MDS", axe1=1, axe2=2, fact1){
+  if(ordination == "MDS"){
     df <- ord$vectors
     df <- df[,axe1:axe2]
     df <- rownames_to_column(as.data.frame(df), var = 'sample.id')
   }
-  else if(method == "NMDS"){
+  else if(ordination == "NMDS"){
     
   }
-  else if(method == "CCA"){
+  else if(ordination == "CCA"){
     
   }
-  else if(method == "RDA"){
+  else if(ordination == "RDA"){
     
   }
   else{
-    errorCondition("Method not supported.")
+    errorCondition("Ordination not supported.")
   }
   
   sdat <- as.data.frame(as.matrix(sdat), stringAsFactors=T)
@@ -224,7 +226,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
-      fig <- plot_ord(ord = ord(), sdat = r$sdat(), method = input$ordination, axe1 = 1, axe2 = 2, input$beta_fact1)
+      fig <- plot_ord(ord = ord(), sdat = r$sdat(), ordination = input$ordination, axe1 = 1, axe2 = 2, input$beta_fact1)
       return(fig)
     }, message = "Plot Beta...")
   })
