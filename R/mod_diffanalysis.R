@@ -199,7 +199,7 @@ print(choices2)
       deseq = DESeq(deseq, test="Wald", fitType="parametric")
 
       print("res")
-      res = results(deseq, cooksCutoff = FALSE)
+      res = results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
       res
 
       }, message = "Performing DESeq2...")
