@@ -44,12 +44,6 @@ mod_compo_ui <- function(id){
           label = "Select variable to order/split samples (X axis): ",
           choices = ""
         ),
-
-        selectInput(
-          ns("Fact1"),
-          label = "Select variable for changing X axis tick labels (for unsplitted plots):",
-          choices = ""
-        ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
         selected = 1),
@@ -83,7 +77,6 @@ mod_compo_ui <- function(id){
 #' @importFrom plotly renderPlotly
 #' @importFrom microbiome aggregate_top_taxa
 #' @importFrom reshape2 melt
-#' @importFrom ranomaly bars_fun
 
 mod_compo_server <- function(input, output, session, r = r){
   ns <- session$ns
@@ -104,15 +97,13 @@ mod_compo_server <- function(input, output, session, r = r){
     updateSelectInput(session, "RankCompo",
                       choices = phyloseq::rank_names(r$phyloseq_filtered()),
                       selected = r$rank_glom())
-    updateSelectInput(session, "Fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
     updateSelectInput(session, "Ord1",
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
 
   compo <- eventReactive(input$go1, {
     cat(file=stderr(),'Creating plots...',"\n")
-    req(input$topTax, input$Ord1, input$Fact1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm) #input$compo_norm_bool,
+    req(input$topTax, input$Ord1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm) #input$compo_norm_bool,
     LL=list()
     # if(input$compo_norm_bool==0){
       Fdata <- r$phyloseq_filtered()
@@ -129,8 +120,8 @@ mod_compo_server <- function(input, output, session, r = r){
     withProgress({
       if(input$radio1 == 3){
         cat(file=stderr(),'Merged...',"\n")
-        Fdata <- phyloseq::merge_samples(Fdata, group=input$Fact1, fun=mean)
-        sample_data(Fdata)[[input$Fact1]] <- sample_names(Fdata)
+        Fdata <- phyloseq::merge_samples(Fdata, group=input$Ord1, fun=mean)
+        sample_data(Fdata)[[input$Ord1]] <- sample_names(Fdata)
         split1 = FALSE
 
       }else{
@@ -138,11 +129,8 @@ mod_compo_server <- function(input, output, session, r = r){
         cat(file=stderr(),'Std...',"\n")
       }
 
-      LL$p1 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1, ylab = "Raw abundance") #input$checkbox1
-      LL$p2 = bars_fun(data = Fdata, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = TRUE, outfile=NULL, split = split1, ylab = "Relative abundance") #input$checkbox1
-
-
-      # LL$p3 = bars_fun(data = Fdatanorm, top = input$topTax, Ord1 = input$Ord1, Fact1 = input$Fact1, rank=input$RankCompo, relative = FALSE, outfile=NULL, split = split1, ylab = "VST normalized abundance") #input$checkbox1
+      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = FALSE, outfile = NULL, split = split1, autoorder = FALSE, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance")
+      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = TRUE, outfile = NULL, split = split1, autoorder = FALSE, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance")
 
       LL
 

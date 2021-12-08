@@ -188,8 +188,6 @@ merge_table <- function(rank, table){
 #' @noRd
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
-  cat(file=stderr(), '\n#############################\nRunning ExploreMetabar v1.0.1', "\n#############################\n\n")
-
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
   phyloseq_data <- reactive({
@@ -214,6 +212,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
+    cat('Running ExploreMetabar v1.0.2\n')
     phyloseq_data()
   })
 

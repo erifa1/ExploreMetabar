@@ -122,8 +122,7 @@ plot_krona<-function(physeq,output,variable, trim=F){
 #' @importFrom grDevices rainbow
 #' @importFrom VennDiagram calculate.overlap
 #' @importFrom VennDiagram venn.diagram
-#' @importFrom ranomaly ASVenn_fun
-#'
+
 
 mod_asvenn_server <- function(input, output, session, r=r){
   ns <- session$ns
@@ -168,7 +167,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   resVenn <- eventReactive(input$go1, {   #TF
     req(r$phyloseq_filtered())
-    resVenn = ASVenn_fun(data = r$phyloseq_filtered(), output = NULL, rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE)
+    resVenn = ASVenn_fun(data = r$phyloseq_filtered(), output = NULL, rank = "ASV", column1 = input$Fact1, lvls = input$lvls1, shared = TRUE, verbose = FALSE)
 
     resVenn
   })
