@@ -133,9 +133,6 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     }else{
       choices2 = Conds[Conds != input$Cond1]
     }
-print(choices2)
-
-
     selectInput(ns("Cond2"),
                 label = "Select Condition 2 to compare: ",
                 choices = choices2
