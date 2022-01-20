@@ -10,6 +10,8 @@
 #' @importFrom shiny NS tagList
 #' @importFrom pairwiseAdonis pairwise.adonis
 #' @importFrom DT dataTableOutput
+#' @importFrom plotly plot_ly
+#' @importFrom plotly add_trace
 
 mod_beta_ui <- function(id){
   ns <- NS(id)
@@ -83,6 +85,8 @@ mod_beta_ui <- function(id){
     )
   )
 }
+
+
 
 #' mod_beta Server Function
 #'
@@ -170,6 +174,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   base_plot <- reactive({
+    print(ord()$points)
     p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
     p$layers[[1]] <- NULL
 
@@ -188,14 +193,16 @@ mod_beta_server <- function(input, output, session, r = r){
     beta_plot()
   })
 
+
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
+      sample.id = sample_names(physeq())
       p <- base_plot()$plot
-      p <- p + aes(color = !!sym(input$beta_fact1))
+      p <- p + aes(color = !!sym(input$beta_fact1), sample.id = sample.id)
       p <- p + stat_ellipse(aes(group = !!sym(input$beta_fact1)))
       p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
       p <- p + geom_point() + theme_bw()
-      ggplotly(p) %>% config(toImageButtonOptions = list(format = "svg"))
+      ggplotly(p, tooltip=c("x", "y", "sample.id")) %>% config(toImageButtonOptions = list(format = "svg"))
     }, message = "Plot Beta...")
   })
 

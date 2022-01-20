@@ -196,7 +196,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       deseq = DESeq(deseq, test="Wald", fitType="parametric")
 
       print("res")
-      res = results(deseq, cooksCutoff = FALSE)
+      res = results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
       res
 
       }, message = "Performing DESeq2...")
@@ -466,7 +466,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         }
 
         mgTab = mgSeqDA()
-        mgList = row.names(mgTab[mgTab$adjPvalues <= input$Alpha1,])
+        mgList = row.names(na.omit(mgTab[mgTab$adjPvalues <= input$Alpha1,]))
         if(all(is.na(mgList))){
           mgList <- NULL
         }
@@ -540,16 +540,13 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         #Adjust table
         print('Adjusting table...')
         TABf <- TABf[!is.na(TABf$DESeqLFC),]
-        diff1=TABf$MeanRelAbcond1 - TABf$MeanRelAbcond2
-        cbind( sign(diff1), diff1)
-        TABf$DESeqLFC = abs(TABf$DESeqLFC)*sign(diff1)
         TABf$Condition = rep(NA, nrow(TABf))
-        TABf[diff1>0, "Condition"] = as.character(input$Cond1)
-        TABf[diff1<0, "Condition"] = as.character(input$Cond2)
+        TABf[TABf$DESeqLFC>0, "Condition"] = as.character(input$Cond1)
+        TABf[TABf$DESeqLFC<0, "Condition"] = as.character(input$Cond2)
         TABf$Condition = factor(TABf$Condition,
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
-        print("Adding taxonomy ans sequences...")
+        print("Adding taxonomy and sequences...")
         # Debug
         # LL = list()
         # LL$TABf = TABf; LL$ttax =ttax[as.character(TABf[,1]),] ;  LL$seq = seqs[as.character(TABf[,1])]
