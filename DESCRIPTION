@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 1.0.2
+Version: 1.0.3
 Authors@R:
     c(person(given = "Etienne",
              family = "Rifa",
@@ -42,7 +42,6 @@ Imports:
     PLNmodels,
     plotly,
     purrr,
-    ranomaly,
     reshape2,
     rhdf5,
     shiny,
@@ -71,7 +70,6 @@ Remotes:
     bioc::3.10/phyloseq,
     bioc::3.10/rhdf5,
     github::dreamRs/shinyWidgets,
-    github::erifa1/ranomaly,
     github::grunwaldlab/metacoder,
     github::jchiquet/PLNmodels,
     github::mikelove/DESeq2
