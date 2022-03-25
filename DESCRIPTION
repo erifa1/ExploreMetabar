@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 1.0.3
+Version: 1.0.4
 Authors@R:
     c(person(given = "Etienne",
              family = "Rifa",
@@ -33,13 +33,12 @@ Imports:
     grid,
     gtools,
     htmltools,
-    igraph,
+    htmlwidgets,
     metacoder,
     metagenomeSeq,
     microbiome,
     pairwiseAdonis,
     phyloseq,
-    PLNmodels,
     plotly,
     purrr,
     reshape2,
@@ -54,6 +53,7 @@ Imports:
     tibble,
     tidyr,
     vegan,
+    venn,
     VennDiagram
 Suggests:
     knitr,
@@ -71,7 +71,6 @@ Remotes:
     bioc::3.10/rhdf5,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
-    github::jchiquet/PLNmodels,
     github::mikelove/DESeq2
 Encoding: UTF-8
 LazyData: true
