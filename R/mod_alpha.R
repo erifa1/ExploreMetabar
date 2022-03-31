@@ -14,14 +14,12 @@
 #' @export
 #' @importFrom shiny NS tagList
 #' @importFrom plotly plotlyOutput
-#' @import shinyalert
+#' @importFrom shinyalert shinyalert useShinyalert
 #' @import bslib
 mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      theme = bslib::bs_theme(version=4),
-      useShinyalert(),
       infoBox("",
               "Use phyloseq object without taxa merging step.",
               icon = icon("info-circle"), fill=TRUE, width = 10),
