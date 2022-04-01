@@ -75,7 +75,6 @@ mod_compo_ui <- function(id){
 #' @export
 #' @keywords internal
 #' @importFrom plotly renderPlotly
-#' @importFrom microbiome aggregate_top_taxa
 #' @importFrom reshape2 melt
 
 mod_compo_server <- function(input, output, session, r = r){

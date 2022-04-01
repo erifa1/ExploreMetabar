@@ -14,7 +14,7 @@
 #' @export
 #' @importFrom shiny NS tagList
 #' @importFrom plotly plotlyOutput
-#' @import shinyalert
+#' @importFrom shinyalert shinyalert useShinyalert
 #' @import bslib
 mod_alpha_ui <- function(id){
   ns <- NS(id)

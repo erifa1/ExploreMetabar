@@ -1,7 +1,6 @@
 #' @import shiny
 #' @import shinydashboard
 #' @import shinyWidgets
-#' @import shinyjs
 
 app_ui <- function() {
   tagList(
@@ -65,7 +64,7 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       ),
                       tabItem(tabName = "heatmap",
                               mod_heatmap_ui("heatmap_ui_1")
-                      )
+                      )#,
                       # tabItem(tabName = "tab_networkpln",
                       #         mod_networkpln_ui("networkpln_ui_1")
                       # ),

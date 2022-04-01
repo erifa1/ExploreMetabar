@@ -91,7 +91,7 @@ mod_beta_ui <- function(id){
 #' mod_beta Server Function
 #'
 #' @importFrom vegan vegdist
-#' @importFrom vegan adonis
+#' @importFrom vegan adonis2
 #' @importFrom plotly ggplotly
 #' @importFrom DT renderDataTable
 #'

@@ -60,7 +60,7 @@ mod_heatmap_ui <- function(id){
                 sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
                 sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value= 600),
                 style = "unite",
-                icon = icon('gear'),
+                icon = icon('cogs'),
                 width = "300px"
               ),
               shinycustomloader::withLoader(
