@@ -75,12 +75,6 @@ mod_source_tracker_ui <- function(id){
 mod_source_tracker_server <- function(input, output, session, r = r){
   ns <- session$ns
   
-  observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='source_tracker' && !isTruthy(r$phyloseq_filtered())){
-      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-    }
-  })
-  
   r_values <- reactiveValues(factor_list=NULL)
   
   observe({

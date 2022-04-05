@@ -125,14 +125,7 @@ plot_krona<-function(physeq,output,variable, trim=F){
 
 
 mod_asvenn_server <- function(input, output, session, r=r){
-  ns <- session$ns
-  
-  observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='tab_asvenn' && !isTruthy(r$phyloseq_filtered())){
-      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-    }
-  })
-  
+  ns <- session$ns  
   
   observe({
     req(r$phyloseq_filtered())

@@ -79,11 +79,6 @@ mod_compo_ui <- function(id){
 
 mod_compo_server <- function(input, output, session, r = r){
   ns <- session$ns
-  observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='tab_compo' && !isTruthy(r$phyloseq_filtered())){
-      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-    }
-  })
 
   observeEvent(input$go1,{
     if(input$RankCompo==''){

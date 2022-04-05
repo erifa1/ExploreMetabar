@@ -69,13 +69,6 @@ mod_taxaboxplot_ui <- function(id){
 mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='tab_boxplot' && !isTruthy(r$phyloseq_filtered_norm())){
-      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-    }
-  })
-
-
   observe({
     req(r$phyloseq_filtered_norm())
     updateSelectInput(session, "boxplot_fact1",

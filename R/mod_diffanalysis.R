@@ -101,12 +101,6 @@ mod_diffanalysis_ui <- function(id){
 mod_diffanalysis_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  observeEvent(r$tabs$tabselected, {
-    if(r$tabs$tabselected=='tab_diff' && !isTruthy(r$phyloseq_filtered())){
-      shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-    }
-  })
-
   output$factor1 = renderUI({
     req(r$phyloseq_filtered())
     selectInput(
