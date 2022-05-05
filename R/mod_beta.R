@@ -8,7 +8,6 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @importFrom pairwiseAdonis pairwise.adonis
 #' @importFrom DT dataTableOutput
 #' @importFrom plotly plot_ly
 #' @importFrom plotly add_trace
@@ -253,7 +252,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
     res.adonis = vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
 
-    fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$beta_fact1], p.adjust.m = "fdr")')
+    fun <- glue::glue('res.pairwise = pairwise.adonis({input$metrics}.dist, mdata[,input$beta_fact1], p.adjust.m = "fdr")')
     # fun <- glue::glue('res.pairwise = TukeyHSD(res.adonis, \"{input$beta_fact1}\")') <- marche pas TukeyHSD ne prend pas en charge les résultats d'adonis.
     eval(parse(text=fun))
 

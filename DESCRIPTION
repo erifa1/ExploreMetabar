@@ -1,15 +1,10 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
 Version: 1.0.6
-Authors@R:
-    c(person(given = "Etienne",
-             family = "Rifa",
-             role = c("cre", "aut"),
-             email = "etienne.rifa@inrae.fr"),
-      person(given = "Sebastien",
-             family = "Theil",
-             role = "aut",
-             email = "sebastien.theil@inrae.fr"))
+Authors@R:c(
+    person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
+    person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
+  )
 Description: Shiny application to explore metabarcoding data (16S, ITS...)
 License: MIT + file LICENSE
 URL: https://forgemia.inra.fr/umrf/exploremetabar
@@ -20,6 +15,7 @@ Imports:
     Biostrings,
     broom,
     bslib,
+    cluster,
     config,
     DESeq2,
     dplyr,
@@ -37,7 +33,6 @@ Imports:
     metacoder,
     metagenomeSeq,
     microbiome,
-    pairwiseAdonis,
     phyloseq,
     plotly,
     purrr,
@@ -48,10 +43,11 @@ Imports:
     shinyBS,
     shinycustomloader,
     shinydashboard,
-    shinyjs,
     shinyWidgets,
+    stats,
     tibble,
     tidyr,
+    utils,
     vegan,
     venn,
     VennDiagram
@@ -71,8 +67,7 @@ Remotes:
     bioc::3.10/rhdf5,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
-    github::mikelove/DESeq2,
-    github::pmartinezarbizu/pairwiseAdonis/pairwiseAdonis
+    github::mikelove/DESeq2
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2
