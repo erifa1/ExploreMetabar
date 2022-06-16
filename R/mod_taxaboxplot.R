@@ -45,7 +45,6 @@ mod_taxaboxplot_ui <- function(id){
           plotlyOutput(ns("boxplot1")), #, height=500
           title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
           ),
-      # verbatimTextOutput(ns("sids2")),
       box(DT::dataTableOutput(ns("wilcoxDT")),
           title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE),
       box(verbatimTextOutput(ns("wilcoxprint")),
@@ -79,8 +78,6 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   LjoinGlom <- reactive({
     req(r$phyloseq_filtered_norm(), r$rank_glom())
     withProgress({
-      print("melting table")
-      # data.melt <- psmelt(Fdata)
       Fdata <- r$phyloseq_filtered_norm() #r$dat()
 
       #If taxa names begin with a number
@@ -106,8 +103,6 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       print("BP otable ok")
       print(r$rank_glom())
       if(r$rank_glom() != "ASV"){
-        # lvls <- paste(substr(tax_table(Fdata)[,r$rank_glom()],1,20), "_", names(otable)[-1],sep="")
-        # names(otable)[-1] <- lvls
         lvls <- names(otable)[-1]
 
       }
@@ -172,15 +167,6 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       )
   })
 
-  output$sids2 <- reactive({
-    req(listBP())
-    LL = listBP()
-    stab <- LL$pval
-    select1  <- stab[input$pvalout1_row_last_clicked,1]
-    return(select1)
-  })
-
-
   ordertable1 <- reactive({
 
     LL = listBP()
@@ -194,7 +180,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
         eval(parse(text=fun))
       }
 
-      joinGlom
+      return(joinGlom)
 
     })
 

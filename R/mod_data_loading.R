@@ -575,7 +575,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # Chosen rank to glom taxa
   r$rank_glom <- reactive({
     input$rank_glom
-  })
+  }) 
 
   r$sdat <- reactive({
     req(r_values$phyobj_final)
