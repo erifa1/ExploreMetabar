@@ -37,7 +37,15 @@ mod_asvenn_ui <- function(id){
         # plotOutput(ns("venn1"), height = "800px"),
         
           imageOutput(ns("venn1"), width = "100%", height = "100%"),
-          title = "Venn Diagram:", width = 12, status = "primary", solidHeader = TRUE
+          title = "Venn Diagram VennR:", width = 12, status = "primary", solidHeader = TRUE,
+          collapsible = TRUE, collapsed = FALSE
+        )
+      ),
+      fluidRow(
+        box(
+          plotOutput(ns("venn2"), height = "800px"),
+          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE, 
+          collapsible = TRUE, collapsed = TRUE
         )
       ),
       fluidRow(
@@ -140,10 +148,10 @@ plot_krona <- function(physeq,output,variable, trim=F){
 #' @importFrom futile.logger flog.threshold
 #' @importFrom grid grid.draw
 #' @importFrom grDevices rainbow
-#' @importFrom VennDiagram calculate.overlap
-#' @importFrom VennDiagram venn.diagram
+#' @importFrom venn venn
 #' @importFrom qdapTools mtabulate
 #' @importFrom nVennR plotVenn
+#' @import ggpolypath
 
 
 mod_asvenn_server <- function(input, output, session, r=r){
@@ -222,7 +230,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
       v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
-      
+
+      res$venn.plot2 <- venn::venn(TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2, 
+                                ggplot = TRUE)
+
       return(res)
     }
   })
@@ -231,6 +242,12 @@ mod_asvenn_server <- function(input, output, session, r=r){
   output$venn1 <- renderImage(
     resVenn()$svg.obj
   , deleteFile=TRUE)
+
+  output$venn2 <- renderPlot({
+    invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
+        grid.draw(resVenn()$venn.plot2)
+  })
+
 
   output$tabvenn1 <-DT::renderDataTable({
     resVenn()$v.table

@@ -1,15 +1,10 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
 Version: 1.0.6
-Authors@R:
-    c(person(given = "Etienne",
-             family = "Rifa",
-             role = c("cre", "aut"),
-             email = "etienne.rifa@inrae.fr"),
-      person(given = "Sebastien",
-             family = "Theil",
-             role = "aut",
-             email = "sebastien.theil@inrae.fr"))
+Authors@R: c(
+    person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
+    person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
+  )
 Description: Shiny application to explore metabarcoding data (16S, ITS...)
 License: MIT + file LICENSE
 URL: https://forgemia.inra.fr/umrf/exploremetabar
@@ -27,6 +22,7 @@ Imports:
     forcats,
     futile.logger,
     ggplot2,
+    ggpolypath,
     glue,
     golem,
     grDevices,
@@ -37,10 +33,12 @@ Imports:
     metacoder,
     metagenomeSeq,
     microbiome,
+    nVennR,
     pairwiseAdonis,
     phyloseq,
     plotly,
     purrr,
+    qdapTools,
     reshape2,
     rhdf5,
     shiny,
@@ -48,7 +46,6 @@ Imports:
     shinyBS,
     shinycustomloader,
     shinydashboard,
-    shinyjs,
     shinyWidgets,
     tibble,
     tidyr,
