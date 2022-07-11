@@ -8,7 +8,6 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @importFrom pairwiseAdonis pairwise.adonis
 #' @importFrom DT dataTableOutput
 #' @importFrom plotly plot_ly
 #' @importFrom plotly add_trace
@@ -219,21 +218,29 @@ mod_beta_server <- function(input, output, session, r = r){
 
   betatest <- eventReactive(input$go1, {
     req(input$metrics, input$beta_fact1, r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
-
+    # browser()
     if(input$beta_norm_bool==0){
       data <- r$phyloseq_filtered()
     }
     if(input$beta_norm_bool==1){
       data <- r$phyloseq_filtered_norm()
     }
-    otable = otu_table(data)
-    mdata = data.frame(sample_data(data))
-    mdata$Depth <- sample_sums(data)
+    otable0 = otu_table(data)
+    print(dim(otable0))
+    mdata0 = data.frame(sample_data(data))
+    mdata0$Depth <- sample_sums(data)
+
+    # Filter NA value in metadata
+    fun <- glue::glue("mdata <- mdata0 %>% filter(!is.na({input$beta_fact1}))")
+    eval(parse(text=fun))
+    otable <- otable0[,row.names(mdata)]
+    print(dim(otable0))
+    print(as.formula(get_formula()))
 
     if(any(input$metrics == c("bray", "jaccard")) ){
       fun = glue::glue("{input$metrics}.dist <<- vegdist(t(otable), distance={input$metrics})")
     }else{
-      fun = glue::glue("{input$metrics}.dist <<- phyloseq::distance(data, '{input$metrics}')")
+      fun = glue::glue("{input$metrics}.dist <<- phyloseq::distance(otu_table(otable), '{input$metrics}')")
     }
     eval(parse(text=fun))
 
@@ -245,7 +252,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
     res.adonis = vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
 
-    fun <- glue::glue('res.pairwise = pairwiseAdonis::pairwise.adonis({input$metrics}.dist, mdata[,input$beta_fact1], p.adjust.m = "fdr")')
+    fun <- glue::glue('res.pairwise = pairwise.adonis({input$metrics}.dist, mdata[,input$beta_fact1], p.adjust.m = "fdr")')
     # fun <- glue::glue('res.pairwise = TukeyHSD(res.adonis, \"{input$beta_fact1}\")') <- marche pas TukeyHSD ne prend pas en charge les résultats d'adonis.
     eval(parse(text=fun))
 

@@ -46,7 +46,8 @@ mod_compo_ui <- function(id){
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
-        selected = 1),
+        selected = 1, inline = TRUE),
+        checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
 
         actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
@@ -88,9 +89,10 @@ mod_compo_server <- function(input, output, session, r = r){
 
   observe({
     req(r$phyloseq_filtered())
+    ranks1 <- phyloseq::rank_names(r$phyloseq_filtered())
     updateSelectInput(session, "RankCompo",
-                      choices = phyloseq::rank_names(r$phyloseq_filtered()),
-                      selected = r$rank_glom())
+                      choices = ranks1,
+                      selected = ranks1[6])
     updateSelectInput(session, "Ord1",
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
@@ -123,8 +125,8 @@ mod_compo_server <- function(input, output, session, r = r){
         cat(file=stderr(),'Std...',"\n")
       }
 
-      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = FALSE, outfile = NULL, split = split1, autoorder = FALSE, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance")
-      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = TRUE, outfile = NULL, split = split1, autoorder = FALSE, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance")
+      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance")
+      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance")
 
       LL
 

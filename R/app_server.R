@@ -5,7 +5,8 @@ options(shiny.maxRequestSize=30*1024^2)
 app_server <- function(input, output,session) {
 
   r <- reactiveValues(
-    tabs = reactiveValues()
+    tabs = reactiveValues(),
+    fdata = NULL
   )
 
   observe({

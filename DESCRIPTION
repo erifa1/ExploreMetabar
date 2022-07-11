@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 1.0.6
+Version: 1.1.0
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
@@ -15,6 +15,7 @@ Imports:
     Biostrings,
     broom,
     bslib,
+    cluster,
     config,
     DESeq2,
     dplyr,
@@ -34,7 +35,6 @@ Imports:
     metagenomeSeq,
     microbiome,
     nVennR,
-    pairwiseAdonis,
     phyloseq,
     plotly,
     purrr,
@@ -47,8 +47,10 @@ Imports:
     shinycustomloader,
     shinydashboard,
     shinyWidgets,
+    stats,
     tibble,
     tidyr,
+    utils,
     vegan,
     venn,
     VennDiagram
@@ -68,8 +70,7 @@ Remotes:
     bioc::3.10/rhdf5,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
-    github::mikelove/DESeq2,
-    github::pmartinezarbizu/pairwiseAdonis/pairwiseAdonis
+    github::mikelove/DESeq2
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2

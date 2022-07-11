@@ -79,7 +79,10 @@ if( all(Ord1 != sample_variables(data))){
   dat <- cbind.data.frame(sdata, dat)
 
   flog.info('  Melting table...')
-  meltdat <- reshape2::melt(dat, id.vars=1:ncol(sdata))
+  print(Ord1)
+  fun <- glue::glue('meltdat <- reshape2::melt(dat, id.vars=1:ncol(sdata)) %>% filter(!is.na({Ord1}))')
+  eval(parse(text = fun))
+  print(dim(meltdat))
   tt <- levels(meltdat$variable)
   meltdat$variable <- factor(meltdat$variable, levels= c("Other", tt[tt!="Other"]))
 
@@ -96,14 +99,13 @@ if( all(Ord1 != sample_variables(data))){
 
       orderedIDS <- unique(meltdat$sample.id[gtools::mixedorder(as.character(meltdat[,Ord1]))])
       orderedOrd1 <- meltdat[,Ord1][gtools::mixedorder(as.character(meltdat[,Ord1]))]
-      orderedOrd1 <- factor(orderedOrd1, levels = gtools::mixedsort(levels(orderedOrd1)))
+      orderedOrd1 <- factor(orderedOrd1, levels = gtools::mixedsort(unique(orderedOrd1)))
     }else{
       labs = 1:nrow(meltdat)
 
       orderedIDS <- unique(meltdat$sample.id)
       orderedOrd1 <- meltdat[,Ord1]
     }
-
 
 
   if(sample_labels){
@@ -151,7 +153,9 @@ if( all(Ord1 != sample_variables(data))){
     dat= as.data.frame(t(otable))
     dat <- cbind.data.frame(sdata, dat)
 
-    meltdat <- reshape2::melt(dat, id.vars=1:ncol(sdata))
+    fun <- glue::glue('meltdat <- reshape2::melt(dat, id.vars=1:ncol(sdata)) %>% filter(!is.na({Ord1}))')
+    eval(parse(text = fun))
+
     tt <- levels(meltdat$variable)
     meltdat$variable <- factor(meltdat$variable, levels= c("Other", tt[tt!="Other"]))
 
@@ -203,8 +207,9 @@ if( all(Ord1 != sample_variables(data))){
              barmode = 'stack')
 
     for (i in 2:length(unique(meltdat[, Ord1]))) {
+      flog.info('X labs of subplots...')
       p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]] = NULL
-      p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]]$title <- glue("{Ord1} =\n{levels(meltdat[, Ord1])[i]}")
+      p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]]$title <- glue::glue("{Ord1} =\n{levels(meltdat[, Ord1])[i]}")
     }
     if(!is.null(outfile)){
       htmlwidgets::saveWidget(p1, outfile)
