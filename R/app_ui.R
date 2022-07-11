@@ -37,7 +37,7 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                   ),
 
                   dashboardBody(
-
+                    tags$head(includeCSS(system.file(file.path('app/www', 'style.css'), package='ExploreMetabar'))),
                     tabItems(
                       tabItem(tabName = 'data_loading',
                               mod_data_loading_ui("data_loading_ui_1")

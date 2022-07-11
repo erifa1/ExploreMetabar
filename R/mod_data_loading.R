@@ -313,8 +313,10 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
   glom_taxo <- reactive({
+    req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
     withProgress({
       tmp <- r_values$phyobj_taxglom0
+      print(tmp)
       tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
       print(max(taxa_sums(tmp)))
       print(input$minAb[2])
@@ -575,7 +577,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # Chosen rank to glom taxa
   r$rank_glom <- reactive({
     input$rank_glom
-  })
+  }) 
 
   r$sdat <- reactive({
     req(r_values$phyobj_final)
