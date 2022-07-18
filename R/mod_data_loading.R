@@ -212,7 +212,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v1.0.6\n')
+    cat('Running ExploreMetabar v1.1.0\n')
     phyloseq_data()
   })
 

@@ -147,7 +147,7 @@ plot_krona <- function(physeq,output,variable, trim=F){
 #'
 #' @importFrom futile.logger flog.threshold
 #' @importFrom grid grid.draw
-#' @importFrom grDevices rainbow
+#' @importFrom grDevices rainbow recordPlot replayPlot
 #' @importFrom venn venn
 #' @importFrom qdapTools mtabulate
 #' @importFrom nVennR plotVenn
@@ -230,9 +230,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
       v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
-
-      res$venn.plot2 <- venn::venn(TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2, 
-                                ggplot = TRUE)
+      res$TF <- TF
 
       return(res)
     }
@@ -245,7 +243,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   output$venn2 <- renderPlot({
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
-        grid.draw(resVenn()$venn.plot2)
+        # grid.draw
+        # grDevices::replayPlot(resVenn()$venn.plot2)
+        venn::venn(resVenn()$TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2, 
+                          ggplot = FALSE) 
   })
 
 
