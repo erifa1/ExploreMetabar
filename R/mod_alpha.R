@@ -66,6 +66,9 @@ mod_alpha_ui <- function(id){
         h3("TukeyHSD test results"),
         downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
         DT::dataTableOutput(ns("boxstats")),
+        
+        h3("TukeyHSD adjusted p-value heatmap"),
+        plotOutput(ns("pvalue_matrix")),
 
         width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
       )
@@ -227,7 +230,6 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-
     fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
     eval(parse(text=fun))
     
@@ -235,6 +237,7 @@ mod_alpha_server <- function(input, output, session, r = r){
     
     })
     cat(file=stderr(),'Done...',"\n")
+
     return(LL)
  })
   
@@ -249,13 +252,33 @@ mod_alpha_server <- function(input, output, session, r = r){
    print(tt$form1)
    print(tt$aov1)
  })
+ 
+ 
+ output$pvalue_matrix <- renderPlot({
+   req(reacalpha)
+   LL = reacalpha()
+   mat <- as.data.frame(LL$groups1) %>% rownames_to_column()
+   mat <- separate(mat, rowname, c('var1', 'var2'), sep='-')
+   mat <- dplyr::select(mat, var1, var2, `p adj`) %>% dplyr::filter(!is.na('p adj')) # %>% tidyr::pivot_wider(names_from = var1, values_from = 'p adj')
+   mat <- mat %>% mutate_if(is.numeric, round, digits=3)
 
+   # mat <- mat %>% mutate_if(is.numeric, round, digits=3) %>% column_to_rownames('var2') %>% as.matrix()
+   # DT::datatable(mat, options = list(pageLength = 20, scrollX = TRUE)) %>% DT::formatStyle(colnames(mat), backgroundColor = styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","orange","red")))
+   ggplot(mat, aes(x=var1, y=var2)) + 
+     geom_tile(aes(fill=`p adj`)) + 
+     geom_text(aes(label = `p adj`)) + 
+     scale_fill_gradientn(colors = c('green', 'red'), breaks = c(0, 0.05), limits = c(0, 0.05)) + 
+     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ })
+
+ 
  output$boxstats <- DT::renderDataTable({
    req(reacalpha)
    LL = reacalpha()
    LL$groups1
- }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+ }, filter="top", options = list(pageLength = 5, scrollX = TRUE))
 
+ 
  output$boxtab_download <- downloadHandler(
    filename = "alpha_boxplot_stats.csv",
    content = function(file) {
