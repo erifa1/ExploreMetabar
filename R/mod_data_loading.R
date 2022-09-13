@@ -30,7 +30,8 @@ mod_data_loading_ui <- function(id){
             fileInput(ns("fileRData"),
                       label = "RData with phyloseq object : ",
                       placeholder = "data.RData")
-          )
+          ),
+          shinyBS::bsButton(inputId = ns('launch_all'), label = "Launch all", block = F, style = 'danger', type='action')
         ),
         box(
           title = 'Phyloseq preview', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
@@ -266,6 +267,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
     shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'success')
   })
 
+  observeEvent(input$launch_all, {
+    subset_samples()
+    glom_taxo0()
+    glom_taxo()
+    subset_taxa()
+    normalize()
+  })
+  
   observeEvent(input$update_metadata, {
     cat(file=stderr(), 'button update_metadata', "\n")
     subset_samples()
@@ -310,6 +319,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       }
     }, message = 'Taxonomy agglomeration, please wait.')
     r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
+    cat(file=stderr(), 'done.', "\n")
   })
 
   glom_taxo <- reactive({
@@ -554,6 +564,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$phyloseq_data <- reactive({
     req(r_values$phyobj_initial)
     r_values$phyobj_initial
+    
   })
 
   # final filtered object
