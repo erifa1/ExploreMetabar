@@ -13,39 +13,36 @@ mod_cluster_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(
-      box(
-        radioButtons(ns("dist.meth"), "Choose distance method:", inline = TRUE,
-                     choices ='',
-                     selected = c("bray")
-        ),
-        radioButtons(ns("hclust.meth"), "Choose clustering method:", inline = TRUE,
-                     choices =c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"),
-                     selected = c("ward.D2")
-        ),
-        radioButtons(ns("k.meth"), "Choose optimal number of cluster method:", inline = TRUE,
-                     choices =c("silhouette", "pearson"),
-                     selected = c("silhouette")
-        ),
-        shinyWidgets::materialSwitch(inputId = ns("leaflabels"), label = "Leaf label"),
-        shinyWidgets::materialSwitch(inputId = ns("branchcolor"), label = "Branch color cluster or metadata"),
-        selectInput(
-          ns("clust_fact1"),
-          label = "Select metadata column to replace lables",
-          choices = ''
-        ),
-        actionButton(ns("launch_clust"), "Run Clustering", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"
+        box(
+          radioButtons(ns("dist.meth"), "Choose distance method:", inline = TRUE,
+                       choices ='',
+                       selected = c("bray")
+          ),
+          radioButtons(ns("hclust.meth"), "Choose clustering method:", inline = TRUE,
+                       choices =c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"),
+                       selected = c("ward.D2")
+          ),
+          radioButtons(ns("k.meth"), "Choose optimal number of cluster method:", inline = TRUE,
+                       choices =c("silhouette", "pearson"),
+                       selected = c("silhouette")
+          ),
+          shinyWidgets::materialSwitch(inputId = ns("leaflabels"), label = "Leaf label"),
+          shinyWidgets::materialSwitch(inputId = ns("branchcolor"), label = "Branch color cluster or metadata"),
+          selectInput(
+            ns("clust_fact1"),
+            label = "Select metadata column to replace lables",
+            choices = ''
+          ),
+          actionButton(ns("launch_clust"), "Run Clustering", icon = icon("play-circle"),
+                       style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"
+          )
         )
-      )
       ),
       fluidRow(
         box(
-          fluidPage(
             plotOutput(ns('dendro.plot')),
-            verbatimTextOutput(ns('nb_clstr'))
-            
-          ),width=12, title='Dendrogram'
-        )
+            verbatimTextOutput(ns('nb_clstr')),
+            width=12, title='Dendrogram')
       ),
       fluidRow(
         box(
@@ -54,11 +51,13 @@ mod_cluster_ui <- function(id){
         )
       ),
       fluidRow(
-        box(
-          uiOutput(ns('clstr_input')),
-          uiOutput(ns('sub_input')),
-          width = 12,
-          height = 12
+        box(width = 12,
+          selectInput(
+            ns("clust_nb"),
+            label = "Select cluster number",
+            choices=1
+          ),
+          plotOutput(ns('subclstr_plot'))
         )
       )
     )
@@ -100,7 +99,7 @@ mod_cluster_server <- function(input, output, session, r = r){
       return(hc)
     })
     
-    compute.k <- reactive({
+    compute.k <- eventReactive(input$launch_clust, {
       if(input$k.meth == "silhouette"){
         Si <- numeric(nrow(t(otu_table(r$phyloseq_filtered_norm()))))
         for (k in 2:(nrow(t(otu_table(r$phyloseq_filtered_norm()))) -1)){
@@ -180,44 +179,61 @@ mod_cluster_server <- function(input, output, session, r = r){
     plot.subtree <- reactive({
       k <- compute.k()
       dend <- compute.clust()
-      dend_list <- get_subdendrograms(as.dendrogram(dend), k)
+      dend_list <- get_subdendrograms(as.dendrogram(dend), k, order_clusters_as_data = TRUE)
       dd <- dend_list[[as.numeric(input$clust_nb)]]
       sub.phy <- phyloseq::prune_samples(labels(dd), r$phyloseq_filtered_norm())
-      # sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy)>0, sub.phy)
+      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy)>0, sub.phy)
       order.dendrogram(dd) <- as.integer(rank(order.dendrogram(dd)))
-      gplots::heatmap.2(as.matrix(as.data.frame(phyloseq::otu_table(sub.phy))), Colv = dd, trace = "none", col = viridis::viridis(100))
-      # if(input$leaflabels){
-      #   labels(dd) <- r$sdat()[labels(dd),input$clust_fact1]
-      #   plot(dd, horiz = TRUE)
-      # } else{
-      #   plot(dd, leaflab="none", horiz = TRUE)
-      # }
+      
+      otable <- phyloseq::otu_table(sub.phy)
+      data.com <- reshape2::melt(otable)
+      
+      data.com$xlabel <- as.factor(r$sdat()[as.character(data.com$Var2),input$clust_fact1])
+      names(data.com) <- c("Tax", "Sample", "Abundance", "xlabel")
+      # data.com$Tax = factor(data.com$Tax, levels = sort(unique(as.character(data.com$Tax))))
+      
+      p.heat <- ggplot(data.com, aes(x = Sample, y = Tax)) + geom_tile(aes(fill = Abundance))
+      p.heat <- p.heat + scale_fill_distiller("Normalized abundance", palette = "RdYlBu") + theme_bw()
+      
+      # Make bacterial names italics
+      p.heat <- p.heat + theme(axis.text.y = element_text(colour = 'black',
+                                                          size = 10,
+                                                          face = 'italic'))
+      # Make seperate samples based on main varaible
+      p.heat <- p.heat + facet_grid(~xlabel, scales = "free")
+      
+      p.heat <- p.heat + ylab("Taxa")
+      
+      #Clean the x-axis
+      p.heat <- p.heat + theme(axis.title.x=element_blank(),
+                               axis.text.x=element_text(angle = 90),
+                               axis.ticks.x=element_blank())
+      
+      # Clean the facet label box
+      p.heat <- p.heat + theme(legend.key = element_blank(),
+                               strip.background = element_rect(colour="black", fill="white"))
+      cat(file=stderr(), 'done', "\n")
+      return(p.heat)
     })
     
-    output$plot.subtree <- renderPlot({
-      plot.subtree()
+    output$subclstr_plot <- renderPlot({
+      p <- plot.subtree()
+      p
     })
     
-    
-    observeEvent(input$launch_clust, {
-      output$nb_clstr <- renderPrint(({
-        k <- compute.k()
-        cat('Number of clusters: ', k)
-      }))
-      
-      
-      output$clstr_input <- renderUI({
-        selectInput(
-          ns("clust_nb"),
-          label = "Select cluster number",
-          choices = 1:compute.k()
-        )
-      })
-      
-      output$sub_input <- renderUI({
-        plotOutput(ns('plot.subtree'))
-      })
+  
+    output$nb_clstr <- renderPrint({
+      req(compute.k())
+      k <- compute.k()
+      cat('Number of clusters: ', k)
     })
+    
+    observe({
+      updateSelectInput(inputId = "clust_nb",
+                        choices = 1:compute.k())
+    })
+    
+  
     
 }
     

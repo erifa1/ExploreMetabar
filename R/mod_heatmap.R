@@ -16,7 +16,6 @@ mod_heatmap_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-
       tabsetPanel(
           tabPanel("Heatmap on raw abundance with ecological distances",
           fluidRow(
@@ -135,7 +134,7 @@ mod_heatmap_server <- function(input, output, session, r){
 #Heatmap2
   table_heatmap1 <- reactive({
     req(r$phyloseq_filtered_norm())
-    cat(file=stderr(), 'heatmap2', "\n")
+    cat(file=stderr(), 'table_heatmap1', "\n")
     dataglom <- r$phyloseq_filtered_norm()
     otable <- otu_table(dataglom)
 
@@ -144,10 +143,8 @@ mod_heatmap_server <- function(input, output, session, r){
       otable <- otable[h1$labels,]
     }
 
-    sdata <- as.data.frame(as.matrix(sample_data(dataglom)))
-
     data.com <- reshape2::melt(otable)
-    data.com$xlabel <- as.factor(sdata[as.character(data.com$Var2),match(input$fact2,names(sdata))])
+    data.com$xlabel <- as.factor(r$sdat()[as.character(data.com$Var2),match(input$fact2,names(r$sdat()))])
     names(data.com) <- c("Tax", "Sample", "Abundance", "xlabel")
 
     #order in alphabetical order if no clustering.
@@ -156,8 +153,7 @@ mod_heatmap_server <- function(input, output, session, r){
     }
 
     cat(file=stderr(), 'done', "\n")
-    print(head(data.com))
-    data.com
+    return(data.com)
   })
 
   heatmap_plot2 <- eventReactive(input$launch_heatmap2,{
