@@ -30,6 +30,11 @@ mod_alpha_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
+        selectInput(
+          ns("Fact2"),
+          label = "Select second factor to combine: ",
+          choices = ""
+        ),
         checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
 
         actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = icon("play-circle"),
@@ -103,6 +108,12 @@ mod_alpha_server <- function(input, output, session, r = r){
     updateSelectInput(session, "Fact1",
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
+  
+  observe({
+    req(r$phyloseq_filtered(), input$Fact1)
+    updateSelectInput(session, "Fact2",
+                      choices = c('none',dplyr::setdiff(r$phyloseq_filtered()@sam_data@names, input$Fact1)))
+  })
 
   alpha1 <- eventReactive(input$launch_alpha,{
     withProgress(message = 'Computing alpha diversity tables', min=0, max=10, value = 0,{
@@ -135,14 +146,24 @@ mod_alpha_server <- function(input, output, session, r = r){
     withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
     metadata = tibble::rownames_to_column(r$sdat())
-    metadata <- select(metadata, rowname, input$Fact1)
+    if(input$Fact2 != 'none'){
+      meta.col <- paste0(input$Fact1, '_', input$Fact2)
+      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
+      metadata[, meta.col] <- as.factor(metadata[, meta.col])
+      metadata <- select(metadata, rowname, meta.col)
+    }
+    else{
+      meta.col <- input$Fact1
+      metadata <- select(metadata, rowname, input$Fact1)
+    }
+    
     alpha.table =  tibble::rownames_to_column(alpha.table)
     alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
 
     alpha.table[,'rowname'] <- NULL
     
     alpha.table <- alpha.table %>%
-      group_by_at(input$Fact1) %>%
+      group_by_at(meta.col) %>%
       summarise(
         tibble(
           across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
@@ -180,14 +201,19 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     metadata = tibble::rownames_to_column(r$sdat())
     alphatab =  tibble::rownames_to_column(LL$alphatab)
-
-
-    boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
     
+    if(input$Fact2 != 'none'){
+      meta.col <- paste0(input$Fact1, '_', input$Fact2)
+      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
+      metadata[, meta.col] <- as.factor(metadata[, meta.col])
+    } else{
+      meta.col <- input$Fact1
+    }
+    boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
+
     if(input$checkbox1){
       print("ORDER factor")
-      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
-
+      fun = glue::glue( "boxtab${meta.col} = factor( boxtab${meta.col}, levels = gtools::mixedsort(levels(boxtab${meta.col})) ) ")
       eval(parse(text=fun))
     }
 
@@ -198,7 +224,8 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     boxtab$Depth <- sample_sums(r$phyloseq_filtered())
     setProgress(value = 10, detail = 'done')
-    boxtab
+    
+    return(boxtab)
     })  
   }
 )
@@ -206,8 +233,14 @@ mod_alpha_server <- function(input, output, session, r = r){
 
   output$plot2 <- renderPlotly({
     withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
-    plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
-           color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
+    if(input$Fact2 != 'none'){
+      meta.col <- paste0(input$Fact1, '_', input$Fact2)
+    } else{
+      meta.col <- input$Fact1
+    }
+    
+    plot_ly(boxtab(), x = as.formula(glue("~{meta.col}")), y = as.formula(glue("~{input$metrics}")),
+           color = as.formula(glue("~{meta.col}")), type = 'box') %>% 
      layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack') %>%
     config(toImageButtonOptions = list(format = "svg"))
     
@@ -217,20 +250,28 @@ mod_alpha_server <- function(input, output, session, r = r){
 
   reacalpha <- reactive({
     req(input$metrics, input$Fact1)
+    metadata = tibble::rownames_to_column(r$sdat())
+    if(input$Fact2 != 'none'){
+      meta.col <- paste0(input$Fact1, '_', input$Fact2)
+      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
+      metadata[, meta.col] <- as.factor(metadata[, meta.col])
+    } else{
+      meta.col <- input$Fact1
+    }
     cat(file=stderr(),'Alpha tests...',"\n")
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
     anova_data = boxtab()
 
-    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
+    form1 = glue::glue("{input$metrics} ~ Depth + {meta.col}")
     anova_res1 <- aov( as.formula(form1), anova_data)
 
-    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{input$Fact1}\")")
+    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{meta.col}\")")
     eval(parse(text=fun))
 
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-    fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
+    fun <- glue::glue("LL$groups1 <- tukey_hsd${meta.col}")
     eval(parse(text=fun))
     
     setProgress(value = 10, detail = 'done')
