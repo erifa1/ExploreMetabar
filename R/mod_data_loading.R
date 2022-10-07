@@ -242,8 +242,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
     physeq <- phyloseq::prune_samples(phyloseq::sample_names(r_values$phyobj_initial)[input$metadata_table_rows_all],r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
     cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
+    # remove metadata column with only NAs
+    sample_data(physeq) <- sample_data(physeq)[,colSums(!is.na(sample_data(physeq))) > 0]
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
-
   })
 
   #update button color when clicked
@@ -337,14 +338,17 @@ mod_data_loading_server <- function(input, output, session, r=r){
     },message = "Update taxonomy, please wait...")
   })
 
+  
   observeEvent(input$update_taxo0, {
     glom_taxo0()
   },ignoreInit = TRUE)
 
+  
   observeEvent(input$update_taxo, {
     glom_taxo()
   },ignoreInit = TRUE)
 
+  
   render_taxonomy_table <- reactive({
     withProgress({
 
