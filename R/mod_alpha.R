@@ -134,21 +134,22 @@ mod_alpha_server <- function(input, output, session, r = r){
   alphagrp_table <- reactive({
     withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
-    metadata = tibble::rownames_to_column(r$sdat())
-    metadata <- select(metadata, rowname, input$Fact1)
+
     alpha.table =  tibble::rownames_to_column(alpha.table)
-    alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
+    alpha.table <- dplyr::left_join(as(r$sdat(), "data.frame"), alpha.table, by = c( "sample.id" = "rowname"))
 
     alpha.table[,'rowname'] <- NULL
     
-    alpha.table <- alpha.table %>%
-      group_by_at(input$Fact1) %>%
-      summarise(
-        tibble(
-          across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
-          across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+    if(! is.numeric(alpha.table[, input$Fact1])){
+      alpha.table <- alpha.table %>%
+        group_by_at(input$Fact1) %>%
+        summarise(
+          tibble(
+            across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
+            across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+          )
         )
-      )
+    }
     return(alpha.table)
     setProgress(value = 10, detail = 'done')
     })
@@ -178,18 +179,18 @@ mod_alpha_server <- function(input, output, session, r = r){
     flog.info('boxtab function')
     LL = alpha1()
 
-    metadata = tibble::rownames_to_column(r$sdat())
     alphatab =  tibble::rownames_to_column(LL$alphatab)
-
-
-    boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
+    boxtab <- dplyr::left_join(as(r$sdat(), "data.frame"), alphatab, by = c('sample.id' = "rowname"))
     
-    if(input$checkbox1){
-      print("ORDER factor")
-      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
-
-      eval(parse(text=fun))
+    if(! is.numeric(boxtab[, input$Fact1])){
+      if(input$checkbox1){
+        print("ORDER factor")
+        fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(as.factor(boxtab${input$Fact1}))) ) ")
+        
+        eval(parse(text=fun))
+      }
     }
+    
 
     if( !any(names(boxtab)=="sample.id") ) {
       print("change rowname to sample.id")
@@ -198,7 +199,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     boxtab$Depth <- sample_sums(r$phyloseq_filtered())
     setProgress(value = 10, detail = 'done')
-    boxtab
+    return(boxtab)
     })  
   }
 )
@@ -206,9 +207,16 @@ mod_alpha_server <- function(input, output, session, r = r){
 
   output$plot2 <- renderPlotly({
     withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
-    plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
-           color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
-     layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack') %>%
+    dt <- boxtab()
+    # browser()
+    if(is.numeric(dt[,input$Fact1])){
+      p <- plot_ly(dt, x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
+                   color = as.formula(glue("~{input$Fact1}")), type = 'scatter')
+    } else{
+      p <- plot_ly(dt, x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
+                   color = as.formula(glue("~{input$Fact1}")), type = 'box')
+    }
+     p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
     config(toImageButtonOptions = list(format = "svg"))
     
   })
