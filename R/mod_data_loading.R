@@ -592,7 +592,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   r$sdat <- reactive({
     req(r_values$phyobj_final)
-    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_final)), stringsAsFactors = TRUE)
+    sdat <- sample_data(r_values$phyobj_final)
+    return(sdat)
+    # as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_final)), stringsAsFactors = TRUE)
     #as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)))
   })
 
