@@ -40,9 +40,9 @@ mod_cluster_ui <- function(id){
       ),
       fluidRow(
         box(
-            plotOutput(ns('dendro.plot')),
+            plotOutput(ns('dendro.plot'), height = "800px"),
             verbatimTextOutput(ns('nb_clstr')),
-            width=12, title='Dendrogram')
+            width=12, height = "1000px", title='Dendrogram')
       ),
       fluidRow(
         box(
@@ -51,13 +51,21 @@ mod_cluster_ui <- function(id){
         )
       ),
       fluidRow(
-        box(width = 12,
+        box(width = 12, height = "1000px",
           selectInput(
             ns("clust_nb"),
             label = "Select cluster number",
             choices=1
           ),
-          plotOutput(ns('subclstr_plot'))
+          numericRangeInput(ns("clstr_minAb"), "Minimum taxa overall raw abundance:", c(1,1), width = NULL, separator = " to "),
+          selectInput(
+            ns("clstr_rank_glom"),
+            label='Select rank to merge taxonomy table',
+            choices='',
+            selected = 1,
+          ),
+          plotOutput(ns('subclstr_plot'), height = "600px"),
+          verbatimTextOutput(ns('indicSpe'))
         )
       )
     )
@@ -72,9 +80,19 @@ mod_cluster_server <- function(input, output, session, r = r){
     ns <- session$ns
     
     observe({
-      req(r$phyloseq_filtered())
+      updateSelectInput(session, "clstr_rank_glom",
+                        choices = c( rank_names(r$phyloseq_filtered_norm()), "ASV" ),
+                        selected = "ASV")
+    })
+    
+    observe({
+      req(r$phyloseq_filtered_norm())
       updateSelectInput(session, "clust_fact1",
-                        choices = r$phyloseq_filtered()@sam_data@names)
+                        choices = r$phyloseq_filtered_norm()@sam_data@names)
+    })
+    
+    observe({
+      updateNumericRangeInput(session, 'clstr_minAb',"Minimum taxa overall raw abundance:", value=c(0,max(taxa_sums(r$phyloseq_filtered_norm()))))
     })
     
     observe({
@@ -182,7 +200,18 @@ mod_cluster_server <- function(input, output, session, r = r){
       dend_list <- get_subdendrograms(as.dendrogram(dend), k, order_clusters_as_data = TRUE)
       dd <- dend_list[[as.numeric(input$clust_nb)]]
       sub.phy <- phyloseq::prune_samples(labels(dd), r$phyloseq_filtered_norm())
-      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy)>0, sub.phy)
+      
+      # taxa glom
+      if(input$clstr_rank_glom != 'ASV'){
+        tmp <- fast_tax_glom(sub.phy, input$clstr_rank_glom)
+        FGnames <- tax_table(tmp)[,input$clstr_rank_glom]
+        nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
+        taxa_names(tmp) <- nnames
+        sub.phy <- tmp
+      }
+      
+      
+      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy)>input$clstr_minAb, sub.phy)
       order.dendrogram(dd) <- as.integer(rank(order.dendrogram(dd)))
       
       otable <- phyloseq::otu_table(sub.phy)
@@ -215,6 +244,24 @@ mod_cluster_server <- function(input, output, session, r = r){
       cat(file=stderr(), 'done', "\n")
       return(p.heat)
     })
+    
+    
+    compute.indicSpe <- reactive({
+      k <- compute.k()
+      dend <- compute.clust()
+      clstr <- compute.cutree()
+      otable <- t(as.data.frame(otu_table(r$phyloseq_filtered_norm())))
+      grp <- clstr[rownames(otable),'clstr']
+      indval <- indicspecies::multipatt(otable, grp, control = permute::how(nperm = 99), duleg = TRUE)
+      summary(indval)
+    })
+    
+    
+    output$indicSpe <- renderPrint({
+      req(compute.k(), compute.clust(), compute.cutree())
+      compute.indicSpe()
+    })
+    
     
     output$subclstr_plot <- renderPlot({
       p <- plot.subtree()

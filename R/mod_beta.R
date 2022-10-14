@@ -166,7 +166,6 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   base_plot <- reactive({
-    print(ord()$points)
     p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
     p$layers[[1]] <- NULL
 
