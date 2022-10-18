@@ -30,11 +30,12 @@ mod_alpha_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
-        selectInput(
-          ns("Fact2"),
-          label = "Select second factor to combine: ",
-          choices = ""
-        ),
+        uiOutput(ns('fact_2')),
+        # selectInput(
+        #   ns("Fact2"),
+        #   label = "Select second factor to combine: ",
+        #   choices = ""
+        # ),
         checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
 
         actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = icon("play-circle"),
@@ -64,19 +65,23 @@ mod_alpha_ui <- function(id){
         plotly::plotlyOutput(ns("plot2")),
         width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
       ),
-      box(
-        h3("ANOVA results"),
-        box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
-
-        h3("TukeyHSD test results"),
-        downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
-        DT::dataTableOutput(ns("boxstats")),
-
-        h3("TukeyHSD adjusted p-value heatmap"),
-        plotOutput(ns("pvalue_matrix")),
-
-        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
-      )
+      uiOutput(ns('anovaBox'))
+      # conditionalPanel(
+      #   condition = "output.isNumFactor == 'FALSE'",
+      #   box(
+      #     h3("ANOVA results"),
+      #     box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
+      #     
+      #     h3("TukeyHSD test results"),
+      #     downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
+      #     DT::dataTableOutput(ns("boxstats")),
+      #     
+      #     h3("TukeyHSD adjusted p-value heatmap"),
+      #     plotOutput(ns("pvalue_matrix")),
+      #     
+      #     width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+      #   )
+      # )
     )
   )
 }
@@ -94,12 +99,67 @@ mod_alpha_ui <- function(id){
 
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
+  
+  isNumFactor <- reactive({
+    req(input$Fact1, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(is.numeric(metadata[, input$Fact1])){
+      return(TRUE)
+    } else{
+      return(FALSE)
+    }
+  })
+  
+  output$fact_2 <- renderUI({
+    req(r$phyloseq_filtered(), input$Fact1)
+    if(! isNumFactor()){
+      metadata <- as(r$sdat(), "data.frame")
+      num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+      tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
+      selectInput(
+        ns("Fact2"),
+        label = "Select second factor to combine: ",
+        choices = c('none',dplyr::setdiff(tmp, input$Fact1))
+      )
+    }
+  })
 
   observeEvent(r$tabs$tabselected, {
     print(r$tabs$tabselected)
     if(r$tabs$tabselected!='data_loading' && !isTruthy(r$phyloseq_filtered())){
       shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
+  })
+  
+  local_metadata <- reactive({
+    req(input$Fact1)
+    metadata <- as(r$sdat(), "data.frame")
+    if(!isNumFactor()){
+      if(input$Fact2 != 'none' && ! is.numeric(metadata[, input$Fact1])){
+        metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Fact1, input$Fact2, na.rm=TRUE)
+        metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
+        metadata <- select(metadata, "sample.id", get_meta_col())
+      }
+    }
+    else{
+      metadata <- select(metadata, "sample.id", input$Fact1)
+    }
+    return(metadata)
+  })
+  
+  
+  get_meta_col <- reactive({
+    if(!isNumFactor()){
+      if(input$Fact2 != 'none'){
+        meta.col <- paste0(input$Fact1, '_', input$Fact2)
+      }
+      else{
+        meta.col <- input$Fact1
+      }
+    } else{
+      meta.col <- input$Fact1
+    }
+    return(meta.col)
   })
 
 
@@ -109,13 +169,8 @@ mod_alpha_server <- function(input, output, session, r = r){
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
 
-  observe({
-    req(r$phyloseq_filtered(), input$Fact1)
-    updateSelectInput(session, "Fact2",
-                      choices = c('none',dplyr::setdiff(r$phyloseq_filtered()@sam_data@names, input$Fact1)))
-  })
-
-  alpha1 <- eventReactive(input$launch_alpha,{
+  
+  alpha1 <- reactive({
     withProgress(message = 'Computing alpha diversity tables', min=0, max=10, value = 0,{
       flog.info('computing alpha1...')
       req(r$phyloseq_filtered())
@@ -142,29 +197,20 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$alphatab
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
 
-  alphagrp_table <- reactive({
+  
+  alphagrp_table <- eventReactive(input$launch_alpha, {
+    req(alpha1(), r$sdat(), get_meta_col())
     withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
-    metadata <- as(r$sdat(), "data.frame")
-    if(input$Fact2 != 'none' && ! is.numeric(metadata[, input$Fact1])){
-      meta.col <- paste0(input$Fact1, '_', input$Fact2)
-      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
-      metadata[, meta.col] <- as.factor(metadata[, meta.col])
-      metadata <- select(metadata, rowname, meta.col)
-    }
-    else{
-      meta.col <- input$Fact1
-      metadata <- select(metadata, rowname, input$Fact1)
-    }
-
+    
     alpha.table =  tibble::rownames_to_column(alpha.table)
-    alpha.table <- dplyr::left_join(as(r$sdat(), "data.frame"), alpha.table, by = c( "sample.id" = "rowname"))
+    alpha.table <- dplyr::left_join(local_metadata(), alpha.table, by = c( "sample.id" = "rowname"))
 
     alpha.table[,'rowname'] <- NULL
 
-    if(! is.numeric(alpha.table[, input$Fact1])){
+    if(!isNumFactor()){
       alpha.table <- alpha.table %>%
-        group_by_at(input$Fact1) %>%
+        group_by_at(get_meta_col()) %>%
         summarise(
           tibble(
             across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
@@ -195,24 +241,16 @@ mod_alpha_server <- function(input, output, session, r = r){
   )
 
 
-  boxtab <- eventReactive(input$launch_alpha,{
+  boxtab <- reactive({
     req(r$sdat(), input$Fact1, r$phyloseq_filtered())
     withProgress(message = 'Boxplot table', min=0, max=10, value = 0,{
-    flog.info('boxtab function')
+    flog.info('boxtab function...')
     LL = alpha1()
-
     alphatab =  tibble::rownames_to_column(LL$alphatab)
-    metadata <- as(r$sdat(), "data.frame")
-    if(input$Fact2 != 'none' && ! is.numeric(metadata[, input$Fact1])){
-      meta.col <- paste0(input$Fact1, '_', input$Fact2)
-      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
-      metadata[, meta.col] <- as.factor(metadata[, meta.col])
-    } else{
-      meta.col <- input$Fact1
-    }
-    boxtab <- dplyr::left_join(metadata, alphatab, by = c('sample.id' = "rowname"))
 
-    if(! is.numeric(boxtab[, input$Fact1])){
+    boxtab <- dplyr::left_join(local_metadata(), alphatab, by = c('sample.id' = "rowname"))
+    
+    if(! is.numeric(boxtab[, get_meta_col()])){
       if(input$checkbox1){
         print("ORDER factor")
         fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(as.factor(boxtab${input$Fact1}))) ) ")
@@ -221,7 +259,6 @@ mod_alpha_server <- function(input, output, session, r = r){
       }
     }
 
-
     if( !any(names(boxtab)=="sample.id") ) {
       print("change rowname to sample.id")
       dplyr::rename(boxtab, sample.id = rowname)
@@ -229,60 +266,88 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     boxtab$Depth <- sample_sums(r$phyloseq_filtered())
     setProgress(value = 10, detail = 'done')
+    flog.info('boxtab done.')
     return(boxtab)
     })
   }
 )
 
 
-  output$plot2 <- renderPlotly({
+  get_box_plot <- eventReactive(input$launch_alpha, {
+    req(boxtab(), input$Fact1, input$Fact2)
+    flog.info('renderPloty...')
     withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
-    dt <- boxtab()
-    # browser()
-    if(input$Fact2 != 'none'){
-      meta.col <- paste0(input$Fact1, '_', input$Fact2)
-    } else{
-      meta.col <- input$Fact1
-    }
-
-    if(is.numeric(dt[,meta.col])){
-      p <- plot_ly(dt, x = as.formula(glue("~{meta.col}")), y = as.formula(glue("~{input$metrics}")),
-                   color = as.formula(glue("~{meta.col}")), type = 'scatter')
-    } else{
-      p <- plot_ly(dt, x = as.formula(glue("~{meta.col}")), y = as.formula(glue("~{input$metrics}")),
-                   color = as.formula(glue("~{meta.col}")), type = 'box')
-    }
-     p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
-    config(toImageButtonOptions = list(format = "svg"))
-
+      dt <- boxtab()
+      if(is.numeric(dt[,get_meta_col()])){
+        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
+                     color = as.formula(glue("~{get_meta_col()}")), type = 'scatter')
+      } else{
+        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
+                     color = as.formula(glue("~{get_meta_col()}")), type = 'box')
+      }
+      p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
+        config(toImageButtonOptions = list(format = "svg"))
+      
+    })
   })
- })
+  
+  output$plot2 <- renderPlotly({
+    get_box_plot()
+  })
+  
+  output$alphalrm <- renderPrint(
+    print(alpha_lm())
+  )
+  
+  alpha_lm <- reactive({
+    dt <- boxtab()
+    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
+    fit = lm(as.formula(form1), data=dt)
+    return(summary(fit))
+  })
 
+  output$anovaBox <- renderUI({
+    if(isNumFactor()){
+      box(
+        h3("Linear regression model"),
+        box(verbatimTextOutput(ns("alphalrm")), width=12, status = "primary"),
+        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+      )
+    }
+    else{
+      box(
+            h3("ANOVA results"),
+            box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
 
+            h3("TukeyHSD test results"),
+            downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
+            DT::dataTableOutput(ns("boxstats")),
+
+            h3("TukeyHSD adjusted p-value heatmap"),
+            plotOutput(ns("pvalue_matrix")),
+
+            width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+          )
+    }
+  })
+  
+  
   reacalpha <- reactive({
     req(input$metrics, input$Fact1)
-    metadata = tibble::rownames_to_column(r$sdat())
-    if(input$Fact2 != 'none'){
-      meta.col <- paste0(input$Fact1, '_', input$Fact2)
-      metadata <- tidyr::unite(metadata, !!meta.col, input$Fact1, input$Fact2, na.rm=TRUE)
-      metadata[, meta.col] <- as.factor(metadata[, meta.col])
-    } else{
-      meta.col <- input$Fact1
-    }
+    
     cat(file=stderr(),'Alpha tests...',"\n")
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
-    anova_data = boxtab()
 
-    form1 = glue::glue("{input$metrics} ~ Depth + {meta.col}")
-    anova_res1 <- aov( as.formula(form1), anova_data)
+    form1 = glue::glue("{input$metrics} ~ Depth + {get_meta_col()}")
+    anova_res1 <- aov( as.formula(form1), boxtab())
 
-    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{meta.col}\")")
+    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{get_meta_col()}\")")
     eval(parse(text=fun))
 
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-    fun <- glue::glue("LL$groups1 <- tukey_hsd${meta.col}")
+    fun <- glue::glue("LL$groups1 <- tukey_hsd${get_meta_col()}")
     eval(parse(text=fun))
 
     setProgress(value = 10, detail = 'done')

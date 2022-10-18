@@ -59,11 +59,8 @@ mod_data_loading_ui <- function(id){
           ),
           shinyBS::bsButton(inputId = ns('update_taxo0'), label = "Launch glom", block = F, style = 'danger', type='action'),
           numericRangeInput(ns("minAb"), "Minimum taxa overall raw abundance:", c(1,1), width = NULL, separator = " to "),
-          # numericInput(ns("minAb"), "Minimum taxa overall raw abundance:", 1, min = 0, max = NA),
-          # numericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", 1, min = 0, max = NA),
           numericRangeInput(ns("minPrev"), "Minimum taxa prevalence in samples:", c(1,1), width = NULL, separator = " to "),
           shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger', type='action')
-          # actionButton(ns('update_taxo'), "Update Taxonomy", class='butt2')
         )
       ),
       fluidRow(
@@ -198,7 +195,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
       load(input$fileRData$datapath, envir = ne)
     }
     else{
-      load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
+      # load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
+      load(system.file("data_test", "phy_test_numeric.rdata", package="ExploreMetabar"), envir = ne)
     }
     classes1 = sapply(ne, class)
     obj = classes1[classes1 == "phyloseq"]

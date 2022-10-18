@@ -99,19 +99,10 @@ mod_compo_server <- function(input, output, session, r = r){
 
   compo <- eventReactive(input$go1, {
     cat(file=stderr(),'Creating plots...',"\n")
-    req(input$topTax, input$Ord1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm) #input$compo_norm_bool,
+    req(input$topTax, input$Ord1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm)
     LL=list()
-    # if(input$compo_norm_bool==0){
-      Fdata <- r$phyloseq_filtered()
-      print(Fdata)
-    # }
-    # if(input$compo_norm_bool==1){
-      # Fdatanorm <- Fdata
-      # otable <- Fdatanorm@otu_table@.Data+1
-      # otableVST <- DESeq2::varianceStabilizingTransformation(otable, fitType='local')
-      # Fdatanorm@otu_table@.Data <- otableVST
-      # print(Fdatanorm)
-    # }
+
+    Fdata <- r$phyloseq_filtered()
 
     withProgress({
       if(input$radio1 == 3){
@@ -146,11 +137,6 @@ mod_compo_server <- function(input, output, session, r = r){
     LL$p2 %>% config(toImageButtonOptions = list(format = "svg"))
   })
 
-  # output$compo3 <- renderPlotly({
-  #   LL <- compo()
-  #   LL$p3
-  # })
-
   output$totalsum1 <- renderPrint({
       Fdata <- r$phyloseq_filtered()
     print(sample_sums(Fdata))
@@ -175,8 +161,6 @@ mod_compo_server <- function(input, output, session, r = r){
       saveWidget(plot1, file= file)
     }
   )
-
-
 }
 
 
