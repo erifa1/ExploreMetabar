@@ -92,7 +92,7 @@ mod_compo_server <- function(input, output, session, r = r){
     ranks1 <- phyloseq::rank_names(r$phyloseq_filtered())
     updateSelectInput(session, "RankCompo",
                       choices = ranks1,
-                      selected = ranks1[6])
+                      selected = ranks1[length(ranks1)])
     updateSelectInput(session, "Ord1",
                       choices = r$phyloseq_filtered()@sam_data@names)
   })

@@ -43,6 +43,12 @@ mod_beta_ui <- function(id){
                        list("MDS", "NMDS", "CCA", "RDA"),
                      selected = c("NMDS")
         ),
+        radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
+                     choices =
+                       list("samples", "taxa", "biplot"),
+                     selected = c("samples")
+        ),
+        uiOutput(ns('rank_select')),
         selectInput(
           ns("beta_fact1"),
           label = "Select main factor to test + color plot: ",
@@ -76,7 +82,10 @@ mod_beta_ui <- function(id){
   )
 }
 
-
+veganifyOTU <- function(physeq){
+  if(taxa_are_rows(physeq)){physeq <- t(physeq)}
+  return(as(otu_table(physeq), "matrix"))
+}
 
 #' mod_beta Server Function
 #'
@@ -102,6 +111,17 @@ mod_beta_server <- function(input, output, session, r = r){
       return(TRUE)
     } else{
       return(FALSE)
+    }
+  })
+  
+  output$rank_select <- renderUI({
+    if(input$ordination == 'NMDS' && input$plot_type == 'taxa'){
+      selectInput(
+        ns("rank_color"),
+        label = "Select rank to color taxa points: ",
+        choices = rank_names(physeq()),
+        selected = rank_names(physeq())[length(rank_names(physeq()))]
+      )
     }
   })
   
@@ -228,17 +248,37 @@ mod_beta_server <- function(input, output, session, r = r){
 
   physeq_dist <- reactive({
     req(input$metrics)
-    phyloseq::distance(physeq(), method = input$metrics)
+    res <- phyloseq::distance(physeq(), method = input$metrics)
+    return(res)
   })
 
   ord <- reactive({
     req(input$ordination)
-    phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
+    if(input$ordination == 'NMDS'){
+      res <- vegan::metaMDS(veganifyOTU(physeq()), wascores=TRUE, trace=FALSE, autotransform = FALSE)
+    } else{
+      res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
+    }
+    return(res)
   })
 
 
   base_plot <- reactive({
-    p <- phyloseq::plot_ordination(physeq = physeq(), ordination = ord(), axes = c(1, 2))
+    # p <- phyloseq::plot_ordination(physeq = physeq(), type = input$plot_type, ordination = ord(), axes = c(1, 2))
+    if(input$plot_type == 'samples'){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% as_tibble(rownames="sample.id")
+      nmds_coord <- nmds_coord %>% inner_join(., local_metadata() %>% select(sample.id, !!get_meta_col()), by="sample.id")
+      p <- ggplot2::ggplot(nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]])) + geom_point()
+    } else if (input$plot_type == 'taxa'){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+      if(r$rank_glom() == 'ASV'){
+        nmds_coord <- nmds_coord %>% inner_join(., tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV, input$rank_color), by='ASV')
+      } else{
+        nmds_coord <- nmds_coord %>% inner_join(., tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom(), input$rank_color), by=r$rank_glom())
+      }
+      p <- ggplot2::ggplot(nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]])) + geom_point()
+    }
+    
     p$layers[[1]] <- NULL
 
     xrange <- c()
@@ -259,14 +299,29 @@ mod_beta_server <- function(input, output, session, r = r){
 
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
-      sample.id = sample_names(physeq())
       p <- base_plot()$plot
-      p <- p + aes(color = !!sym(get_meta_col()), sample.id = sample.id)
-      p <- p + stat_ellipse(aes(group = !!sym(get_meta_col())))
       p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
       p <- p + geom_point() + theme_bw()
-      ggplotly(p, tooltip=c("x", "y", "sample.id")) %>% config(toImageButtonOptions = list(format = "svg"))
+      
+      if(input$plot_type == 'samples'){
+        sample.id = sample_names(physeq())
+        p <- p + aes(sample.id = sample.id)
+        p <- p + stat_ellipse(aes(group = !!sym(get_meta_col())))
+        p <- ggplotly(p, tooltip=c("x", "y", "sample.id")) %>% config(toImageButtonOptions = list(format = "svg"))
+      } else if(input$plot_type == 'taxa'){
+        if(r$rank_glom() == 'ASV'){
+          taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+        } else{
+          taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+        }
+        p <- p + aes(taxa = taxa)
+        p <- ggplotly(p, tooltip=c("x", "y", "taxa")) %>% config(toImageButtonOptions = list(format = "svg"))
+      }
+
+      
+      
     }, message = "Plot Beta...")
+    return(p)
   })
 
   get_formula <- reactive({
@@ -293,17 +348,20 @@ mod_beta_server <- function(input, output, session, r = r){
     return(res)
   })
   
+  
   get_dispersion_anova <- reactive({
     req(get_dispersion_res())
     res <- anova(get_dispersion_res())
     return(res)
   })
   
+  
   get_dispersion_tukey <- reactive({
     req(get_dispersion_res())
     res <- TukeyHSD(get_dispersion_res())
     return(res)
   })
+  
   
   get_adonis_res <- reactive({
     req(physeq_dist(), get_formula())
@@ -317,7 +375,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_paitwise_res <- reactive({
+  get_pairwise_res <- reactive({
     req(physeq_dist(), get_meta_col(), local_metadata())
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
     return(res)
@@ -334,7 +392,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   output$adonispairwisetest <- DT::renderDataTable({
-    get_paitwise_res()
+    get_pairwise_res()
   })
 
 
