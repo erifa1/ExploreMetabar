@@ -115,7 +115,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   output$rank_select <- renderUI({
-    if(input$ordination == 'NMDS' && input$plot_type == 'taxa'){
+    if(input$ordination == 'NMDS' && (input$plot_type == 'taxa' || input$plot_type == 'biplot')){
       selectInput(
         ns("rank_color"),
         label = "Select rank to color taxa points: ",
@@ -262,33 +262,74 @@ mod_beta_server <- function(input, output, session, r = r){
     return(res)
   })
 
+  get_sites_nmds_coord <- reactive({
+    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
+                    as_tibble(rownames="sample.id")
+    nmds_coord <- nmds_coord %>% 
+                    inner_join(., local_metadata() %>% 
+                                 select(sample.id, !!get_meta_col()), by="sample.id")
+    return(nmds_coord)
+  })
+  
+  get_species_nmds_coord <- reactive({
+    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+    if(r$rank_glom() == 'ASV'){
+      nmds_coord <- nmds_coord %>% 
+                      inner_join(., tax_table(physeq()) %>% 
+                                   as.data.frame() %>% 
+                                   as_tibble(rownames="ASV") %>% 
+                                   select(ASV, input$rank_color), by='ASV')
+    } else{
+      nmds_coord <- nmds_coord %>% 
+                      inner_join(., tax_table(physeq()) %>% 
+                                   as.data.frame() %>% 
+                                   as_tibble(rownames=r$rank_glom()) %>% 
+                                   select(r$rank_glom(), input$rank_color), by=r$rank_glom())
+    }
+    return(nmds_coord)
+  })
 
   base_plot <- reactive({
     # p <- phyloseq::plot_ordination(physeq = physeq(), type = input$plot_type, ordination = ord(), axes = c(1, 2))
     if(input$plot_type == 'samples'){
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% as_tibble(rownames="sample.id")
-      nmds_coord <- nmds_coord %>% inner_join(., local_metadata() %>% select(sample.id, !!get_meta_col()), by="sample.id")
-      p <- ggplot2::ggplot(nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]])) + geom_point()
+      nmds_coord <- get_sites_nmds_coord()
+      p <- ggplot2::ggplot(data = nmds_coord) + 
+            geom_point(aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq()))) +
+            stat_ellipse(aes(x=NMDS1, y=NMDS2, group = !!sym(get_meta_col())))
     } else if (input$plot_type == 'taxa'){
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+      nmds_coord <- get_species_nmds_coord()
       if(r$rank_glom() == 'ASV'){
-        nmds_coord <- nmds_coord %>% inner_join(., tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV, input$rank_color), by='ASV')
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
       } else{
-        nmds_coord <- nmds_coord %>% inner_join(., tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom(), input$rank_color), by=r$rank_glom())
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
-      p <- ggplot2::ggplot(nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]])) + geom_point()
+      p <- ggplot2::ggplot() + 
+            geom_point(data = nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa = taxa))
+    } else if(input$plot_type == 'biplot'){
+      nmds_coord_species <- get_species_nmds_coord()
+      nmds_coord_sites <- get_sites_nmds_coord()
+      if(r$rank_glom() == 'ASV'){
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+      } else{
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+      }
+      p <- ggplot() + 
+        geom_point(data = nmds_coord_species, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa=taxa), size=4) +
+        geom_point(data = nmds_coord_sites, aes(x=NMDS1, y=NMDS2, fill=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq())), shape=23, size=6)
     }
+        
     
-    p$layers[[1]] <- NULL
-
-    xrange <- c()
-    xrange[1] <- layer_scales(p)$x$range$range[1] - abs(layer_scales(p)$x$range$range[1])*3
-    xrange[2] <- layer_scales(p)$x$range$range[2] + abs(layer_scales(p)$x$range$range[2])*3
-
-    yrange <- c()
-    yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*3
-    yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*3
-    return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
+    # p$layers[[1]] <- NULL
+    # 
+    # xrange <- c()
+    # xrange[1] <- layer_scales(p)$x$range$range[1] - abs(layer_scales(p)$x$range$range[1])*3
+    # xrange[2] <- layer_scales(p)$x$range$range[2] + abs(layer_scales(p)$x$range$range[2])*3
+    # 
+    # yrange <- c()
+    # yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*3
+    # yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*3
+    # return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
+    return(list('plot'=p))
   })
 
 
@@ -300,25 +341,20 @@ mod_beta_server <- function(input, output, session, r = r){
   beta_plot <- eventReactive(input$launch_beta, {
     withProgress({
       p <- base_plot()$plot
-      p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
-      p <- p + geom_point() + theme_bw()
-      
+      # p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
+      # p <- p + geom_point() + theme_bw()
+      # browser()
       if(input$plot_type == 'samples'){
-        sample.id = sample_names(physeq())
-        p <- p + aes(sample.id = sample.id)
-        p <- p + stat_ellipse(aes(group = !!sym(get_meta_col())))
-        p <- ggplotly(p, tooltip=c("x", "y", "sample.id")) %>% config(toImageButtonOptions = list(format = "svg"))
+        p <- ggplotly(p, tooltip=c("x", "y", "sample.id"))
       } else if(input$plot_type == 'taxa'){
-        if(r$rank_glom() == 'ASV'){
-          taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-        } else{
-          taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-        }
-        p <- p + aes(taxa = taxa)
-        p <- ggplotly(p, tooltip=c("x", "y", "taxa")) %>% config(toImageButtonOptions = list(format = "svg"))
+        p <- ggplotly(p, tooltip=c("x", "y", "taxa"))
       }
-
-      
+      else if(input$plot_type == 'biplot'){
+        p <- ggplotly(p, tooltip=c("x", "y", "taxa", "sample.id"))
+      }else{
+        
+      }
+      p <- p %>% config(toImageButtonOptions = list(format = "svg"))
       
     }, message = "Plot Beta...")
     return(p)

@@ -101,12 +101,20 @@ mod_diffanalysis_ui <- function(id){
 mod_diffanalysis_server <- function(input, output, session, r = r){
   ns <- session$ns
 
+  get_meta_fact <- reactive({
+    metadata <- as(r$sdat(), "data.frame")
+    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
+    tmp <- tmp[! tmp %in% c('sample.id')]
+    return(tmp)
+  })
+  
   output$factor1 = renderUI({
     req(r$phyloseq_filtered())
     selectInput(
       ns("Fact1"),
       label = "Select factor to test: ",
-      choices = r$phyloseq_filtered()@sam_data@names
+      choices = get_meta_fact()
     )
   })
 
@@ -114,24 +122,18 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     req(input$Fact1, r$phyloseq_filtered())
     selectInput(ns("Cond1"),
       label = "Select Condition 1 to compare: ",
-      choices = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
+      choices = unique(r$sdat()[,input$Fact1] %>% pull)
       )
   })
 
   output$cond2 = renderUI({
     req(input$Cond1, input$Fact1, r$phyloseq_filtered())
-    Conds = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
-    if(length(Conds) <= 2){
-      print(Conds)
-      choices2 = Conds
-    }else{
-      choices2 = Conds[Conds != input$Cond1]
-    }
+    Conds <- unique(r$sdat()[,input$Fact1] %>% pull)
+    choices2 <- Conds[Conds != input$Cond1]
     selectInput(ns("Cond2"),
                 label = "Select Condition 2 to compare: ",
                 choices = choices2
     )
-
   })
 
   output$alpha1 = renderUI({
@@ -149,17 +151,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       # print(unique(r$phyloseq_filtered()@sam_data[,input$Fact1]))
       cat("\n")
       print( glue("Compare {input$Cond1} and {input$Cond2} ") )
-
-      # print(head(tax_table(r$phyloseq_filtered())))
     })
-
-
-    #Taxonomy subset (asvselect)
-    # data1 <- reactive({
-    #   req(r$asvselect(), r$phyloseq_filtered())
-    #   Fdata <- prune_taxa(r$asvselect(), r$phyloseq_filtered())
-    #   Fdata
-    # })
 
 
     deseqDA = eventReactive(input$go1, {
@@ -279,7 +271,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
 
     ### MEtacoder
-    mtcoderDA = eventReactive(input$go4, {
+    mtcoderDA <- eventReactive(input$go4, {
 
       withProgress({
 
