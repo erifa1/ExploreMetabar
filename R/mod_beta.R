@@ -16,67 +16,91 @@ mod_beta_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-
-      infoBox("",
-              "Use phyloseq object without taxa merging step.",
-              icon = icon("info-circle"), fill=TRUE, width = 10
+      fluidRow(
+        infoBox("",
+                "Use phyloseq object without taxa merging step.",
+                icon = icon("info-circle"), fill=TRUE, width = 10
+        )
       ),
-
-      box(
-        radioButtons(
-          ns("beta_norm_bool"),
-          label = "Use normalized data (prefer TSS normalization)",
-          inline = TRUE,
-          choices = list(
-            "Raw" = 0 ,
-            "Normalized" = 1
-          ), selected = 1
+      fluidRow(
+        box(
+          fluidPage(
+            fluidRow(
+              radioButtons(
+                ns("beta_norm_bool"),
+                label = "Use normalized data (prefer TSS normalization)",
+                inline = TRUE,
+                choices = list(
+                  "Raw" = 0 ,
+                  "Normalized" = 1
+                ), selected = 1
+              )
+            ),
+            fluidRow(
+              radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                           choices ='',
+                           selected = c("bray")
+              )
+            ),
+            fluidRow(
+              radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
+                           choices =
+                             list("MDS", "NMDS", "CCA", "RDA"),
+                           selected = c("NMDS")
+              )
+            ),
+            fluidRow(
+              radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
+                           choices =
+                             list("samples", "taxa", "biplot"),
+                           selected = c("samples")
+              )
+            ),
+            fluidRow(
+              uiOutput(ns('ui_beta_fact1')),
+              uiOutput(ns('ui_beta_fact2'))
+            ),
+            fluidRow(
+              uiOutput(ns('rank_select'))
+            ),
+            fluidRow(
+              materialSwitch(
+                ns('envfit_switch'),
+                label = 'Try envfit',
+                value = FALSE,
+                status = 'primary'
+              )
+            ),
+            fluidRow(
+              actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
+                           style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+            )
+          ),  title = "Settings:", width = 6, status = "warning", solidHeader = TRUE
         ),
-
-        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                     choices ='',
-                     selected = c("bray")
-        ),
-
-        radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
-                     choices =
-                       list("MDS", "NMDS", "CCA", "RDA"),
-                     selected = c("NMDS")
-        ),
-        radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
-                     choices =
-                       list("samples", "taxa", "biplot"),
-                     selected = c("samples")
-        ),
-        uiOutput(ns('rank_select')),
-        selectInput(
-          ns("beta_fact1"),
-          label = "Select main factor to test + color plot: ",
-          choices = ''
-        ),
-        uiOutput(ns('ui_beta_fact2')),
-        actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
+        uiOutput(ns('envfit_box'))
       ),
-      box(
-        shinycustomloader::withLoader(
-          plotly::plotlyOutput(ns("plot1")),
-          type = "html", loader = "loader4"
-        ),
-        title = "Ordination plot:", width = 12, status = "primary", solidHeader = TRUE
+      fluidRow(
+        box(
+          shinycustomloader::withLoader(
+            plotly::plotlyOutput(ns("plot1"), height = "730px"),
+            type = "html", loader = "loader4"
+          ),
+          title = "Ordination plot:", width = 12, height = "800px", status = "primary", solidHeader = TRUE
+        ), style = "height:800px;"
       ),
-      box(
-        title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
-        uiOutput(ns("factor2")),
-        uiOutput(ns("interac_factor")),
-        actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-        h3('ADONIS formula:'),
-        verbatimTextOutput(ns("adonis_formula")),
-        h2('Permanova Adonis Test Result: '),
-        DT::dataTableOutput(ns('adonistest')),
-        uiOutput(ns('pairwise_res')),
-        uiOutput(ns('disper_res'))
+      fluidRow(
+        box(
+          title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+          uiOutput(ns("factor2")),
+          uiOutput(ns("interac_factor")),
+          actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+          h3('ADONIS formula:'),
+          verbatimTextOutput(ns("adonis_formula")),
+          h2('Permanova Adonis Test Result: '),
+          DT::dataTableOutput(ns('adonistest')),
+          uiOutput(ns('pairwise_res')),
+          uiOutput(ns('disper_res'))
+        )
       )
     )
   )
@@ -116,11 +140,17 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$rank_select <- renderUI({
     if(input$ordination == 'NMDS' && (input$plot_type == 'taxa' || input$plot_type == 'biplot')){
-      selectInput(
-        ns("rank_color"),
-        label = "Select rank to color taxa points: ",
-        choices = rank_names(physeq()),
-        selected = rank_names(physeq())[length(rank_names(physeq()))]
+      tags$div(
+        hr(style = "border-top: 1px solid #000000;"),
+        h4('Taxa ordination options: '),
+        column(4,
+           selectInput(
+             ns("rank_color"),
+             label = "Select rank to color taxa points: ",
+             choices = rank_names(physeq()),
+             selected = rank_names(physeq())[length(rank_names(physeq()))]
+           )
+        )
       )
     }
   })
@@ -149,19 +179,60 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
-  output$ui_beta_fact2 <- renderUI({
-    req(r$phyloseq_filtered(), input$beta_fact1)
-    if(! isNumFactor()){
-      metadata <- as(r$sdat(), "data.frame")
-      num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
-      tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
-      selectInput(
-        ns("beta_fact2"),
-        label = "Select second factor to combine: ",
-        choices = c('none',dplyr::setdiff(tmp, input$beta_fact1))
+  output$ui_beta_fact1 <- renderUI({
+    req(r$sdat())
+    
+    metadata <- as(r$sdat(), "data.frame")
+    if(input$plot_type == 'samples' || input$plot_type == 'biplot'){
+      tags$div(
+        hr(style = "border-top: 1px solid #000000;"),
+        h4('Sample ordination options: '),
+        column(4,
+               selectInput(
+                 ns("beta_fact1"),
+                 label = "Select main factor to test + color plot: ",
+                 choices = colnames(metadata)
+               )
+        )
       )
     }
   })
+  
+  
+  
+  output$ui_beta_fact2 <- renderUI({
+    req(r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(! isNumFactor() && input$plot_type == 'samples'){
+        num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+        tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
+        tags$div(
+          column(4,
+             selectInput(
+               ns("beta_fact2"),
+               label = "Select second factor to combine: ",
+               choices = c('none',dplyr::setdiff(tmp, input$beta_fact1))
+             )
+          ),
+        )
+    }
+  })
+  
+  
+  output$envfit_box <- renderUI({
+    if(input$envfit_switch){
+      box(
+        multiInput(
+          ns('envfit_param'),
+          label = "Select variables: ",
+          choices = NULL,
+          choiceValues = colnames(r$sdat()),
+          choiceNames = colnames(r$sdat())
+        ), title = 'VEGAN envfit', status = 'primary'
+      )
+    }
+  })
+  
   
   local_metadata <- reactive({
     req(input$beta_fact1)
@@ -317,8 +388,28 @@ mod_beta_server <- function(input, output, session, r = r){
         geom_point(data = nmds_coord_species, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa=taxa), size=4) +
         geom_point(data = nmds_coord_sites, aes(x=NMDS1, y=NMDS2, fill=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq())), shape=23, size=6)
     }
-        
     
+    if(input$envfit_switch){
+      # browser()
+      env <- as(r$sdat(), 'data.frame')
+      env <- env[, input$envfit_param]
+      en <- vegan::envfit(ord(), env)
+      if(length(env %>% select_if(is.numeric) %>% colnames())>0){
+        en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
+        p <- p + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+                              data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30") +
+                geom_text(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+                    fontface = "bold", label = row.names(en_coord_cont))
+      }
+      if(length(env %>% select_if(is.character) %>% colnames())>0){
+        en_coord_cat <- as.data.frame(vegan::scores(en, "factors")) * vegan::ordiArrowMul(en)
+        p <- p + geom_point(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
+                            shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+          geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
+                    label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+      }
+      
+    }
     # p$layers[[1]] <- NULL
     # 
     # xrange <- c()
