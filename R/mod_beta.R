@@ -220,7 +220,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$envfit_box <- renderUI({
-    if(input$envfit_switch){
+    if(input$ordination == 'NMDS' && input$envfit_switch){
       box(
         multiInput(
           ns('envfit_param'),
@@ -327,6 +327,8 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination)
     if(input$ordination == 'NMDS'){
       res <- vegan::metaMDS(veganifyOTU(physeq()), wascores=TRUE, trace=FALSE, autotransform = FALSE)
+    } else if(input$ordination == 'MDS'){
+      
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
