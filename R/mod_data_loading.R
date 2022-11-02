@@ -13,15 +13,60 @@
 #' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
+#' @import datamods
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      infoBox("",
-        HTML(paste("New interface to select your data.", br(), "You must validate each step by clicking each button, even if you did not make any modification.", br())),
-        icon = icon("info-circle"), fill=TRUE, width = 10
-      ),
+      # infoBox("",
+      #   HTML(paste("New interface to select your data.", br(), "You must validate each step by clicking each button, even if you did not make any modification.", br())),
+      #   icon = icon("info-circle"), fill=TRUE, width = 10
+      # ),
+        box(title = "Input features dataset", status = "warning", solidHeader = TRUE, width=12,
+         fluidRow(
+              column(
+                width = 12,
+                actionButton(ns("launch_modal"), "Features table input module", 
+                  icon = icon("play-circle"), style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+              )
+            ),
+              tags$h3("Use filters to subset on features:"),
+
+                fluidRow(
+                  column(
+                    width = 3,
+                    filter_data_ui(ns("filtering"), max_height = "500px")
+                  ),
+                  column(
+                    width = 9,
+                    progressBar(
+                      id = ns("pbar"), value = 100,
+                      total = 100, display_pct = TRUE
+                    ),
+                    DT::dataTableOutput(outputId = ns("table"))
+                  )
+                )
+              ),
+          box(title = "Input metadata dataset", status = "warning", solidHeader = TRUE, width=12,
+              actionButton(ns("launch_modal2"), "Metadata input module", icon = icon("play-circle"), style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+              tags$h3("Use filters to subset on metadata, and click on rows you need to remove:"),
+              column(
+                width = 3,
+                filter_data_ui(ns("filtering2"), max_height = "500px")
+              ),
+              column(
+                width = 9,
+                progressBar(
+                  id = ns("pbar2"), value = 100,
+                  total = 100, display_pct = TRUE
+                ),
+                DT::dataTableOutput(outputId = ns("table2"))
+              ),                      
+              tags$b("Outlier(s) selected:"),
+              verbatimTextOutput(ns('x4'))
+            ),
+
       fluidRow(
         box(
           title = "Input phyloseq object", status = "warning", solidHeader = TRUE,
@@ -188,6 +233,69 @@ mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
+###devER
+
+   # Input dataset dev 
+
+    observeEvent(input$launch_modal, {
+      print("inputMODAL1")
+      r_values$subsetds_final <- "emptytable" # for shinyalert acp / boxplot
+      r_values$subsetds_final_melt <- "emptytable"
+      r_values$merged <- NULL
+
+      import_modal(
+        id = ns("myid"),
+        from = c("env", "file","copypaste", "googlesheets", "url"), #
+        title = "Import data to be used in application",
+        file_extensions = c(".csv", ".txt", ".tsv", ".xls", ".xlsx",".rdata")
+      )
+    })
+
+    imported <- import_server("myid", return_class = "data.frame")
+
+    output$myid <- renderPrint({
+      req(input$myid)
+      input$myid
+    })
+
+
+    # Filters dev
+
+      data <- reactive({
+        r_values$imported <- imported$data()
+        if(is.null(imported$data())){
+          dat <- imported$data()
+        }else{
+          dat <- imported$data() %>% mutate_if(bit64::is.integer64,as.numeric)
+        }
+
+        dat
+      })
+
+      res_filter <- filter_data_server(
+        id = "filtering",
+        data = sdat,
+        name = reactive("feature_table"),
+        vars = reactive(NULL),
+        widget_num = "slider",
+        widget_date = "slider",
+        label_na = "Missing"
+      )
+
+      observeEvent(res_filter$filtered(), {
+        updateProgressBar(
+          session = session, id = "pbar",
+          value = nrow(res_filter$filtered()), total = nrow(data())
+        )
+      })
+
+      output$table <- DT::renderDT({
+        res_filter$filtered()
+      }, options = list(pageLength = 6, scrollX = TRUE))
+
+###devER
+
+
   phyloseq_data <- reactive({
     cat(file=stderr(), 'phyloseq_data fun', "\n")
     ne <- new.env()
@@ -216,7 +324,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
   sdat <- reactive({
-    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
+    sdat <- as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
+    # browser()
+    print(str(sdat))
+    print(class(sdat))
+    print("TOTO")
+    sdat
+
+    # write.table(sdat, "./test.csv", sep=",",row.names = FALSE)
   })
 
   rowCallback <- c(

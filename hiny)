@@ -1,0 +1,92 @@
+update-variables           package:datamods            R Documentation
+
+_S_e_l_e_c_t, _r_e_n_a_m_e _a_n_d _c_o_n_v_e_r_t _v_a_r_i_a_b_l_e_s
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Select, rename and convert variables
+
+_U_s_a_g_e:
+
+     update_variables_ui(id, title = TRUE)
+     
+     update_variables_server(id, data, height = NULL)
+     
+_A_r_g_u_m_e_n_t_s:
+
+      id: Module's ID
+
+   title: Module's title, if ‘TRUE’ use the default title, use ‘NULL’
+          for no title or a ‘shiny.tag’ for a custom one.
+
+    data: a ‘data.frame’ or a ‘reactive’ function returning a
+          ‘data.frame’.
+
+  height: Height for the table.
+
+_V_a_l_u_e:
+
+     A ‘reactive’ function returning the updated data.
+
+_E_x_a_m_p_l_e_s:
+
+     library(shiny)
+     library(datamods)
+     
+     testdata <- data.frame(
+       date_as_char = as.character(Sys.Date() + 0:9),
+       date_as_num = as.numeric(Sys.Date() + 0:9),
+       datetime_as_char = as.character(Sys.time() + 0:9 * 3600*24),
+       datetime_as_num = as.numeric(Sys.time() + 0:9 * 3600*24),
+       num_as_char = as.character(1:10),
+       char = month.name[1:10],
+       char_na = c("A", "A", "B", NA, "B", "A", NA, "B", "A", "B"),
+       stringsAsFactors = FALSE
+     )
+     
+     ui <- fluidPage(
+       tags$h3("Select, rename and convert variables"),
+       fluidRow(
+         column(
+           width = 6,
+           # radioButtons()
+           update_variables_ui("vars")
+         ),
+         column(
+           width = 6,
+           tags$b("original data:"),
+           verbatimTextOutput("original"),
+           verbatimTextOutput("original_str"),
+           tags$b("Modified data:"),
+           verbatimTextOutput("modified"),
+           verbatimTextOutput("modified_str")
+         )
+       )
+     )
+     
+     server <- function(input, output, session) {
+     
+       updated_data <- update_variables_server(
+         id = "vars",
+         data = reactive(testdata)
+       )
+     
+       output$original <- renderPrint({
+         testdata
+       })
+       output$original_str <- renderPrint({
+         str(testdata)
+       })
+     
+       output$modified <- renderPrint({
+         updated_data()
+       })
+       output$modified_str <- renderPrint({
+         str(updated_data())
+       })
+     }
+     
+     if (interactive())
+       shinyApp(ui, server)
+     
+
