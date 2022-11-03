@@ -50,15 +50,16 @@ mod_asvenn_ui <- function(id){
       ),
       fluidRow(
         box(
-          downloadButton(outputId = ns("otable_download"), label = "Download Table"),
+          title = "Venn table:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
+          h3(icon("info-circle"), "Click on rows to generate boxplot displaying raw abundance of the taxa."),
           DT::dataTableOutput(ns("tabvenn1")),
-          title = "Venn table:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
+          downloadButton(outputId = ns("otable_download"), label = "Download Table"),
         )
       ),
       fluidRow(
         box(
           plotly::plotlyOutput(ns('radar_chart'), width = '100%', height = '100%'),
-          title = "Radar Chart:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
+          title = "Radar Chart:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
         )
       ),
       fluidRow(
@@ -264,7 +265,6 @@ mod_asvenn_server <- function(input, output, session, r=r){
   
   get_radar_data <- reactive({
     req(input$tabvenn1_row_last_clicked, input$lvls1)
-    
     fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% c('",paste(input$lvls1, collapse='\',\''),"'))",sep="")
     eval(parse(text=fun))
     
@@ -279,7 +279,11 @@ mod_asvenn_server <- function(input, output, session, r=r){
   
   get_radar <- reactive({
     dt <- get_radar_data()
-    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box" )
+    fact <- get_radar_data()
+    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box") %>%
+      plotly::layout(xaxis = list(title = colnames(dt)[2]),
+      yaxis = list(title = colnames(dt)[1]),
+      title = colnames(dt)[1] )
     return(fig)
   })
   
