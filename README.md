@@ -10,7 +10,10 @@ differential analysis.
 
 ## Online instances
 
-ExploreMetabar is hosted on [UCA mesocentre](https://mesocentre.uca.fr/) and [migale bioinformatics facility](https://migale.inrae.fr/):
+ExploreMetabar is hosted thanks to [SK8 INRAE](https://sk8.inrae.fr/), [UCA mesocentre](https://mesocentre.uca.fr/) and [migale bioinformatics facility](https://migale.inrae.fr/):
+
+
+**[https://explore-metabar.sk8.inrae.fr](https://explore-metabar.sk8.inrae.fr)**
 
 **[https://shiny.mesocentre.uca.fr/app/exploremetabar](https://shiny.mesocentre.uca.fr/app/exploremetabar)**
 
