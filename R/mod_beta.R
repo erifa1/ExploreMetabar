@@ -122,11 +122,11 @@ veganifyOTU <- function(physeq){
 mod_beta_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  observe({
-    req(r$phyloseq_filtered())
-    updateSelectInput(session, "beta_fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
-  })
+  # observe({
+  #   req(r$phyloseq_filtered())
+  #   updateSelectInput(session, "beta_fact1",
+  #                     choices = r$phyloseq_filtered()@sam_data@names)
+  # })
   
   isNumFactor <- reactive({
     req(input$beta_fact1, r$sdat())

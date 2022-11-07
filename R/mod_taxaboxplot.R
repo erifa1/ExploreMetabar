@@ -69,9 +69,12 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
 
   observe({
-    req(r$phyloseq_filtered_norm())
+    req(r$phyloseq_filtered(), r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
     updateSelectInput(session, "boxplot_fact1",
-                      choices = r$phyloseq_filtered_norm()@sam_data@names)
+                      choices = tmp)
 
   })
 

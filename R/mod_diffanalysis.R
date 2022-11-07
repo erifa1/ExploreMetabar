@@ -175,14 +175,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       }
 
       print('geoMeans')
-      geoMeans = apply(counts(deseq), 1, gm_mean)
+      geoMeans <- apply(counts(deseq), 1, gm_mean)
       print(geoMeans)
-      deseq = estimateSizeFactors(deseq, geoMeans = geoMeans)
+      deseq <- estimateSizeFactors(deseq, geoMeans = geoMeans)
       print("deseq")
-      deseq = DESeq(deseq, test="Wald", fitType="parametric")
+      deseq <- DESeq(deseq, test="Wald", fitType="parametric")
 
       print("res")
-      res = results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
+      res <- results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
       res
 
       }, message = "Performing DESeq2...")
@@ -551,13 +551,6 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       }, message = "Merging results...")
 
     })
-
-
-
-
-
-
-
 
 
     output$mergeTab <- DT::renderDataTable({
