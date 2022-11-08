@@ -1,6 +1,7 @@
 #' @import shiny
 #' @import shinydashboard
 #' @import shinyWidgets
+#' @importFrom base64enc dataURI
 
 
 SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), package='ExploreMetabar'))

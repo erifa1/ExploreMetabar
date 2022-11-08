@@ -11,6 +11,7 @@ URL: https://forgemia.inra.fr/umrf/exploremetabar
 BugReports: https://forgemia.inra.fr/umrf/ExploreMetabar/issues
 Imports:
     agricolae,
+    base64enc,
     Biobase,
     Biostrings,
     broom,
