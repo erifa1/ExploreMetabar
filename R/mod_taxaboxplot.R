@@ -30,6 +30,7 @@ mod_taxaboxplot_ui <- function(id){
           label = "Select factor to test: ",
           choices = ""
         ),
+        uiOutput(ns('ui_radio_tests')),
         actionButton(ns("go1"), "Run Test/Boxplot", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
@@ -71,15 +72,33 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   observe({
     req(r$phyloseq_filtered(), r$sdat())
     metadata <- as(r$sdat(), "data.frame")
-    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
-    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
     updateSelectInput(session, "boxplot_fact1",
-                      choices = tmp)
+                      choices = colnames(metadata))
 
   })
+  
+  isNumFactor <- reactive({
+    req(input$boxplot_fact1, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(is.numeric(metadata[, input$boxplot_fact1])){
+      return(TRUE)
+    } else{
+      return(FALSE)
+    }
+  })
+  
+  output$ui_radio_tests <- renderUI({
+    if(isNumFactor()){
+      radioButtons(ns('cor_test'),
+                   'Select correlation test:',
+                   choices = c('pearson', 'spearman', 'kendall'),
+                   selected = 'pearson')
+    }
+  })
 
+  
   LjoinGlom <- reactive({
-    req(r$phyloseq_filtered_norm(), r$rank_glom())
+    req(r$phyloseq_filtered_norm(), r$rank_glom(), r$dat())
     withProgress({
       Fdata <- r$phyloseq_filtered_norm() #r$dat()
 
@@ -215,26 +234,52 @@ statsBP1 <- reactive({
 })
 
 output$wilcoxprint <- renderPrint({
-  LL = statsBP1()
-  print(LL$select1)
-  print(LL$res)
+  
+  if( isNumFactor()){
+    browser()
+    
+  } else{
+    LL = statsBP1()
+    print(LL$select1)
+    print(LL$res)
+  }
+  
   # print(names(as.data.frame(LL$res$p.value)))
   })
 
 output$wilcoxDT <- DT::renderDataTable({
-  LL = statsBP1()
-  wtab = as.data.frame(LL$res$p.value)
-
-  wtab %>%
-    tibble::rownames_to_column() %>%
-    reshape2::melt(value.name = "pvalue") %>%
-    na.omit() %>%
-    rename(Condition1 = rowname)%>%
-    rename(Condition2 = variable) %>%
-    datatable() %>%
-    formatStyle("pvalue",
-      backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
-  )
+  if( isNumFactor()){
+    otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
+      as.data.frame(stringsAsFactors = FALSE)
+    metadata <- as(r$sdat(), "data.frame")
+    metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
+    results <- tibble('taxa' = as.character(),
+                      'p.value' = as.numeric(),
+                      'cor.coef' = as.numeric())
+    for(taxa in colnames(otable)){
+      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
+      tmp <- left_join(tmp, metadata, by='sample.id')
+      res <- cor.test(tmp[,taxa], tmp[,input$boxplot_fact1], method = input$cor_test)
+      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value, cor.coef = res$estimate)
+    }
+    results %>% datatable() %>% formatStyle("p.value",
+                            backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
+    )
+  } else{
+    LL = statsBP1()
+    wtab = as.data.frame(LL$res$p.value)
+  
+    wtab %>%
+      tibble::rownames_to_column() %>%
+      reshape2::melt(value.name = "pvalue") %>%
+      na.omit() %>%
+      rename(Condition1 = rowname)%>%
+      rename(Condition2 = variable) %>%
+      datatable() %>%
+      formatStyle("pvalue",
+        backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
+    )
+  }
 })
 
 
