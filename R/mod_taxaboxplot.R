@@ -98,8 +98,9 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
 
   
   LjoinGlom <- reactive({
-    req(r$phyloseq_filtered_norm(), r$rank_glom(), r$dat())
+    req(r$phyloseq_filtered_norm(), r$rank_glom(), r$sdat())
     withProgress({
+      # browser()
       Fdata <- r$phyloseq_filtered_norm() #r$dat()
 
       #If taxa names begin with a number
@@ -107,14 +108,14 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
         taxa_names(Fdata) <- paste("ASV_", taxa_names(Fdata), sep="")
       }
 
-      print("BP sdata")
+      # print("BP sdata")
       stable <- Fdata %>%
         sample_data() %>%
         as.matrix() %>%
         as.data.frame(stringsAsFactors = FALSE) %>%
         tibble::rownames_to_column()
 
-      print("BP otable")
+      # print("BP otable")
       otable <- Fdata %>%
         otu_table() %>%
         # as.matrix() %>%
@@ -122,8 +123,8 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
         as.data.frame(stringsAsFactors = FALSE) %>%
         tibble::rownames_to_column()
 
-      print("BP otable ok")
-      print(r$rank_glom())
+      # print("BP otable ok")
+      # print(r$rank_glom())
       if(r$rank_glom() != "ASV"){
         lvls <- names(otable)[-1]
 
@@ -136,7 +137,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       joinGlom <- dplyr::left_join(stable, otable, by = "rowname")
       if( !any(names(joinGlom)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(joinGlom, sample.id = rowname) }
 
-      LL=list()
+      LL <- list()
       LL$joinGlom <- joinGlom
       LL$lvls <- lvls
       LL
@@ -144,14 +145,15 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
 
 
-  listBP <- eventReactive(input$go1, {
+  listBP <- reactive({
     req(input$boxplot_fact1, LjoinGlom())
     withProgress({
+      # browser()
       LL = LjoinGlom()
       joinGlom <- LL$joinGlom
       lvls <- LL$lvls
 
-      print(length(lvls))
+      # print(length(lvls))
       stock=NULL
       print("loop")
       stock=NULL; pval1=NULL; taxa1=NULL
@@ -163,9 +165,9 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
         taxa1 = c(taxa1, i)
         if(res$p.value < 0.05){stock = c(stock, i)}
       }
-      print("cbind")
-      print(length(taxa1))
-      print(length(pval1))
+      # print("cbind")
+      # print(length(taxa1))
+      # print(length(pval1))
       respval <- cbind.data.frame(Taxa = taxa1, kruskal.pvalue = pval1)
 
       print(head(as.data.frame(respval)))
@@ -176,25 +178,67 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       LL
     }, message="Kruskall test...")
   })
+  
+  get_pval_table <- eventReactive(input$go1, {
+    if(isNumFactor()){
+      get_corr_pval_table()
+    } else{
+      get_kruskal_pval_table()
+    }
+  })
+  
+  
+  get_kruskal_pval_table <- reactive({
+    otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
+      as.data.frame(stringsAsFactors = FALSE)
+    metadata <- as(r$sdat(), "data.frame")
+    metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
+    results <- tibble('taxa' = as.character(),
+                      'p.value' = as.numeric())
+    # browser()
+    for(taxa in colnames(otable)){
+      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
+      tmp <- left_join(tmp, metadata, by='sample.id')
+      res = kruskal.test(tmp[,taxa], tmp[,input$boxplot_fact1])
+      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value)
+    }
+    # LL = listBP()
+    return(results)
+  })
+  
+  
+  get_corr_pval_table <- reactive({
+    otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
+      as.data.frame(stringsAsFactors = FALSE)
+    metadata <- as(r$sdat(), "data.frame")
+    metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
+    results <- tibble('taxa' = as.character(),
+                      'p.value' = as.numeric(),
+                      'cor.coef' = as.numeric())
+    for(taxa in colnames(otable)){
+      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
+      tmp <- left_join(tmp, metadata, by='sample.id')
+      res <- cor.test(tmp[,taxa], tmp[,input$boxplot_fact1], method = input$cor_test)
+      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value, cor.coef = res$estimate)
+    }
+
+    return(results)
+  })
+
 
   output$pvalout1 <- DT::renderDataTable({
-      req(listBP())
-    LL = listBP()
-    # print(head(as.data.frame(LL$pval)))
-    # print(str(as.data.frame(LL$pval)))
-    datatable(as.data.frame(LL$pval), selection = "single", filter="top") %>%
+    req(get_pval_table())
+    get_pval_table() %>% datatable(selection = "single", filter="top") %>%
       formatStyle(
-        'kruskal.pvalue',
-        backgroundColor=styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","yellow","red"))
-      )
+        'p.value',
+        backgroundColor=styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","yellow","red")))
   })
 
   ordertable1 <- reactive({
-
     LL = listBP()
     stab <- LL$pval
     joinGlom <- LL$joinGlom
-    print(joinGlom[1:10,1:10])
+
       if(input$order1){
         print("ORDER factor")
         print(str(joinGlom))
@@ -220,81 +264,61 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       layout(title=select1, yaxis = list(title = glue('{input$NORM} abundance')), xaxis = list(title = 'Samples'), barmode = 'stack')
   })
 
-statsBP1 <- reactive({
-  if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
-  LL = listBP()
-  stab <- LL$pval
-  joinGlom <- LL$joinGlom
-  select1  <- stab[input$pvalout1_row_last_clicked,1]
-  fun = glue( "res = pairwise.wilcox.test(joinGlom[,'{select1}'], joinGlom[,'{input$boxplot_fact1}'], p.adjust.method = 'none')" )
-  eval(parse(text=fun))
-  LL$res = res
-  LL$select1 = select1
-  LL
-})
+  # statsBP1 <- reactive({
+  #   if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
+  #   LL = listBP()
+  #   stab <- LL$pval
+  #   joinGlom <- LL$joinGlom
+  #   select1  <- stab[input$pvalout1_row_last_clicked,1]
+  #   fun = glue( "res = pairwise.wilcox.test(joinGlom[,'{select1}'], joinGlom[,'{input$boxplot_fact1}'], p.adjust.method = 'none')" )
+  #   eval(parse(text=fun))
+  #   LL$res = res
+  #   LL$select1 = select1
+  #   LL
+  # })
 
-output$wilcoxprint <- renderPrint({
+  # output$wilcoxprint <- renderPrint({
+  #   if(! isNumFactor()){
+  #     LL = statsBP1()
+  #     print(LL$select1)
+  #     print(LL$res)
+  #   }
+  # })
+
   
-  if( isNumFactor()){
-    browser()
-    
-  } else{
-    LL = statsBP1()
-    print(LL$select1)
-    print(LL$res)
-  }
-  
-  # print(names(as.data.frame(LL$res$p.value)))
-  })
+# output$wilcoxDT <- DT::renderDataTable({
+#   if( isNumFactor()){
+#     
+#   } else{
+#     LL = statsBP1()
+#     wtab = as.data.frame(LL$res$p.value)
+#   
+#     wtab %>%
+#       tibble::rownames_to_column() %>%
+#       reshape2::melt(value.name = "pvalue") %>%
+#       na.omit() %>%
+#       rename(Condition1 = rowname)%>%
+#       rename(Condition2 = variable) %>%
+#       datatable() %>%
+#       formatStyle("pvalue",
+#         backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
+#     )
+#   }
+# })
 
-output$wilcoxDT <- DT::renderDataTable({
-  if( isNumFactor()){
-    otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
-      as.data.frame(stringsAsFactors = FALSE)
-    metadata <- as(r$sdat(), "data.frame")
-    metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
-    results <- tibble('taxa' = as.character(),
-                      'p.value' = as.numeric(),
-                      'cor.coef' = as.numeric())
-    for(taxa in colnames(otable)){
-      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
-      tmp <- left_join(tmp, metadata, by='sample.id')
-      res <- cor.test(tmp[,taxa], tmp[,input$boxplot_fact1], method = input$cor_test)
-      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value, cor.coef = res$estimate)
-    }
-    results %>% datatable() %>% formatStyle("p.value",
-                            backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
-    )
-  } else{
-    LL = statsBP1()
-    wtab = as.data.frame(LL$res$p.value)
-  
-    wtab %>%
-      tibble::rownames_to_column() %>%
-      reshape2::melt(value.name = "pvalue") %>%
-      na.omit() %>%
-      rename(Condition1 = rowname)%>%
-      rename(Condition2 = variable) %>%
-      datatable() %>%
-      formatStyle("pvalue",
-        backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
-    )
-  }
-})
-
-
-  output$statsBP1 <- reactive({
-    req(input$pvalout1_row_last_clicked, input$boxplot_fact1)
-    # if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
-    joinGlom <- LL$joinGlom
-    select1  <- stab[input$pvalout1_row_last_clicked,1]
-    tab1  <- joinGlom[,c(input$boxplot_fact1, select1)]
-
-    tt = tab1 %>%
-      group_by(SampleType) %>%
-      group_map(~ summary(.x))
-  })
-
+# 
+#   output$statsBP1 <- reactive({
+#     req(input$pvalout1_row_last_clicked, input$boxplot_fact1)
+#     # if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
+#     joinGlom <- LL$joinGlom
+#     select1  <- stab[input$pvalout1_row_last_clicked,1]
+#     tab1  <- joinGlom[,c(input$boxplot_fact1, select1)]
+# 
+#     tt = tab1 %>%
+#       group_by(SampleType) %>%
+#       group_map(~ summary(.x))
+#   })
+# 
 
 }
 
