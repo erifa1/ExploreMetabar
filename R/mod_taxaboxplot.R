@@ -179,6 +179,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     }, message="Kruskall test...")
   })
   
+  
   get_pval_table <- eventReactive(input$go1, {
     if(isNumFactor()){
       get_corr_pval_table()
@@ -188,40 +189,38 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
   
   
-  get_kruskal_pval_table <- reactive({
+  get_merged_table <- reactive({
     otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
-      as.data.frame(stringsAsFactors = FALSE)
+      as.data.frame(stringsAsFactors = FALSE) %>%
+      rownames_to_column('sample.id')
     metadata <- as(r$sdat(), "data.frame")
     metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
+    mtable <- left_join(otable, metadata, by='sample.id')
+    return(mtable)
+  })
+  
+  
+  get_kruskal_pval_table <- reactive({
+    mtable <- get_merged_table()
     results <- tibble('taxa' = as.character(),
                       'p.value' = as.numeric())
-    # browser()
-    for(taxa in colnames(otable)){
-      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
-      tmp <- left_join(tmp, metadata, by='sample.id')
-      res = kruskal.test(tmp[,taxa], tmp[,input$boxplot_fact1])
+    for(taxa in taxa_names(r$phyloseq_filtered_norm())){
+      res = kruskal.test(mtable[,taxa], mtable[,input$boxplot_fact1])
       results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value)
     }
-    # LL = listBP()
     return(results)
   })
   
   
   get_corr_pval_table <- reactive({
-    otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
-      as.data.frame(stringsAsFactors = FALSE)
-    metadata <- as(r$sdat(), "data.frame")
-    metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
+    mtable <- get_merged_table()
     results <- tibble('taxa' = as.character(),
                       'p.value' = as.numeric(),
                       'cor.coef' = as.numeric())
-    for(taxa in colnames(otable)){
-      tmp <- otable[,taxa, drop=FALSE] %>% rownames_to_column('sample.id')
-      tmp <- left_join(tmp, metadata, by='sample.id')
-      res <- cor.test(tmp[,taxa], tmp[,input$boxplot_fact1], method = input$cor_test)
+    for(taxa in taxa_names(r$phyloseq_filtered_norm())){
+      res <- stats::cor.test(mtable[,taxa], mtable[,input$boxplot_fact1], method = input$cor_test)
       results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value, cor.coef = res$estimate)
     }
-
     return(results)
   })
 
@@ -235,33 +234,37 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
 
   ordertable1 <- reactive({
-    LL = listBP()
-    stab <- LL$pval
-    joinGlom <- LL$joinGlom
-
-      if(input$order1){
-        print("ORDER factor")
-        print(str(joinGlom))
-        fun = glue::glue( "joinGlom${input$boxplot_fact1} = factor( joinGlom${input$boxplot_fact1}, levels = gtools::mixedsort(unique(joinGlom${input$boxplot_fact1})) ) " )
-        eval(parse(text=fun))
-      }
-
-      return(joinGlom)
-
-    })
+    mtable <- get_merged_table()
+    if(input$order1){
+      fun = glue::glue( "mtable${input$boxplot_fact1} = factor( mtable${input$boxplot_fact1}, levels = gtools::mixedsort(unique(mtable${input$boxplot_fact1})) ) " )
+      eval(parse(text=fun))
+    }
+    return(mtable)
+  })
 
 
   output$boxplot1 <- renderPlotly({
     if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
-    print("Boxplot")
-    LL = listBP()
-    stab <- LL$pval
-    joinGlom <- ordertable1()
-    select1  <- stab[input$pvalout1_row_last_clicked,1]
     
-    plot_ly(joinGlom, x = as.formula(glue("~ {input$boxplot_fact1}")), y = as.formula(glue("~ {select1}")),
-            color = as.formula(glue("~{input$boxplot_fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
-      layout(title=select1, yaxis = list(title = glue('{input$NORM} abundance')), xaxis = list(title = 'Samples'), barmode = 'stack')
+    if(isNumFactor()){
+      mtable <- get_merged_table()
+      ptype <- 'scatter'
+      select1  <- get_corr_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
+      browser()
+      fit <- lm(as.formula(paste0(input$boxplot_fact1, '~', formulaic::add.backtick(select1))), data = mtable)
+      
+                   
+    } else{
+      mtable <- ordertable1()
+      select1  <- get_kruskal_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
+      ptype <- 'box'
+      # p <- plot_ly(mtable, x = as.formula(glue("~ {input$boxplot_fact1}")), y = as.formula(paste0("~", formulaic::add.backtick(select1))),
+      #         color = as.formula(glue("~{input$boxplot_fact1}")), type = 'box') %>% 
+      #   layout(title=select1, yaxis = list(title = glue('{input$NORM} abundance')), xaxis = list(title = 'Samples'), barmode = 'stack')
+    }
+    p <- plot_ly(mtable, x = as.formula(glue("~ {input$boxplot_fact1}")), y = as.formula(paste0("~", formulaic::add.backtick(select1))),
+                 color = as.formula(glue("~{input$boxplot_fact1}")), type = ptype)
+    return(p)
   })
 
   # statsBP1 <- reactive({
