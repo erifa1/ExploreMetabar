@@ -102,90 +102,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     }
   })
 
-  # 
-  # LjoinGlom <- reactive({
-  #   req(r$phyloseq_filtered_norm(), r$rank_glom(), r$sdat())
-  #   withProgress({
-  #     # browser()
-  #     Fdata <- r$phyloseq_filtered_norm() #r$dat()
-  # 
-  #     #If taxa names begin with a number
-  #     if(any(grepl("^[0-9].*$", taxa_names(Fdata)))) {
-  #       taxa_names(Fdata) <- paste("ASV_", taxa_names(Fdata), sep="")
-  #     }
-  # 
-  #     # print("BP sdata")
-  #     stable <- Fdata %>%
-  #       sample_data() %>%
-  #       as.matrix() %>%
-  #       as.data.frame(stringsAsFactors = FALSE) %>%
-  #       tibble::rownames_to_column()
-  # 
-  #     # print("BP otable")
-  #     otable <- Fdata %>%
-  #       otu_table() %>%
-  #       # as.matrix() %>%
-  #       t() %>%
-  #       as.data.frame(stringsAsFactors = FALSE) %>%
-  #       tibble::rownames_to_column()
-  # 
-  #     # print("BP otable ok")
-  #     # print(r$rank_glom())
-  #     if(r$rank_glom() != "ASV"){
-  #       lvls <- names(otable)[-1]
-  # 
-  #     }
-  #     else{
-  #       lvls <- names(otable)
-  #     }
-  # 
-  # 
-  #     joinGlom <- dplyr::left_join(stable, otable, by = "rowname")
-  #     if( !any(names(joinGlom)=="sample.id") ) { print("change rowname to sample.id"); dplyr::rename(joinGlom, sample.id = rowname) }
-  # 
-  #     LL <- list()
-  #     LL$joinGlom <- joinGlom
-  #     LL$lvls <- lvls
-  #     LL
-  #   }, message = "Construct table...")
-  # })
-  # 
-  # 
-  # listBP <- reactive({
-  #   req(input$boxplot_fact1, LjoinGlom())
-  #   withProgress({
-  #     # browser()
-  #     LL = LjoinGlom()
-  #     joinGlom <- LL$joinGlom
-  #     lvls <- LL$lvls
-  # 
-  #     # print(length(lvls))
-  #     stock=NULL
-  #     print("loop")
-  #     stock=NULL; pval1=NULL; taxa1=NULL
-  #     for(i in lvls[-1]){
-  #       # print(i)
-  #       if(mean(joinGlom[,i]) == 0){next}
-  #       res = kruskal.test(joinGlom[,i], joinGlom[,input$boxplot_fact1])
-  #       pval1 = c(pval1, res$p.value)
-  #       taxa1 = c(taxa1, i)
-  #       if(res$p.value < 0.05){stock = c(stock, i)}
-  #     }
-  #     # print("cbind")
-  #     # print(length(taxa1))
-  #     # print(length(pval1))
-  #     respval <- cbind.data.frame(Taxa = taxa1, kruskal.pvalue = pval1)
-  # 
-  #     print(head(as.data.frame(respval)))
-  # 
-  #     LL = list()
-  #     LL$joinGlom = joinGlom
-  #     LL$pval = respval
-  #     LL
-  #   }, message="Kruskall test...")
-  # })
-  # 
-  
+
   get_pval_table <- eventReactive(input$go1, {
     if(isNumFactor()){
       get_corr_pval_table()
@@ -278,17 +195,8 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     return(res)
   })
 
-  # output$wilcoxprint <- renderPrint({
-  #   if(! isNumFactor()){
-  #     LL = statsBP1()
-  #     print(LL$select1)
-  #     print(LL$res)
-  #   }
-  # })
 
-  
 output$wilcoxDT <- DT::renderDataTable({
-  
     LL = get_pairwise_test()
     wtab = as.data.frame(LL$p.value)
 
@@ -304,20 +212,6 @@ output$wilcoxDT <- DT::renderDataTable({
     )
   
 })
-
-# 
-#   output$statsBP1 <- reactive({
-#     req(input$pvalout1_row_last_clicked, input$boxplot_fact1)
-#     # if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
-#     joinGlom <- LL$joinGlom
-#     select1  <- stab[input$pvalout1_row_last_clicked,1]
-#     tab1  <- joinGlom[,c(input$boxplot_fact1, select1)]
-# 
-#     tt = tab1 %>%
-#       group_by(SampleType) %>%
-#       group_map(~ summary(.x))
-#   })
-# 
 
 }
 
