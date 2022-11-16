@@ -57,8 +57,8 @@ mod_asvenn_ui <- function(id){
       ),
       fluidRow(
         box(
-          plotly::plotlyOutput(ns('radar_chart'), width = '100%', height = '100%'),
-          title = "Radar Chart:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
+          plotly::plotlyOutput(ns('boxplot_chart'), width = '100%', height = '100%'),
+          title = "Boxplot Chart: (click on one taxa above)", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
         )
       ),
       fluidRow(
@@ -157,16 +157,21 @@ plot_krona <- function(physeq,output,variable, trim=F){
 mod_asvenn_server <- function(input, output, session, r=r){
   ns <- session$ns  
   
+  
   observe({
-    req(r$phyloseq_filtered())
+    req(r$phyloseq_filtered(), r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
     updateSelectInput(session, "Fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = tmp)
   })
 
 
   output$lvls1 = renderUI({
-    req(input$Fact1, r$phyloseq_filtered())
-    level1 <- na.omit(levels(r$sdat()[,input$Fact1]))
+    req(input$Fact1, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    level1 <- na.omit(unique(metadata[,input$Fact1]))
     checkboxGroupInput(ns("lvls1"), label = "Select up to 5 levels :",
                        choices = level1, inline = TRUE, selected = level1[1:3])
 
@@ -197,9 +202,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
       shinyalert("Oops!", "You need to choose between 2 and 5 factors...", type = "error")
     }
     else{
-      res <-
+      res <- list()
       TFdata <- list()
       TFtax <- tibble(taxa = character(), taxo = character())
+      
       for(lvl in input$lvls1){
         flog.info(lvl)
         fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% '",lvl,"')",sep="")
@@ -231,7 +237,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
       res$TF <- TF
-
+      # browser()
       return(res)
     }
   })
@@ -262,7 +268,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
     }
   )
   
-  get_radar_data <- reactive({
+  get_boxplot_data <- reactive({
     req(input$tabvenn1_row_last_clicked, input$lvls1)
     
     fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% c('",paste(input$lvls1, collapse='\',\''),"'))",sep="")
@@ -277,15 +283,15 @@ mod_asvenn_server <- function(input, output, session, r=r){
     return(ot)
   })
   
-  get_radar <- reactive({
-    dt <- get_radar_data()
+  get_boxplot <- reactive({
+    dt <- get_boxplot_data()
     fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box" )
     return(fig)
   })
   
   
-  output$radar_chart <- plotly::renderPlotly({
-    get_radar()
+  output$boxplot_chart <- plotly::renderPlotly({
+    get_boxplot()
   })
 
   get_krona_plot <- reactive({
@@ -306,7 +312,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
     df <- dplyr::select(df, c('taxa', input$krona_select))
 
     df$sum <- rowSums(select_if(df, is.numeric))
-  
+
     dff <- dplyr::filter(df, df$sum == length(input$krona_select))
     phy_obj <- phyloseq::phyloseq(otu_table(r$phyloseq_filtered()), tax_table(r$phyloseq_filtered()), sample_data(r$phyloseq_filtered()))
 
