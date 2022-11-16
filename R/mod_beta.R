@@ -37,16 +37,18 @@ mod_beta_ui <- function(id){
               )
             ),
             fluidRow(
-              radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                           choices ='',
-                           selected = c("bray")
-              )
+              radioButtons(ns('ordi_type'), 'Choose your ordination type:',
+                           inline = T,
+                           choices = c('Unconstrained', 'Constrained', 'Distance-based'),
+                           selected = 'Unconstrained')
+            ),
+            fluidRow(
+              uiOutput(ns('ui_metrics'))
             ),
             fluidRow(
               radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
-                           choices =
-                             list("MDS", "NMDS", "CCA", "RDA"),
-                           selected = c("NMDS")
+                           choices = '',
+                           selected = ''
               )
             ),
             fluidRow(
@@ -69,7 +71,8 @@ mod_beta_ui <- function(id){
                 label = 'Try envfit',
                 value = FALSE,
                 status = 'primary'
-              )
+              ),
+              uiOutput(ns('ui_taxa'))
             ),
             fluidRow(
               actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
@@ -77,7 +80,7 @@ mod_beta_ui <- function(id){
             )
           ),  title = "Settings:", width = 6, status = "warning", solidHeader = TRUE
         ),
-        uiOutput(ns('envfit_box'))
+        uiOutput(ns('envfit_box')) 
       ),
       fluidRow(
         box(
@@ -103,6 +106,89 @@ mod_beta_ui <- function(id){
         )
       )
     )
+  )
+}
+
+
+phyloseq_to_ampvis2 <- function(physeq) {
+  #check object for class
+  if(!any(class(physeq) %in% "phyloseq"))
+    stop("physeq object must be of class \"phyloseq\"", call. = FALSE)
+  
+  #ampvis2 requires taxonomy and abundance table, phyloseq checks for the latter
+  if(is.null(physeq@tax_table))
+    stop("No taxonomy found in the phyloseq object and is required for ampvis2", call. = FALSE)
+  
+  #OTUs must be in rows, not columns
+  if(phyloseq::taxa_are_rows(physeq))
+    abund <- as.data.frame(phyloseq::otu_table(physeq)@.Data)
+  else
+    abund <- as.data.frame(t(phyloseq::otu_table(physeq)@.Data))
+  
+  #tax_table is assumed to have OTUs in rows too
+  tax <- phyloseq::tax_table(physeq)@.Data
+  
+  #merge by rownames (OTUs)
+  otutable <- merge(
+    abund,
+    tax,
+    by = 0,
+    all.x = TRUE,
+    all.y = FALSE,
+    sort = FALSE
+  )
+  colnames(otutable)[1] <- "OTU"
+  
+  #extract sample_data (metadata)
+  if(!is.null(physeq@sam_data)) {
+    metadata <- data.frame(
+      phyloseq::sample_data(physeq),
+      row.names = phyloseq::sample_names(physeq), 
+      stringsAsFactors = FALSE, 
+      check.names = FALSE
+    )
+    
+    #check if any columns match exactly with rownames
+    #if none matched assume row names are sample identifiers
+    samplesCol <- unlist(lapply(metadata, function(x) {
+      identical(x, rownames(metadata))}))
+    
+    if(any(samplesCol)) {
+      #error if a column matched and it's not the first
+      if(!samplesCol[[1]])
+        stop("Sample ID's must be in the first column in the sample metadata, please reorder", call. = FALSE)
+    } else {
+      #assume rownames are sample identifiers, merge at the end with name "SampleID"
+      if(any(colnames(metadata) %in% "SampleID"))
+        stop("A column in the sample metadata is already named \"SampleID\" but does not seem to contain sample ID's", call. = FALSE)
+      metadata$SampleID <- rownames(metadata)
+      
+      #reorder columns so SampleID is the first
+      metadata <- metadata[, c(which(colnames(metadata) %in% "SampleID"), 1:(ncol(metadata)-1L)), drop = FALSE]
+    }
+  } else
+    metadata <- NULL
+  
+  #extract phylogenetic tree, assumed to be of class "phylo"
+  if(!is.null(physeq@phy_tree)) {
+    tree <- phyloseq::phy_tree(physeq)
+  } else
+    tree <- NULL
+  
+  #extract OTU DNA sequences, assumed to be of class "XStringSet"
+  if(!is.null(physeq@refseq)) {
+    #convert XStringSet to DNAbin using a temporary file (easiest)
+    fastaTempFile <- tempfile(pattern = "ampvis2_", fileext = ".fa")
+    Biostrings::writeXStringSet(physeq@refseq, filepath = fastaTempFile)
+  } else
+    fastaTempFile <- NULL
+  
+  #load as normally with amp_load
+  ampvis2::amp_load(
+    otutable = otutable,
+    metadata = metadata,
+    tree = tree,
+    fasta = fastaTempFile
   )
 }
 
@@ -138,8 +224,19 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
+  output$ui_metrics <- renderUI({
+    if(input$ordi_type == 'Distance-based'){
+      radioButtons(ns("metrics"), "Choose one distance metric:", inline = TRUE,
+                   choices =c('bray', 'jaccard', 'none'),
+                   selected = c("bray")
+      )
+    }
+  })
+  
+  
   output$rank_select <- renderUI({
-    if(input$ordination == 'NMDS' && (input$plot_type == 'taxa' || input$plot_type == 'biplot')){
+    if(input$ordination == 'NMDS'){
       tags$div(
         hr(style = "border-top: 1px solid #000000;"),
         h4('Taxa ordination options: '),
@@ -155,6 +252,7 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
   output$pairwise_res <- renderUI({
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
       box(
@@ -163,6 +261,7 @@ mod_beta_server <- function(input, output, session, r = r){
       )
     }
   })
+  
   
   output$disper_res <- renderUI({
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
@@ -178,6 +277,7 @@ mod_beta_server <- function(input, output, session, r = r){
       )
     }
   })
+  
   
   output$ui_beta_fact1 <- renderUI({
     req(r$sdat())
@@ -197,7 +297,6 @@ mod_beta_server <- function(input, output, session, r = r){
       )
     }
   })
-  
   
   
   output$ui_beta_fact2 <- renderUI({
@@ -220,7 +319,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$envfit_box <- renderUI({
-    if(input$ordination == 'NMDS' && input$envfit_switch){
+    if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
       box(
         multiInput(
           ns('envfit_param'),
@@ -230,6 +329,24 @@ mod_beta_server <- function(input, output, session, r = r){
           choiceNames = colnames(r$sdat())
         ), title = 'VEGAN envfit', status = 'primary'
       )
+    }
+  })
+  
+  output$ui_taxa <- renderUI({
+    if(input$ordination == 'NMDS'){
+      materialSwitch(
+        ns('taxa_switch'),
+        label = 'Add taxa to plot',
+        value = FALSE,
+        status = 'primary'
+      )
+      materialSwitch(
+        ns('plotly_switch'),
+        label = 'Plotly on sample or taxa',
+        value = FALSE,
+        status = 'primary'
+      )
+      
     }
   })
   
@@ -265,6 +382,21 @@ mod_beta_server <- function(input, output, session, r = r){
     return(meta.col)
   })
   
+  
+  observeEvent(input$ordi_type, {
+    if(input$ordi_type == 'Unconstrained'){
+      ch <- c('PCA', 'CA', 'DCA')
+    } else if (input$ordi_type == 'Constrained'){
+      ch <- c('RDA', 'CCA')
+    } else{
+      ch <- c('PCOA', 'NMDS')
+    }
+    updateRadioButtons(session,
+                       "ordination",
+                       choices = ch ,
+                       inline = T)
+  })
+  
 
   observe({
     req(r$phyloseq_filtered())
@@ -292,6 +424,7 @@ mod_beta_server <- function(input, output, session, r = r){
     )
   })
 
+  
   output$interac_factor <- renderUI({
     req(get_meta_col(), r$sdat())
     facts = phyloseq::sample_variables(r$sdat())
@@ -305,6 +438,7 @@ mod_beta_server <- function(input, output, session, r = r){
     )
   })
 
+  
   physeq <- reactive({
     req(r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
     if(input$beta_norm_bool==0){
@@ -317,24 +451,33 @@ mod_beta_server <- function(input, output, session, r = r){
     return(data)
   })
 
+  
   physeq_dist <- reactive({
     req(input$metrics)
     res <- phyloseq::distance(physeq(), method = input$metrics)
     return(res)
   })
 
+  
   ord <- reactive({
     req(input$ordination)
     if(input$ordination == 'NMDS'){
-      res <- vegan::metaMDS(veganifyOTU(physeq()), wascores=TRUE, trace=FALSE, autotransform = FALSE)
-    } else if(input$ordination == 'MDS'){
-      
+      validate(
+        need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
+        )
+      res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+    } else if(input$ordination == 'PCOA'){
+      validate(
+        need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For PCoA ordination only bray and jaccard distances allowed.')
+      )
+      res <- vegan::wcmdscale(physeq_dist(), k=2)
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
     return(res)
   })
 
+  
   get_sites_nmds_coord <- reactive({
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
                     as_tibble(rownames="sample.id")
@@ -344,8 +487,11 @@ mod_beta_server <- function(input, output, session, r = r){
     return(nmds_coord)
   })
   
+  
   get_species_nmds_coord <- reactive({
+    # browser()
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+    
     if(r$rank_glom() == 'ASV'){
       nmds_coord <- nmds_coord %>% 
                       inner_join(., tax_table(physeq()) %>% 
@@ -361,57 +507,92 @@ mod_beta_server <- function(input, output, session, r = r){
     }
     return(nmds_coord)
   })
+  
+  
+  get_dist_plot <- reactive({
+    plot_str <- "p <- ampvis2::amp_ordinate(phyloseq_to_ampvis2(physeq()), type = input$ordination, distmeasure = input$metrics, transform = 'none', filter_species = 0, sample_color_by = get_meta_col(), sample_colorframe = T"
 
+    if(input$envfit_switch){
+      env_num <- names(r$sdat()[,input$envfit_param])[which(sapply(r$sdat()[,input$envfit_param], is.numeric))]
+      env_fact <- names(r$sdat()[,input$envfit_param])[which(sapply(r$sdat()[,input$envfit_param], is.character))]
+      env_num <- gsub('\\.','_',env_num)
+      env_fact <- gsub('\\.','_',env_fact)
+      env_str <- ", envfit_show = T, envfit_factor = env_fact, envfit_numeric = env_num"
+      plot_str <- paste0(plot_str, env_str)
+    }
+    if(input$taxa_switch && input$ordination == 'NMDS'){
+      taxa_str <- glue::glue(", species_plot = T, species_label_taxonomy = '{input$rank_color}'")
+      plot_str <- paste0(plot_str, taxa_str)
+    }
+    if(!input$plotly_switch){
+      plotly_str <- ", sample_plotly = 'all', species_plotly = F"
+    } else{
+      if(input$taxa_switch && input$ordination == 'NMDS'){
+        plotly_str <- ", species_plotly = T"
+      }
+    }
+    plot_str <- paste0(plot_str, ')')
+    eval(parse(text=plot_str))
+    return(p)
+  })
+
+  
   base_plot <- reactive({
     # p <- phyloseq::plot_ordination(physeq = physeq(), type = input$plot_type, ordination = ord(), axes = c(1, 2))
-    if(input$plot_type == 'samples'){
-      nmds_coord <- get_sites_nmds_coord()
-      p <- ggplot2::ggplot(data = nmds_coord) + 
-            geom_point(aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq()))) +
-            stat_ellipse(aes(x=NMDS1, y=NMDS2, group = !!sym(get_meta_col())))
-    } else if (input$plot_type == 'taxa'){
-      nmds_coord <- get_species_nmds_coord()
-      if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-      } else{
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-      }
-      p <- ggplot2::ggplot() + 
-            geom_point(data = nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa = taxa))
-    } else if(input$plot_type == 'biplot'){
-      nmds_coord_species <- get_species_nmds_coord()
-      nmds_coord_sites <- get_sites_nmds_coord()
-      if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-      } else{
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-      }
-      p <- ggplot() + 
-        geom_point(data = nmds_coord_species, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa=taxa), size=4) +
-        geom_point(data = nmds_coord_sites, aes(x=NMDS1, y=NMDS2, fill=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq())), shape=23, size=6)
+    if(input$ordination %in% c('PCOA', 'NMDS')){
+      p <- get_dist_plot()
     }
+
     
-    if(input$envfit_switch){
-      # browser()
-      env <- as(r$sdat(), 'data.frame')
-      env <- env[, input$envfit_param]
-      en <- vegan::envfit(ord(), env)
-      if(length(env %>% select_if(is.numeric) %>% colnames())>0){
-        en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
-        p <- p + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
-                              data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30") +
-                geom_text(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
-                    fontface = "bold", label = row.names(en_coord_cont))
-      }
-      if(length(env %>% select_if(is.character) %>% colnames())>0){
-        en_coord_cat <- as.data.frame(vegan::scores(en, "factors")) * vegan::ordiArrowMul(en)
-        p <- p + geom_point(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
-                            shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-          geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
-                    label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
-      }
-      
-    }
+    
+    # if(input$plot_type == 'samples'){
+    #   nmds_coord <- get_sites_nmds_coord()
+    #   p <- ggplot2::ggplot(data = nmds_coord) + 
+    #         geom_point(aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq()))) +
+    #         stat_ellipse(aes(x=NMDS1, y=NMDS2, group = !!sym(get_meta_col())))
+    # } else if (input$plot_type == 'taxa'){
+    #   nmds_coord <- get_species_nmds_coord()
+    #   if(r$rank_glom() == 'ASV'){
+    #     taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+    #   } else{
+    #     taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+    #   }
+    #   p <- ggplot2::ggplot() + 
+    #         geom_point(data = nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa = taxa))
+    # } else if(input$plot_type == 'biplot'){
+    #   nmds_coord_species <- get_species_nmds_coord()
+    #   nmds_coord_sites <- get_sites_nmds_coord()
+    #   if(r$rank_glom() == 'ASV'){
+    #     taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+    #   } else{
+    #     taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+    #   }
+    #   p <- ggplot() + 
+    #     geom_point(data = nmds_coord_species, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa=taxa), size=4) +
+    #     geom_point(data = nmds_coord_sites, aes(x=NMDS1, y=NMDS2, fill=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq())), shape=23, size=6)
+    # }
+    # 
+    # if(input$envfit_switch){
+    #   # browser()
+    #   env <- as(r$sdat(), 'data.frame')
+    #   env <- env[, input$envfit_param]
+    #   en <- vegan::envfit(ord(), env)
+    #   if(length(env %>% select_if(is.numeric) %>% colnames())>0){
+    #     en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
+    #     p <- p + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+    #                           data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30") +
+    #             geom_text(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+    #                 fontface = "bold", label = row.names(en_coord_cont))
+    #   }
+    #   if(length(env %>% select_if(is.character) %>% colnames())>0){
+    #     en_coord_cat <- as.data.frame(vegan::scores(en, "factors")) * vegan::ordiArrowMul(en)
+    #     p <- p + geom_point(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
+    #                         shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+    #       geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), 
+    #                 label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+    #   }
+    #   
+    # }
     # p$layers[[1]] <- NULL
     # 
     # xrange <- c()
@@ -437,22 +618,23 @@ mod_beta_server <- function(input, output, session, r = r){
       # p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
       # p <- p + geom_point() + theme_bw()
       # browser()
-      if(input$plot_type == 'samples'){
-        p <- ggplotly(p, tooltip=c("x", "y", "sample.id"))
-      } else if(input$plot_type == 'taxa'){
-        p <- ggplotly(p, tooltip=c("x", "y", "taxa"))
-      }
-      else if(input$plot_type == 'biplot'){
-        p <- ggplotly(p, tooltip=c("x", "y", "taxa", "sample.id"))
-      }else{
-        
-      }
-      p <- p %>% config(toImageButtonOptions = list(format = "svg"))
-      
+    #   if(input$plot_type == 'samples'){
+    #     p <- ggplotly(p, tooltip=c("x", "y", "sample.id"))
+    #   } else if(input$plot_type == 'taxa'){
+    #     p <- ggplotly(p, tooltip=c("x", "y", "taxa"))
+    #   }
+    #   else if(input$plot_type == 'biplot'){
+    #     p <- ggplotly(p, tooltip=c("x", "y", "taxa", "sample.id"))
+    #   }else{
+    #     
+    #   }
+    #   p <- p %>% config(toImageButtonOptions = list(format = "svg"))
+    #   
     }, message = "Plot Beta...")
     return(p)
   })
 
+  
   get_formula <- reactive({
     req(input$metrics, get_meta_col())
     form <- glue::glue('dist ~ Depth + ')

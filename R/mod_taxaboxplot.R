@@ -74,6 +74,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
 
   })
   
+  
   isNumFactor <- reactive({
     req(input$boxplot_fact1, r$sdat())
     metadata <- as(r$sdat(), "data.frame")
@@ -84,6 +85,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     }
   })
   
+  
   output$ui_radio_tests <- renderUI({
     if(isNumFactor()){
       radioButtons(ns('cor_test'),
@@ -92,6 +94,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
                    selected = 'pearson')
     }
   })
+  
   
   output$ui_pair_test <- renderUI({
     if(! isNumFactor()){
@@ -187,6 +190,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     return(p)
   })
 
+  
   get_pairwise_test <- reactive({
     if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
     mtable <- get_merged_table()
@@ -196,7 +200,8 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
 
 
-output$wilcoxDT <- DT::renderDataTable({
+  output$wilcoxDT <- DT::renderDataTable({
+    req(get_pairwise_test())
     LL = get_pairwise_test()
     wtab = as.data.frame(LL$p.value)
 
@@ -210,8 +215,7 @@ output$wilcoxDT <- DT::renderDataTable({
       formatStyle("pvalue",
         backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
     )
-  
-})
+  })
 
 }
 
