@@ -54,7 +54,14 @@ mod_data_loading_ui <- function(id){
 
         box(title = "Metadata table", status = "warning", solidHeader = TRUE, width=12,
           actionButton(ns("show"), "Update class/names"),
-          tags$h3("Use filters to subset on features:"),
+          actionButton(ns("reset"), "Reset"),
+
+          # column(
+          #   width = 12,
+          #   update_variables_ui(ns("vars"))
+          # ),
+
+          tags$h3("Use filters to subset on metadata:"),
 
             fluidRow(
               column(
@@ -63,10 +70,10 @@ mod_data_loading_ui <- function(id){
               ),
               column(
                 width = 9,
-                progressBar(
-                  id = ns("pbar"), value = 100,
-                  total = 100, display_pct = TRUE
-                ),
+                # progressBar(
+                #   id = ns("pbar"), value = 100,
+                #   total = 100, display_pct = TRUE
+                # ),
                 DT::dataTableOutput(outputId = ns("table"))
               )
             )
@@ -218,11 +225,17 @@ mod_data_loading_server <- function(input, output, session, r=r){
         id = "filtering",
         # data = data,
         data = reactive({
-          req(sdat())
+          print("FILTER")
+          print(str(updated_data()))
+          req(r$data())
           # browser()
+
+          print("TEST")
           if(is.null(updated_data())){
-            data()
+            print("OK")
+            r$data()
           }else{
+          req(updated_data())
             updated_data()
           }   
         }),
@@ -238,16 +251,24 @@ mod_data_loading_server <- function(input, output, session, r=r){
       }, options = list(pageLength = 6, scrollX = TRUE))
 
       ## Modal window update
-      updated_data <- update_variables_server(
+     updated_data <- update_variables_server(
         id = "vars",
         data = reactive({
-          if(is.null(updated_data())){
-            data()
-          }else{
-            updated_data()
-          }
+            r$data()  #data()
         })
       )
+
+     # observeEvent(input$reset,{
+     #  req(sdat())
+     #  print("RESET")
+     #  updated_data <- NULL
+
+     #  print(updated_data)
+     #  r$data <- sdat()
+     #  print(str(r$data))
+
+     # })
+
 
       dataModal <- function(failed = FALSE) {
         modalDialog(
@@ -255,7 +276,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
             width = 12,
             update_variables_ui(ns("vars"))
           ),
-          easyClose = TRUE
+          easyClose = TRUE,
+          footer = modalButton("Close")
         )
       }
 
@@ -263,6 +285,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       observeEvent(input$show, {
         showModal(dataModal())
       })  
+
 ###devER
 
 
@@ -293,7 +316,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyloseq_data()
   })
 
-  data <- sdat <- reactive({
+  r$data <- data <- sdat <- reactive({
     # sdat <- as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
