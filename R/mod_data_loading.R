@@ -41,43 +41,44 @@ mod_data_loading_ui <- function(id){
           verbatimTextOutput(ns("phy_prev"))
         )
       ),
-      fluidRow(
-        box(
-          solidHeader = TRUE, status = "primary", title ="STEP 1: Select your samples", collapsible=TRUE, collapsed=FALSE, width=12,
-          fluidPage(
-            h3(icon("diagnoses"), "Use table filters to subset your dataset based on your metadata.")
-          ),
-          DT::dataTableOutput(ns("metadata_table")),
-          shinyBS::bsButton(inputId = ns('update_metadata'), label = "Update Sample", block = F, style = 'danger', type='action')
-        )
-      ),
 
-        box(title = "Metadata table", status = "warning", solidHeader = TRUE, width=12,
-          actionButton(ns("show"), "Update class/names"),
-          actionButton(ns("reset"), "Reset"),
+      fluidRow(box(title = "Metadata table",solidHeader = TRUE, status = "warning", width=12,
 
-          # column(
-          #   width = 12,
-          #   update_variables_ui(ns("vars"))
-          # ),
+        tabBox(width=12,
+          # actionButton(ns("show"), "Update class/names"),
+          # actionButton(ns("reset"), "Reset"),
 
-          tags$h3("Use filters to subset on metadata:"),
 
+          tabPanel("Metadata / Filters",
+            tags$h3("Use filters to subset on metadata:"),
+
+              fluidRow(
+                column(
+                  width = 3,
+                  filter_data_ui(ns("filtering"), max_height = "500px")
+                ),
+                column(
+                  width = 9,
+                  # progressBar(
+                  #   id = ns("pbar"), value = 100,
+                  #   total = 100, display_pct = TRUE
+                  # ),
+                  DT::dataTableOutput(outputId = ns("table"))
+                )
+              )
+
+            ),
+          tabPanel("Update variables",
             fluidRow(
-              column(
-                width = 3,
-                filter_data_ui(ns("filtering"), max_height = "500px")
-              ),
-              column(
-                width = 9,
-                # progressBar(
-                #   id = ns("pbar"), value = 100,
-                #   total = 100, display_pct = TRUE
-                # ),
-                DT::dataTableOutput(outputId = ns("table"))
+                column(
+                  width = 12,
+                  update_variables_ui(ns("vars"))
+                )
               )
             )
           ),
+          actionButton(inputId = ns('update_metadata'), label = "Update Sample")
+        )),
 
       fluidRow(
         box(
@@ -225,14 +226,10 @@ mod_data_loading_server <- function(input, output, session, r=r){
         id = "filtering",
         # data = data,
         data = reactive({
-          print("FILTER")
+          print("FILTER metadata")
           print(str(updated_data()))
           req(r$data())
-          # browser()
-
-          print("TEST")
           if(is.null(updated_data())){
-            print("OK")
             r$data()
           }else{
           req(updated_data())
@@ -320,33 +317,27 @@ mod_data_loading_server <- function(input, output, session, r=r){
     # sdat <- as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
-    # browser()
+    if( !"sample.id" %in% colnames(sdat) ){
+      sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
+    }else{
+      print("sample.id OK")
+    }
     sdat
 
     # write.table(sdat, "./test.csv", sep=",",row.names = FALSE)
   })
 
-  rowCallback <- c(
-    "function(row, data){",
-    "  for(var i=0; i<data.length; i++){",
-    "    if(data[i] === null){",
-    "      $('td:eq('+i+')', row).html('NA')",
-    "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
-    "    }",
-    "  }",
-    "}"
-  )
-
-  output$metadata_table <- DT::renderDataTable({
-    sdat()
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE, rowCallback = DT::JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
-    req(r_values$phyobj_initial)
+    req(r_values$phyobj_initial, res_filter$filtered)
+    filt_sdata <- res_filter$filtered()
+
     cat(file=stderr(), 'subset samples...', "\n")
     cat(file=stderr(), 'initial number of samples before',phyloseq::nsamples(r_values$phyobj_initial), "\n")
-    physeq <- phyloseq::prune_samples(phyloseq::sample_names(r_values$phyobj_initial)[input$metadata_table_rows_all],r_values$phyobj_initial)
+
+    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
+
     cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
