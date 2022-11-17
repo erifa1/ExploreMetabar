@@ -19,10 +19,10 @@ mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      # infoBox("",
-      #   HTML(paste("New interface to select your data.", br(), "You must validate each step by clicking each button, even if you did not make any modification.", br())),
-      #   icon = icon("info-circle"), fill=TRUE, width = 10
-      # ),
+      fluidRow(infoBox("",
+        HTML(paste("You must validate each step by clicking each button, even if you did not make any modification.")),
+        icon = icon("info-circle"), fill=TRUE, width = 6
+      )),
 
 
       fluidRow(
@@ -45,9 +45,6 @@ mod_data_loading_ui <- function(id){
       fluidRow(box(title = "Metadata table",solidHeader = TRUE, status = "warning", width=12,
 
         tabBox(width=12,
-          # actionButton(ns("show"), "Update class/names"),
-          # actionButton(ns("reset"), "Reset"),
-
 
           tabPanel("Metadata / Filters",
             tags$h3("Use filters to subset on metadata:"),
@@ -254,17 +251,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
             r$data()  #data()
         })
       )
-
-     # observeEvent(input$reset,{
-     #  req(sdat())
-     #  print("RESET")
-     #  updated_data <- NULL
-
-     #  print(updated_data)
-     #  r$data <- sdat()
-     #  print(str(r$data))
-
-     # })
 
 
       dataModal <- function(failed = FALSE) {
