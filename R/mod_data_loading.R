@@ -47,7 +47,7 @@ mod_data_loading_ui <- function(id){
         tabBox(width=12,
 
           tabPanel("Metadata / Filters",
-            tags$h3("Use filters to subset on metadata:"),
+            tags$h3(icon("diagnoses"), "Use filters to subset your dataset based on your metadata :"),
 
               fluidRow(
                 column(
@@ -99,7 +99,7 @@ mod_data_loading_ui <- function(id){
         # tabBox(width=12,
 
           # tabPanel("Metadata / Filters",
-            h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy."),
+            h3(icon("diagnoses"), "Use filters to subset your dataset based on your taxonomy."),
 
               fluidRow(
                 column(
