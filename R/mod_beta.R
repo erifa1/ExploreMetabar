@@ -54,7 +54,7 @@ mod_beta_ui <- function(id){
             fluidRow(
               radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
                            choices =
-                             list("samples", "taxa", "biplot"),
+                             list("samples", "taxa", "biplot", "triplot"),
                            selected = c("samples")
               )
             ),
@@ -66,12 +66,8 @@ mod_beta_ui <- function(id){
               uiOutput(ns('rank_select'))
             ),
             fluidRow(
-              materialSwitch(
-                ns('envfit_switch'),
-                label = 'Try envfit',
-                value = FALSE,
-                status = 'primary'
-              )
+              uiOutput(ns('ui_envfit_switch'))
+              
             ),
             fluidRow(
               actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
@@ -79,6 +75,8 @@ mod_beta_ui <- function(id){
             )
           ),  title = "Settings:", width = 6, status = "warning", solidHeader = TRUE
         ),
+        uiOutput(ns('ui_constrain')),
+        uiOutput(ns('ui_ordistep')),
         uiOutput(ns('envfit_box')),
         uiOutput(ns('envfit_box_res'))
       ),
@@ -118,8 +116,7 @@ veganifyOTU <- function(physeq){
 
 #' mod_beta Server Function
 #'
-#' @importFrom vegan vegdist
-#' @importFrom vegan adonis2
+#' @import vegan
 #' @importFrom plotly ggplotly
 #' @importFrom DT renderDataTable
 #'
@@ -153,6 +150,79 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
+  
+  output$ui_envfit_switch <- renderUI({
+    if(input$ordination %in% c('NMDS', 'PCOA')){
+      materialSwitch(
+        ns('envfit_switch'),
+        label = 'Try envfit',
+        value = FALSE,
+        status = 'primary'
+      )
+    }
+  })
+  
+  
+  output$ui_constrain <- renderUI({
+    if(input$ordination %in% c('RDA','CCA')){
+      box(title = 'Model parameters',
+          radioButtons(inputId = ns('param_mode'),
+                       label = 'méthode to select parameters',
+                       choices = c('picker', 'ordiR2step', 'manual')),
+          uiOutput(ns('constr_select')),
+          verbatimTextOutput(
+            ns('formula')
+          )
+      )
+    }
+  })
+  
+  output$constr_select <- renderUI({
+    if(input$param_mode == 'picker'){
+      shinyWidgets::pickerInput(inputId = ns('constr_picker'),
+                                label = 'Select terms to create a formula',
+                                choices = colnames(r$sdat()),
+                                multiple = TRUE
+      )
+    } else if(input$param_mode == 'ordiR2step'){
+      verbatimTextOutput(ns('constr_ordiR2step_out'))
+    } else if(input$param_mode == 'manual'){
+      textInput(ns('constr_manual_formula'), label = 'Enter your own formula:', placeholder = 'spe ~')
+    }
+  })
+  
+  get_ordiR2step <- reactive({
+    env <- as(r$sdat(), 'data.frame')
+    
+    spe <- veganifyOTU(physeq())
+    mod0 <- vegan::rda(spe ~ 1, data = env)
+    mod1 <- vegan::rda(spe ~ ., data = env)
+    sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE)
+    return(sel)
+  })
+  
+  output$constr_ordiR2step_out <- renderPrint({
+    sel <- get_ordiR2step()
+    print(sel)
+    print(sel$anova)
+  })
+  
+  output$formula <- renderPrint({
+    get_constr_formula()
+  })
+  
+  
+  get_constr_formula <- reactive({
+    if(input$param_mode == 'picker'){
+      f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
+    } else if(input$param_mode == 'ordiR2step'){
+      f <- formula(get_ordiR2step())
+    } else if(input$param_mode == 'manual'){
+      f <- input$constr_manual_formula
+    }
+    return(f)
+  })
   
   output$rank_select <- renderUI({
     if(input$ordination %in% c('NMDS', 'PCOA')){
@@ -386,8 +456,9 @@ mod_beta_server <- function(input, output, session, r = r){
       spe <- veganifyOTU(physeq())
       res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
     } else if(input$ordination == 'RDA'){
-      browser()
-      
+      env <- as(r$sdat(), 'data.frame')
+      spe <- veganifyOTU(physeq())
+      res <- vegan::rda(as.formula(get_constr_formula()), data = env)
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
@@ -442,6 +513,8 @@ mod_beta_server <- function(input, output, session, r = r){
       axes <- c('NMDS1', 'NMDS2')
     } else if(input$ordination == 'PCOA'){
       axes <- c('MDS1', 'MDS2')
+    } else if(input$ordination == 'RDA'){
+      axes <- colnames(vegan::scores(ord(), display = 'sites'))
     }
     
   })
@@ -450,7 +523,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
     p <- ggplot2::ggplot()
     axes <- get_axis_names()
-    if(input$plot_type == 'samples' || input$plot_type == 'biplot'){
+    if(input$plot_type %in% c('samples', 'biplot', 'triplot')){
       nmds_coord <- get_sites_nmds_coord()
       # browser()
       
@@ -459,7 +532,7 @@ mod_beta_server <- function(input, output, session, r = r){
             stat_ellipse(data = nmds_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
     } 
     
-    if (input$plot_type == 'taxa' || input$plot_type == 'biplot'){
+    if (input$plot_type %in% c('taxa', 'biplot', 'triplot')){
       nmds_coord <- get_species_nmds_coord()
       # browser()
       if(r$rank_glom() == 'ASV'){
@@ -471,27 +544,47 @@ mod_beta_server <- function(input, output, session, r = r){
             geom_point(data = nmds_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
     } 
     
-
-    if(input$envfit_switch){
-      
-      en <- get_env_fit()
-      
-      if(!is.null(en$vectors)){
-        en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
-        p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
-                              data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
-                geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
-                    fontface = "bold", label = row.names(en_coord_cont))
+    if (input$plot_type == 'triplot'){
+      if(input$ordination == 'RDA'){
+        scr <- vegan::scores(ord())
+        if(!is.null(scr$biplot)){
+          en_coord_cont <- as.data.frame(scr$biplot)
+          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+                      fontface = "bold", label = row.names(en_coord_cont))
+        }
+        if(!is.null(scr$centroids)){
+          en_coord_cat <- as.data.frame(scr$centroids)
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+        }
       }
-      if(!is.null(en$factors)){
-        en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
-        p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
-                            shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-          geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
-                    label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+      
+      if(input$envfit_switch){
+        
+        en <- get_env_fit()
+        
+        if(!is.null(en$vectors)){
+          en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
+          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+                      fontface = "bold", label = row.names(en_coord_cont))
+        }
+        if(!is.null(en$factors)){
+          en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+        }
+        
       }
-
     }
+    
     # p$layers[[1]] <- NULL
     # 
     # xrange <- c()
