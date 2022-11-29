@@ -63,7 +63,7 @@ mod_beta_ui <- function(id){
               uiOutput(ns('ui_beta_fact2'))
             ),
             fluidRow(
-              uiOutput(ns('rank_select'))
+              uiOutput(ns('ui_taxa_rank'))
             ),
             fluidRow(
               uiOutput(ns('ui_envfit_switch'))
@@ -77,8 +77,8 @@ mod_beta_ui <- function(id){
         ),
         uiOutput(ns('ui_constrain')),
         uiOutput(ns('ui_ordistep')),
-        uiOutput(ns('envfit_box')),
-        uiOutput(ns('envfit_box_res'))
+        uiOutput(ns('ui_envfit_box')),
+        uiOutput(ns('ui_envfit_box_res'))
       ),
       fluidRow(
         box(
@@ -90,18 +90,8 @@ mod_beta_ui <- function(id){
         ), style = "height:800px;"
       ),
       fluidRow(
-        box(
-          title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
-          uiOutput(ns("factor2")),
-          uiOutput(ns("interac_factor")),
-          actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-          h3('ADONIS formula:'),
-          verbatimTextOutput(ns("adonis_formula")),
-          h2('Permanova Adonis Test Result: '),
-          DT::dataTableOutput(ns('adonistest')),
-          uiOutput(ns('pairwise_res')),
-          uiOutput(ns('disper_res'))
-        )
+        uiOutput(ns('ui_permanova_box')),
+        uiOutput(ns('ui_anova_box'))
       )
     )
   )
@@ -142,6 +132,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$ui_metrics <- renderUI({
+    req(input$ordi_type)
     if(input$ordi_type == 'Distance-based'){
       radioButtons(ns("metrics"), "Choose one distance metric:", inline = TRUE,
                    choices =c('bray', 'jaccard', 'none'),
@@ -153,6 +144,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$ui_envfit_switch <- renderUI({
+    req(input$ordination)
     if(input$ordination %in% c('NMDS', 'PCOA')){
       materialSwitch(
         ns('envfit_switch'),
@@ -165,6 +157,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$ui_constrain <- renderUI({
+    req(input$ordination)
     if(input$ordination %in% c('RDA','CCA')){
       box(title = 'Model parameters',
           radioButtons(inputId = ns('param_mode'),
@@ -179,6 +172,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   output$constr_select <- renderUI({
+    req(input$param_mode)
     if(input$param_mode == 'picker'){
       shinyWidgets::pickerInput(inputId = ns('constr_picker'),
                                 label = 'Select terms to create a formula',
@@ -193,8 +187,8 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   get_ordiR2step <- reactive({
+    req(r$sdat(), physeq())
     env <- as(r$sdat(), 'data.frame')
-    
     spe <- veganifyOTU(physeq())
     mod0 <- vegan::rda(spe ~ 1, data = env)
     mod1 <- vegan::rda(spe ~ ., data = env)
@@ -214,8 +208,13 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_constr_formula <- reactive({
+    req(input$param_mode)
     if(input$param_mode == 'picker'){
-      f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
+      if(length(input$constr_picker) == 0){
+        f <- 'spe ~ 1'
+      } else {
+        f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
+      }
     } else if(input$param_mode == 'ordiR2step'){
       f <- formula(get_ordiR2step())
     } else if(input$param_mode == 'manual'){
@@ -224,7 +223,8 @@ mod_beta_server <- function(input, output, session, r = r){
     return(f)
   })
   
-  output$rank_select <- renderUI({
+  output$ui_taxa_rank <- renderUI({
+    req(input$ordination, physeq())
     if(input$ordination %in% c('NMDS', 'PCOA')){
       tags$div(
         hr(style = "border-top: 1px solid #000000;"),
@@ -243,6 +243,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$pairwise_res <- renderUI({
+    req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
       box(
         title = "Pairwise Adonis Test", width = 12, status = "primary", solidHeader = TRUE,
@@ -253,6 +254,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$disper_res <- renderUI({
+    req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
       box(
         title = "Dispersion results:", width = 12, status = "primary", solidHeader = TRUE,
@@ -270,7 +272,6 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$ui_beta_fact1 <- renderUI({
     req(r$sdat())
-    
     metadata <- as(r$sdat(), "data.frame")
     tags$div(
       hr(style = "border-top: 1px solid #000000;"),
@@ -283,12 +284,11 @@ mod_beta_server <- function(input, output, session, r = r){
              )
       )
     )
-    
   })
   
   
   output$ui_beta_fact2 <- renderUI({
-    req(r$sdat())
+    req(r$sdat(), input$beta_fact1)
     metadata <- as(r$sdat(), "data.frame")
     # if(! isNumFactor() && input$plot_type == 'samples'){
         num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
@@ -306,7 +306,8 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  output$envfit_box <- renderUI({
+  output$ui_envfit_box <- renderUI({
+    req(input$ordination, input$envfit_switch, r$sdat())
     if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
       box(
         multiInput(
@@ -323,7 +324,8 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  output$envfit_box_res <- renderUI({
+  output$ui_envfit_box_res <- renderUI({
+    req(input$ordination, input$envfit_switch)
     if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
       box(
         verbatimTextOutput(
@@ -335,7 +337,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
 
   local_metadata <- reactive({
-    req(input$beta_fact1)
+    req(input$beta_fact1, input$beta_fact2, r$sdat(), get_meta_col())
     metadata <- as(r$sdat(), "data.frame")
     if(!isNumFactor()){
       if(input$beta_fact2 != 'none' && ! is.numeric(metadata[, input$beta_fact1])){
@@ -352,6 +354,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_meta_col <- reactive({
+    req(input$beta_fact1, input$beta_fact2)
     if(!isNumFactor()){
       if(input$beta_fact2 != 'none'){
         meta.col <- paste0(input$beta_fact1, '_', input$beta_fact2)
@@ -380,50 +383,70 @@ mod_beta_server <- function(input, output, session, r = r){
                        inline = T)
   })
   
+  
+  output$ui_anova_box <- renderUI({
+    if(input$ordination %in% c('RDA', 'CCA')){
+      box(
+        title = "Anova on RDA/CCA results", width = 12, status = "primary", solidHeader = TRUE,
+        h3("Anova results on model:"),
+        verbatimTextOutput(ns('anova_res')),
+        h3("Anova results on axis"),
+        verbatimTextOutput(ns('anova_axis_res'))
+      )
+    }
+  })
+  
+  get_anova_model <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999))
+    return(res)
+  })
+  
+  output$anova_res <- renderPrint({
+    get_anova_model()
+  })
+  
+  get_anova_axis <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999), by = "axis")
+    return(res)
+  })
+  
+  
+  output$anova_axis_res <- renderPrint({
+    get_anova_axis()
+  })
+  
+  
+  output$ui_permanova_box <- renderUI({
+    if(input$ordination %in% c('NMDS', 'PCOA')){
+      box(
+        title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+        uiOutput(ns("ui_adonis_factor")),
+        actionButton(ns("update_test_btn"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        h3('ADONIS formula:'),
+        verbatimTextOutput(ns("adonis_formula")),
+        h2('Permanova Adonis Test Result: '),
+        DT::dataTableOutput(ns('adonistest')),
+        uiOutput(ns('pairwise_res')),
+        uiOutput(ns('disper_res'))
+      )
+    }
+  })
 
-  # observe({
-  #   req(r$phyloseq_filtered())
-  #   if(is.null(phy_tree(r$phyloseq_filtered(), errorIfNULL=FALSE))){
-  #     flog.info("no phytree beta metrics update")
-  #     ch1 = list("bray", "jaccard")
-  #   }else{
-  #     ch1 = list("bray", "jaccard", "unifrac", "wunifrac")
-  #   }
-  #   updateRadioButtons(session, "metrics",
-  #                     choices = ch1, inline = TRUE)
-  # })
-
-
-  output$factor2 = renderUI({
+  output$ui_adonis_factor = renderUI({
     req(get_meta_col(), r$sdat())
     facts = phyloseq::sample_variables(r$sdat())
     Fchoices = facts[facts != get_meta_col()]
-
-    checkboxGroupInput(
-      ns("covariate_fact"),
-      label = "Select covariable(s) to test: ",
-      choices = Fchoices,
-      inline = TRUE
+  
+    shinyWidgets::pickerInput(inputId = ns('adonis_factor'),
+                              label = 'Select factor(s) to test: ',
+                              choices = Fchoices,
+                              multiple = TRUE
     )
   })
 
-  
-  output$interac_factor <- renderUI({
-    req(get_meta_col(), r$sdat())
-    facts = phyloseq::sample_variables(r$sdat())
-    Fchoices = facts[facts != get_meta_col()]
 
-    checkboxGroupInput(
-      ns("interFactor"),
-      label = "Select interaction factor(s) to test: ",
-      choices = Fchoices,
-      inline = TRUE
-    )
-  })
-
-  
   physeq <- reactive({
-    req(r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
+    req(r$phyloseq_filtered(), r$phyloseq_filtered_norm(), input$beta_norm_bool, local_metadata())
     if(input$beta_norm_bool==0){
       data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
     }
@@ -436,14 +459,14 @@ mod_beta_server <- function(input, output, session, r = r){
 
   
   physeq_dist <- reactive({
-    req(input$metrics)
+    req(input$metrics, physeq())
     res <- phyloseq::distance(physeq(), method = input$metrics)
     return(res)
   })
 
   
   ord <- reactive({
-    req(input$ordination)
+    req(input$ordination, physeq())
     if(input$ordination == 'NMDS'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
@@ -467,6 +490,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
   
   get_sites_nmds_coord <- reactive({
+    req(ord(), local_metadata(), get_meta_col())
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
                     as_tibble(rownames="sample.id")
     nmds_coord <- nmds_coord %>% 
@@ -477,7 +501,6 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_species_nmds_coord <- reactive({
-    # browser()
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     
     if(r$rank_glom() == 'ASV'){
@@ -630,15 +653,10 @@ mod_beta_server <- function(input, output, session, r = r){
   get_formula <- reactive({
     req(input$metrics, get_meta_col())
     form <- glue::glue('dist ~ Depth + ')
-    if(!is.null(input$covariate_fact)){
-      cov1 = paste(input$covariate_fact, collapse = " + ")
+    if(!is.null(input$adonis_factor)){
+      cov1 = paste(input$adonis_factor, collapse = " + ")
       form <- paste(form, glue::glue('{cov1} + {get_meta_col()}'), sep='')
-    }
-    else if(!is.null(input$interFactor)){
-      cov1 = paste(input$interFactor, collapse = "*")
-      form <- paste(form, glue::glue('{get_meta_col()}*{cov1}'), sep='')
-    }
-    else{
+    } else{
       form <- paste(form, glue::glue('{get_meta_col()}'), sep='')
     }
     return(form)
@@ -666,7 +684,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_adonis_res <- eventReactive(input$launch_beta, {
+  get_adonis_res <- eventReactive(input$launch_beta  | input$update_test_btn, {
     req(physeq_dist(), get_formula())
     dist <- physeq_dist()
     mdata <- local_metadata()
