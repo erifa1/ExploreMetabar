@@ -39,7 +39,8 @@ mod_beta_ui <- function(id){
             fluidRow(
               radioButtons(ns('ordi_type'), 'Choose your ordination type:',
                            inline = T,
-                           choices = c('Unconstrained', 'Constrained', 'Distance-based'),
+                           # choices = c('Unconstrained', 'Constrained', 'Distance-based'),
+                           choices = c('Constrained', 'Distance-based'),
                            selected = 'Distance-based')
             ),
             fluidRow(
@@ -135,7 +136,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordi_type)
     if(input$ordi_type == 'Distance-based'){
       radioButtons(ns("metrics"), "Choose one distance metric:", inline = TRUE,
-                   choices =c('bray', 'jaccard', 'none'),
+                   choices =c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'),
                    selected = c("bray")
       )
     }
@@ -189,9 +190,17 @@ mod_beta_server <- function(input, output, session, r = r){
   get_ordiR2step <- reactive({
     req(r$sdat(), physeq())
     env <- as(r$sdat(), 'data.frame')
+    if('sample.id' %in% colnames(env)){
+      env[,'sample.id'] <- NULL
+    }
     spe <- veganifyOTU(physeq())
-    mod0 <- vegan::rda(spe ~ 1, data = env)
-    mod1 <- vegan::rda(spe ~ ., data = env)
+    if(input$ordination == 'RDA'){
+      mod0 <- vegan::rda(spe ~ 1, data = env)
+      mod1 <- vegan::rda(spe ~ ., data = env)
+    } else if(input$ordination == 'CCA'){
+      mod0 <- vegan::cca(spe ~ 1, data = env)
+      mod1 <- vegan::cca(spe ~ ., data = env)
+    }
     sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE)
     return(sel)
   })
@@ -469,9 +478,13 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination, physeq())
     if(input$ordination == 'NMDS'){
       validate(
-        need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
+        need(input$metrics %in% c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
         )
-      res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+      if(input$metrics %in% c('bray', 'jaccard', 'none')){
+        res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+        res <- vegan::metaMDS(physeq_dist())
+      }
     } else if(input$ordination == 'PCOA'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For PCoA ordination only bray and jaccard distances allowed.')
@@ -482,6 +495,10 @@ mod_beta_server <- function(input, output, session, r = r){
       env <- as(r$sdat(), 'data.frame')
       spe <- veganifyOTU(physeq())
       res <- vegan::rda(as.formula(get_constr_formula()), data = env)
+    } else if(input$ordination == 'CCA'){
+      env <- as(r$sdat(), 'data.frame')
+      spe <- veganifyOTU(physeq())
+      res <- vegan::cca(as.formula(get_constr_formula()), data = env)
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
@@ -489,7 +506,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   
-  get_sites_nmds_coord <- reactive({
+  get_sites_coord <- reactive({
     req(ord(), local_metadata(), get_meta_col())
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
                     as_tibble(rownames="sample.id")
@@ -500,7 +517,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_species_nmds_coord <- reactive({
+  get_species_coord <- reactive({
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     
     if(r$rank_glom() == 'ASV'){
@@ -536,10 +553,9 @@ mod_beta_server <- function(input, output, session, r = r){
       axes <- c('NMDS1', 'NMDS2')
     } else if(input$ordination == 'PCOA'){
       axes <- c('MDS1', 'MDS2')
-    } else if(input$ordination == 'RDA'){
+    } else if(input$ordination %in% c('RDA', 'CCA')){
       axes <- colnames(vegan::scores(ord(), display = 'sites'))
     }
-    
   })
   
   base_plot <- reactive({
@@ -547,16 +563,16 @@ mod_beta_server <- function(input, output, session, r = r){
     p <- ggplot2::ggplot()
     axes <- get_axis_names()
     if(input$plot_type %in% c('samples', 'biplot', 'triplot')){
-      nmds_coord <- get_sites_nmds_coord()
+      sites_coord <- get_sites_coord()
       # browser()
       
       p <- p +
-            geom_point(data = nmds_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23) +
-            stat_ellipse(data = nmds_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23) +
+            stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
     } 
     
     if (input$plot_type %in% c('taxa', 'biplot', 'triplot')){
-      nmds_coord <- get_species_nmds_coord()
+      species_coord <- get_species_coord()
       # browser()
       if(r$rank_glom() == 'ASV'){
         taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
@@ -564,7 +580,7 @@ mod_beta_server <- function(input, output, session, r = r){
         taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
       p <- p +
-            geom_point(data = nmds_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
+            geom_point(data = species_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
     } 
     
     if (input$plot_type == 'triplot'){
