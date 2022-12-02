@@ -53,14 +53,14 @@ mod_beta_ui <- function(id){
               )
             ),
             fluidRow(
-              radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
+              shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
                            choices =
-                             list("samples", "taxa", "biplot", "triplot"),
+                             list("samples", "taxa", "env"),
                            selected = c("samples")
               )
             ),
             fluidRow(
-              uiOutput(ns('ui_beta_fact1')),
+              uiOutput(ns('ui_beta_factor')),
               uiOutput(ns('ui_beta_fact2'))
             ),
             fluidRow(
@@ -110,25 +110,46 @@ veganifyOTU <- function(physeq){
 #' @import vegan
 #' @importFrom plotly ggplotly
 #' @importFrom DT renderDataTable
+#' @importFrom permute how
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  # observe({
-  #   req(r$phyloseq_filtered())
-  #   updateSelectInput(session, "beta_fact1",
-  #                     choices = r$phyloseq_filtered()@sam_data@names)
-  # })
   
   isNumFactor <- reactive({
-    req(input$beta_fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
-    if(is.numeric(metadata[, input$beta_fact1])){
+    req(get_meta_col(), local_metadata())
+    metadata <- local_metadata()
+    if(is.numeric(metadata[, get_meta_col()])){
       return(TRUE)
     } else{
       return(FALSE)
     }
+  })
+  
+  get_meta_col <- reactive({
+    req(input$beta_factor, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(length(input$beta_factor) == 1){
+      meta.col <- input$beta_factor
+    } else if(length(input$beta_factor) > 1) {
+      validate(
+        need(!any(sapply(metadata[, input$beta_factor], is.numeric)), message = "You can't select multiple numeric factors")
+      )
+      meta.col <- paste0(input$beta_factor, collapse='_')
+    }
+    return(meta.col)
+  })
+  
+  
+  local_metadata <- reactive({
+    req(input$beta_factor, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(! all(sapply(metadata[, input$beta_factor], is.numeric))){
+      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_factor, na.rm=TRUE)
+      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
+    }
+    return(metadata)
   })
   
   
@@ -279,52 +300,34 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  output$ui_beta_fact1 <- renderUI({
+  output$ui_beta_factor <- renderUI({
     req(r$sdat())
     metadata <- as(r$sdat(), "data.frame")
     tags$div(
       hr(style = "border-top: 1px solid #000000;"),
       h4('Sample ordination options: '),
       column(4,
-             selectInput(
-               ns("beta_fact1"),
-               label = "Select main factor to test + color plot: ",
-               choices = colnames(metadata)
+            shinyWidgets::pickerInput(
+               ns("beta_factor"),
+               label = "Select factor to test and color samples: ",
+               choices = colnames(metadata),
+               multiple = TRUE
              )
       )
     )
   })
-  
-  
-  output$ui_beta_fact2 <- renderUI({
-    req(r$sdat(), input$beta_fact1)
-    metadata <- as(r$sdat(), "data.frame")
-    # if(! isNumFactor() && input$plot_type == 'samples'){
-        num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
-        tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
-        tags$div(
-          column(4,
-             selectInput(
-               ns("beta_fact2"),
-               label = "Select second factor to combine: ",
-               choices = c('none',dplyr::setdiff(tmp, input$beta_fact1))
-             )
-          ),
-        )
-    # }
-  })
-  
+
   
   output$ui_envfit_box <- renderUI({
-    req(input$ordination, input$envfit_switch, r$sdat())
+    req(input$ordination, input$envfit_switch, local_metadata())
     if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
       box(
         multiInput(
           ns('envfit_param'),
           label = "Select variables: ",
           choices = NULL,
-          choiceValues = colnames(r$sdat()),
-          choiceNames = colnames(r$sdat())
+          choiceValues = colnames(local_metadata()),
+          choiceNames = colnames(local_metadata())
         ),
         numericInput(ns('envfit_pval'), 'p-value', value = 1, min = 0, max = 1, step = 0.01),
         title = 'VEGAN envfit', status = 'primary'
@@ -345,39 +348,6 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
 
-  local_metadata <- reactive({
-    req(input$beta_fact1, input$beta_fact2, r$sdat(), get_meta_col())
-    metadata <- as(r$sdat(), "data.frame")
-    if(!isNumFactor()){
-      if(input$beta_fact2 != 'none' && ! is.numeric(metadata[, input$beta_fact1])){
-        metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_fact1, input$beta_fact2, na.rm=TRUE)
-        metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-        metadata <- select(metadata, "sample.id", get_meta_col())
-      }
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$beta_fact1)
-    }
-    return(metadata)
-  })
-  
-  
-  get_meta_col <- reactive({
-    req(input$beta_fact1, input$beta_fact2)
-    if(!isNumFactor()){
-      if(input$beta_fact2 != 'none'){
-        meta.col <- paste0(input$beta_fact1, '_', input$beta_fact2)
-      }
-      else{
-        meta.col <- input$beta_fact1
-      }
-    } else{
-      meta.col <- input$beta_fact1
-    }
-    return(meta.col)
-  })
-  
-  
   observeEvent(input$ordi_type, {
     if(input$ordi_type == 'Unconstrained'){
       ch <- c('PCA', 'CA', 'DCA')
@@ -562,16 +532,18 @@ mod_beta_server <- function(input, output, session, r = r){
 
     p <- ggplot2::ggplot()
     axes <- get_axis_names()
-    if(input$plot_type %in% c('samples', 'biplot', 'triplot')){
+    if('samples' %in% input$plot_type){
       sites_coord <- get_sites_coord()
       # browser()
       
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23) +
-            stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23)
+      if(!isNumFactor()){
+        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
+      }
     } 
     
-    if (input$plot_type %in% c('taxa', 'biplot', 'triplot')){
+    if ('taxa' %in% input$plot_type){
       species_coord <- get_species_coord()
       # browser()
       if(r$rank_glom() == 'ASV'){
@@ -583,7 +555,7 @@ mod_beta_server <- function(input, output, session, r = r){
             geom_point(data = species_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
     } 
     
-    if (input$plot_type == 'triplot'){
+    if ('env' %in% input$plot_type){
       if(input$ordination == 'RDA'){
         scr <- vegan::scores(ord())
         if(!is.null(scr$biplot)){
