@@ -39,8 +39,9 @@ mod_beta_ui <- function(id){
             fluidRow(
               radioButtons(ns('ordi_type'), 'Choose your ordination type:',
                            inline = T,
-                           choices = c('Unconstrained', 'Constrained', 'Distance-based'),
-                           selected = 'Unconstrained')
+                           # choices = c('Unconstrained', 'Constrained', 'Distance-based'),
+                           choices = c('Constrained', 'Distance-based'),
+                           selected = 'Distance-based')
             ),
             fluidRow(
               uiOutput(ns('ui_metrics'))
@@ -52,27 +53,22 @@ mod_beta_ui <- function(id){
               )
             ),
             fluidRow(
-              radioButtons(ns("plot_type"), "Choose plot type:", inline = TRUE,
+              shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
                            choices =
-                             list("samples", "taxa", "biplot"),
+                             list("samples", "taxa", "env"),
                            selected = c("samples")
               )
             ),
             fluidRow(
-              uiOutput(ns('ui_beta_fact1')),
+              uiOutput(ns('ui_beta_factor')),
               uiOutput(ns('ui_beta_fact2'))
             ),
             fluidRow(
-              uiOutput(ns('rank_select'))
+              uiOutput(ns('ui_taxa_rank'))
             ),
             fluidRow(
-              materialSwitch(
-                ns('envfit_switch'),
-                label = 'Try envfit',
-                value = FALSE,
-                status = 'primary'
-              ),
-              uiOutput(ns('ui_taxa'))
+              uiOutput(ns('ui_envfit_switch'))
+              
             ),
             fluidRow(
               actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
@@ -80,7 +76,10 @@ mod_beta_ui <- function(id){
             )
           ),  title = "Settings:", width = 6, status = "warning", solidHeader = TRUE
         ),
-        uiOutput(ns('envfit_box')) 
+        uiOutput(ns('ui_constrain')),
+        uiOutput(ns('ui_ordistep')),
+        uiOutput(ns('ui_envfit_box')),
+        uiOutput(ns('ui_envfit_box_res'))
       ),
       fluidRow(
         box(
@@ -92,105 +91,14 @@ mod_beta_ui <- function(id){
         ), style = "height:800px;"
       ),
       fluidRow(
-        box(
-          title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
-          uiOutput(ns("factor2")),
-          uiOutput(ns("interac_factor")),
-          actionButton(ns("go1"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-          h3('ADONIS formula:'),
-          verbatimTextOutput(ns("adonis_formula")),
-          h2('Permanova Adonis Test Result: '),
-          DT::dataTableOutput(ns('adonistest')),
-          uiOutput(ns('pairwise_res')),
-          uiOutput(ns('disper_res'))
-        )
+        uiOutput(ns('ui_permanova_box')),
+        uiOutput(ns('ui_anova_box'))
       )
     )
   )
 }
 
 
-phyloseq_to_ampvis2 <- function(physeq) {
-  #check object for class
-  if(!any(class(physeq) %in% "phyloseq"))
-    stop("physeq object must be of class \"phyloseq\"", call. = FALSE)
-  
-  #ampvis2 requires taxonomy and abundance table, phyloseq checks for the latter
-  if(is.null(physeq@tax_table))
-    stop("No taxonomy found in the phyloseq object and is required for ampvis2", call. = FALSE)
-  
-  #OTUs must be in rows, not columns
-  if(phyloseq::taxa_are_rows(physeq))
-    abund <- as.data.frame(phyloseq::otu_table(physeq)@.Data)
-  else
-    abund <- as.data.frame(t(phyloseq::otu_table(physeq)@.Data))
-  
-  #tax_table is assumed to have OTUs in rows too
-  tax <- phyloseq::tax_table(physeq)@.Data
-  
-  #merge by rownames (OTUs)
-  otutable <- merge(
-    abund,
-    tax,
-    by = 0,
-    all.x = TRUE,
-    all.y = FALSE,
-    sort = FALSE
-  )
-  colnames(otutable)[1] <- "OTU"
-  
-  #extract sample_data (metadata)
-  if(!is.null(physeq@sam_data)) {
-    metadata <- data.frame(
-      phyloseq::sample_data(physeq),
-      row.names = phyloseq::sample_names(physeq), 
-      stringsAsFactors = FALSE, 
-      check.names = FALSE
-    )
-    
-    #check if any columns match exactly with rownames
-    #if none matched assume row names are sample identifiers
-    samplesCol <- unlist(lapply(metadata, function(x) {
-      identical(x, rownames(metadata))}))
-    
-    if(any(samplesCol)) {
-      #error if a column matched and it's not the first
-      if(!samplesCol[[1]])
-        stop("Sample ID's must be in the first column in the sample metadata, please reorder", call. = FALSE)
-    } else {
-      #assume rownames are sample identifiers, merge at the end with name "SampleID"
-      if(any(colnames(metadata) %in% "SampleID"))
-        stop("A column in the sample metadata is already named \"SampleID\" but does not seem to contain sample ID's", call. = FALSE)
-      metadata$SampleID <- rownames(metadata)
-      
-      #reorder columns so SampleID is the first
-      metadata <- metadata[, c(which(colnames(metadata) %in% "SampleID"), 1:(ncol(metadata)-1L)), drop = FALSE]
-    }
-  } else
-    metadata <- NULL
-  
-  #extract phylogenetic tree, assumed to be of class "phylo"
-  if(!is.null(physeq@phy_tree)) {
-    tree <- phyloseq::phy_tree(physeq)
-  } else
-    tree <- NULL
-  
-  #extract OTU DNA sequences, assumed to be of class "XStringSet"
-  if(!is.null(physeq@refseq)) {
-    #convert XStringSet to DNAbin using a temporary file (easiest)
-    fastaTempFile <- tempfile(pattern = "ampvis2_", fileext = ".fa")
-    Biostrings::writeXStringSet(physeq@refseq, filepath = fastaTempFile)
-  } else
-    fastaTempFile <- NULL
-  
-  #load as normally with amp_load
-  ampvis2::amp_load(
-    otutable = otutable,
-    metadata = metadata,
-    tree = tree,
-    fasta = fastaTempFile
-  )
-}
 
 veganifyOTU <- function(physeq){
   if(taxa_are_rows(physeq)){physeq <- t(physeq)}
@@ -199,44 +107,155 @@ veganifyOTU <- function(physeq){
 
 #' mod_beta Server Function
 #'
-#' @importFrom vegan vegdist
-#' @importFrom vegan adonis2
+#' @import vegan
 #' @importFrom plotly ggplotly
 #' @importFrom DT renderDataTable
+#' @importFrom permute how
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  # observe({
-  #   req(r$phyloseq_filtered())
-  #   updateSelectInput(session, "beta_fact1",
-  #                     choices = r$phyloseq_filtered()@sam_data@names)
-  # })
   
   isNumFactor <- reactive({
-    req(input$beta_fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
-    if(is.numeric(metadata[, input$beta_fact1])){
+    req(get_meta_col(), local_metadata())
+    metadata <- local_metadata()
+    if(is.numeric(metadata[, get_meta_col()])){
       return(TRUE)
     } else{
       return(FALSE)
     }
   })
   
+  get_meta_col <- reactive({
+    req(input$beta_factor, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(length(input$beta_factor) == 1){
+      meta.col <- input$beta_factor
+    } else if(length(input$beta_factor) > 1) {
+      validate(
+        need(!any(sapply(metadata[, input$beta_factor], is.numeric)), message = "You can't select multiple numeric factors")
+      )
+      meta.col <- paste0(input$beta_factor, collapse='_')
+    }
+    return(meta.col)
+  })
+  
+  
+  local_metadata <- reactive({
+    req(input$beta_factor, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(! all(sapply(metadata[, input$beta_factor], is.numeric))){
+      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_factor, na.rm=TRUE)
+      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
+    }
+    return(metadata)
+  })
+  
   
   output$ui_metrics <- renderUI({
+    req(input$ordi_type)
     if(input$ordi_type == 'Distance-based'){
       radioButtons(ns("metrics"), "Choose one distance metric:", inline = TRUE,
-                   choices =c('bray', 'jaccard', 'none'),
+                   choices =c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'),
                    selected = c("bray")
       )
     }
   })
   
   
-  output$rank_select <- renderUI({
-    if(input$ordination == 'NMDS'){
+  
+  output$ui_envfit_switch <- renderUI({
+    req(input$ordination)
+    if(input$ordination %in% c('NMDS', 'PCOA')){
+      materialSwitch(
+        ns('envfit_switch'),
+        label = 'Try envfit',
+        value = FALSE,
+        status = 'primary'
+      )
+    }
+  })
+  
+  
+  output$ui_constrain <- renderUI({
+    req(input$ordination)
+    if(input$ordination %in% c('RDA','CCA')){
+      box(title = 'Model parameters',
+          radioButtons(inputId = ns('param_mode'),
+                       label = 'méthode to select parameters',
+                       choices = c('picker', 'ordiR2step', 'manual')),
+          uiOutput(ns('constr_select')),
+          verbatimTextOutput(
+            ns('formula')
+          )
+      )
+    }
+  })
+  
+  output$constr_select <- renderUI({
+    req(input$param_mode)
+    if(input$param_mode == 'picker'){
+      shinyWidgets::pickerInput(inputId = ns('constr_picker'),
+                                label = 'Select terms to create a formula',
+                                choices = colnames(r$sdat()),
+                                multiple = TRUE
+      )
+    } else if(input$param_mode == 'ordiR2step'){
+      verbatimTextOutput(ns('constr_ordiR2step_out'))
+    } else if(input$param_mode == 'manual'){
+      textInput(ns('constr_manual_formula'), label = 'Enter your own formula:', placeholder = 'spe ~')
+    }
+  })
+  
+  get_ordiR2step <- reactive({
+    req(r$sdat(), physeq())
+    env <- as(r$sdat(), 'data.frame')
+    if('sample.id' %in% colnames(env)){
+      env[,'sample.id'] <- NULL
+    }
+    spe <- veganifyOTU(physeq())
+    if(input$ordination == 'RDA'){
+      mod0 <- vegan::rda(spe ~ 1, data = env)
+      mod1 <- vegan::rda(spe ~ ., data = env)
+    } else if(input$ordination == 'CCA'){
+      mod0 <- vegan::cca(spe ~ 1, data = env)
+      mod1 <- vegan::cca(spe ~ ., data = env)
+    }
+    sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE)
+    return(sel)
+  })
+  
+  output$constr_ordiR2step_out <- renderPrint({
+    sel <- get_ordiR2step()
+    print(sel)
+    print(sel$anova)
+  })
+  
+  output$formula <- renderPrint({
+    get_constr_formula()
+  })
+  
+  
+  get_constr_formula <- reactive({
+    req(input$param_mode)
+    if(input$param_mode == 'picker'){
+      if(length(input$constr_picker) == 0){
+        f <- 'spe ~ 1'
+      } else {
+        f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
+      }
+    } else if(input$param_mode == 'ordiR2step'){
+      f <- formula(get_ordiR2step())
+    } else if(input$param_mode == 'manual'){
+      f <- input$constr_manual_formula
+    }
+    return(f)
+  })
+  
+  output$ui_taxa_rank <- renderUI({
+    req(input$ordination, physeq())
+    if(input$ordination %in% c('NMDS', 'PCOA')){
       tags$div(
         hr(style = "border-top: 1px solid #000000;"),
         h4('Taxa ordination options: '),
@@ -254,6 +273,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$pairwise_res <- renderUI({
+    req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
       box(
         title = "Pairwise Adonis Test", width = 12, status = "primary", solidHeader = TRUE,
@@ -264,6 +284,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$disper_res <- renderUI({
+    req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
       box(
         title = "Dispersion results:", width = 12, status = "primary", solidHeader = TRUE,
@@ -279,53 +300,34 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  output$ui_beta_fact1 <- renderUI({
+  output$ui_beta_factor <- renderUI({
     req(r$sdat())
-    
     metadata <- as(r$sdat(), "data.frame")
     tags$div(
       hr(style = "border-top: 1px solid #000000;"),
       h4('Sample ordination options: '),
       column(4,
-             selectInput(
-               ns("beta_fact1"),
-               label = "Select main factor to test + color plot: ",
-               choices = colnames(metadata)
+            shinyWidgets::pickerInput(
+               ns("beta_factor"),
+               label = "Select factor to test and color samples: ",
+               choices = colnames(metadata),
+               multiple = TRUE
              )
       )
     )
-    
   })
+
   
-  
-  output$ui_beta_fact2 <- renderUI({
-    req(r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
-    # if(! isNumFactor() && input$plot_type == 'samples'){
-        num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
-        tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
-        tags$div(
-          column(4,
-             selectInput(
-               ns("beta_fact2"),
-               label = "Select second factor to combine: ",
-               choices = c('none',dplyr::setdiff(tmp, input$beta_fact1))
-             )
-          ),
-        )
-    # }
-  })
-  
-  
-  output$envfit_box <- renderUI({
+  output$ui_envfit_box <- renderUI({
+    req(input$ordination, input$envfit_switch, local_metadata())
     if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
       box(
         multiInput(
           ns('envfit_param'),
           label = "Select variables: ",
           choices = NULL,
-          choiceValues = colnames(r$sdat()),
-          choiceNames = colnames(r$sdat())
+          choiceValues = colnames(local_metadata()),
+          choiceNames = colnames(local_metadata())
         ),
         numericInput(ns('envfit_pval'), 'p-value', value = 1, min = 0, max = 1, step = 0.01),
         title = 'VEGAN envfit', status = 'primary'
@@ -333,60 +335,19 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
-  output$ui_taxa <- renderUI({
-    if(input$ordination == 'NMDS'){
-      fluidRow(
-        materialSwitch(
-          ns('taxa_switch'),
-          label = 'Add taxa to plot',
-          value = FALSE,
-          status = 'primary'
-        ),
-        materialSwitch(
-          ns('plotly_switch'),
-          label = 'Plotly on sample or taxa',
-          value = FALSE,
-          status = 'primary'
+  
+  output$ui_envfit_box_res <- renderUI({
+    req(input$ordination, input$envfit_switch)
+    if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
+      box(
+        verbatimTextOutput(
+          ns('envfit_res')
         )
       )
-      
-      
     }
   })
   
-  
-  local_metadata <- reactive({
-    req(input$beta_fact1)
-    metadata <- as(r$sdat(), "data.frame")
-    if(!isNumFactor()){
-      if(input$beta_fact2 != 'none' && ! is.numeric(metadata[, input$beta_fact1])){
-        metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_fact1, input$beta_fact2, na.rm=TRUE)
-        metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-        metadata <- select(metadata, "sample.id", get_meta_col())
-      }
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$beta_fact1)
-    }
-    return(metadata)
-  })
-  
-  
-  get_meta_col <- reactive({
-    if(!isNumFactor()){
-      if(input$beta_fact2 != 'none'){
-        meta.col <- paste0(input$beta_fact1, '_', input$beta_fact2)
-      }
-      else{
-        meta.col <- input$beta_fact1
-      }
-    } else{
-      meta.col <- input$beta_fact1
-    }
-    return(meta.col)
-  })
-  
-  
+
   observeEvent(input$ordi_type, {
     if(input$ordi_type == 'Unconstrained'){
       ch <- c('PCA', 'CA', 'DCA')
@@ -401,50 +362,70 @@ mod_beta_server <- function(input, output, session, r = r){
                        inline = T)
   })
   
-
-  observe({
-    req(r$phyloseq_filtered())
-    if(is.null(phy_tree(r$phyloseq_filtered(), errorIfNULL=FALSE))){
-      flog.info("no phytree beta metrics update")
-      ch1 = list("bray", "jaccard")
-    }else{
-      ch1 = list("bray", "jaccard", "unifrac", "wunifrac")
+  
+  output$ui_anova_box <- renderUI({
+    if(input$ordination %in% c('RDA', 'CCA')){
+      box(
+        title = "Anova on RDA/CCA results", width = 12, status = "primary", solidHeader = TRUE,
+        h3("Anova results on model:"),
+        verbatimTextOutput(ns('anova_res')),
+        h3("Anova results on axis"),
+        verbatimTextOutput(ns('anova_axis_res'))
+      )
     }
-    updateRadioButtons(session, "metrics",
-                      choices = ch1, inline = TRUE)
+  })
+  
+  get_anova_model <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999))
+    return(res)
+  })
+  
+  output$anova_res <- renderPrint({
+    get_anova_model()
+  })
+  
+  get_anova_axis <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999), by = "axis")
+    return(res)
+  })
+  
+  
+  output$anova_axis_res <- renderPrint({
+    get_anova_axis()
+  })
+  
+  
+  output$ui_permanova_box <- renderUI({
+    if(input$ordination %in% c('NMDS', 'PCOA')){
+      box(
+        title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+        uiOutput(ns("ui_adonis_factor")),
+        actionButton(ns("update_test_btn"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+        h3('ADONIS formula:'),
+        verbatimTextOutput(ns("adonis_formula")),
+        h2('Permanova Adonis Test Result: '),
+        DT::dataTableOutput(ns('adonistest')),
+        uiOutput(ns('pairwise_res')),
+        uiOutput(ns('disper_res'))
+      )
+    }
   })
 
-
-  output$factor2 = renderUI({
+  output$ui_adonis_factor = renderUI({
     req(get_meta_col(), r$sdat())
     facts = phyloseq::sample_variables(r$sdat())
     Fchoices = facts[facts != get_meta_col()]
-
-    checkboxGroupInput(
-      ns("covariate_fact"),
-      label = "Select covariable(s) to test: ",
-      choices = Fchoices,
-      inline = TRUE
+  
+    shinyWidgets::pickerInput(inputId = ns('adonis_factor'),
+                              label = 'Select factor(s) to test: ',
+                              choices = Fchoices,
+                              multiple = TRUE
     )
   })
 
-  
-  output$interac_factor <- renderUI({
-    req(get_meta_col(), r$sdat())
-    facts = phyloseq::sample_variables(r$sdat())
-    Fchoices = facts[facts != get_meta_col()]
 
-    checkboxGroupInput(
-      ns("interFactor"),
-      label = "Select interaction factor(s) to test: ",
-      choices = Fchoices,
-      inline = TRUE
-    )
-  })
-
-  
   physeq <- reactive({
-    req(r$phyloseq_filtered, r$phyloseq_filtered_norm, input$beta_norm_bool)
+    req(r$phyloseq_filtered(), r$phyloseq_filtered_norm(), input$beta_norm_bool, local_metadata())
     if(input$beta_norm_bool==0){
       data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
     }
@@ -457,24 +438,37 @@ mod_beta_server <- function(input, output, session, r = r){
 
   
   physeq_dist <- reactive({
-    req(input$metrics)
+    req(input$metrics, physeq())
     res <- phyloseq::distance(physeq(), method = input$metrics)
     return(res)
   })
 
   
   ord <- reactive({
-    req(input$ordination)
+    req(input$ordination, physeq())
     if(input$ordination == 'NMDS'){
       validate(
-        need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
+        need(input$metrics %in% c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
         )
-      res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+      if(input$metrics %in% c('bray', 'jaccard', 'none')){
+        res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+        res <- vegan::metaMDS(physeq_dist())
+      }
     } else if(input$ordination == 'PCOA'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For PCoA ordination only bray and jaccard distances allowed.')
       )
-      res <- vegan::wcmdscale(physeq_dist(), k=2)
+      spe <- veganifyOTU(physeq())
+      res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
+    } else if(input$ordination == 'RDA'){
+      env <- as(r$sdat(), 'data.frame')
+      spe <- veganifyOTU(physeq())
+      res <- vegan::rda(as.formula(get_constr_formula()), data = env)
+    } else if(input$ordination == 'CCA'){
+      env <- as(r$sdat(), 'data.frame')
+      spe <- veganifyOTU(physeq())
+      res <- vegan::cca(as.formula(get_constr_formula()), data = env)
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
@@ -482,7 +476,8 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   
-  get_sites_nmds_coord <- reactive({
+  get_sites_coord <- reactive({
+    req(ord(), local_metadata(), get_meta_col())
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
                     as_tibble(rownames="sample.id")
     nmds_coord <- nmds_coord %>% 
@@ -492,8 +487,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_species_nmds_coord <- reactive({
-    # browser()
+  get_species_coord <- reactive({
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     
     if(r$rank_glom() == 'ASV'){
@@ -513,114 +507,95 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_dist_plot <- reactive({
-    plot_str <- "p <- ampvis2::amp_ordinate(phyloseq_to_ampvis2(physeq()), type = input$ordination, distmeasure = input$metrics, transform = 'none', filter_species = 0, sample_color_by = get_meta_col(), sample_colorframe = T"
-    # browser()
-    if(input$envfit_switch){
-      validate(
-        need(length(input$envfit_param) > 0, "Select one metadata value for envfit." )
-      )
-      env_num <- names(r$sdat()[,input$envfit_param])[which(sapply(r$sdat()[,input$envfit_param], is.numeric))]
-      env_fact <- names(r$sdat()[,input$envfit_param])[which(sapply(r$sdat()[,input$envfit_param], is.character))]
-      
-      if(length(env_num) > 0 || length(env_fact) > 0){
-        env_str <- ", envfit_show = T"
-        
-      }
-      if(length(env_num) > 0){
-        env_num <- gsub('\\.','_',env_num)
-        env_str <- paste0(env_str, ", envfit_numeric = env_num")
-      }
-      if(length(env_fact) > 0){
-        validate(
-          need(length(env_fact) == 1, 'Choose only one factor.')
-        )
-        env_fact <- gsub('\\.','_',env_fact)
-        env_str <- paste0(env_str, ", envfit_factor = env_fact")
-      }
-      
-      plot_str <- paste0(plot_str, env_str, glue::glue(", envfit_signif_level = {input$envfit_pval}"))
-    }
-    if('taxa_switch' %in% names(input)){
-      if(input$taxa_switch && input$ordination == 'NMDS'){
-        taxa_str <- glue::glue(", species_plot = T, species_label_taxonomy = '{input$rank_color}'")
-        plot_str <- paste0(plot_str, taxa_str)
-      }
-      if('plotly_switch' %in% names(input)){
-        if(!input$plotly_switch){
-          plotly_str <- ", sample_plotly = 'all', species_plotly = F"
-        } else{
-          plotly_str <- ", species_plotly = T"
-        }
-        plot_str <- paste0(plot_str, plotly_str)
-      }
-    } else{
-      plotly_str <- ", sample_plotly = 'all'"
-      plot_str <- paste0(plot_str, plotly_str)
-    }
-    
-    plot_str <- paste0(plot_str, ')')
-    # browser()
-    eval(parse(text=plot_str))
-    return(p)
+  output$envfit_res <- renderPrint({
+    get_env_fit()
   })
-
+  
+  get_env_fit <- eventReactive( input$launch_beta, {
+    env <- as(r$sdat(), 'data.frame')
+    env <- env[, input$envfit_param, drop=F]
+    en <- vegan::envfit(ord(), env)
+    return(en)
+  })
+  
+  get_axis_names <- reactive({
+    if(input$ordination == 'NMDS'){
+      axes <- c('NMDS1', 'NMDS2')
+    } else if(input$ordination == 'PCOA'){
+      axes <- c('MDS1', 'MDS2')
+    } else if(input$ordination %in% c('RDA', 'CCA')){
+      axes <- colnames(vegan::scores(ord(), display = 'sites'))
+    }
+  })
   
   base_plot <- reactive({
-    # p <- phyloseq::plot_ordination(physeq = physeq(), type = input$plot_type, ordination = ord(), axes = c(1, 2))
-    # if(input$ordination %in% c('PCOA', 'NMDS')){
-    #   p <- get_dist_plot()
-    # }
-    fig <- plotly::plot_ly()
-    if(input$plot_type == 'samples'){
-      nmds_coord <- get_sites_nmds_coord()
 
-      p <- ggplot2::ggplot() +
-            geom_point(data = nmds_coord, mapping = aes(x=NMDS1, y=NMDS2, color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq())))) +
-            stat_ellipse(data = nmds_coord, mapping = aes(x=NMDS1, y=NMDS2, group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
-    } else if (input$plot_type == 'taxa'){
-      nmds_coord <- get_species_nmds_coord()
-      if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-      } else{
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-      }
-      p <- ggplot2::ggplot() +
-            geom_point(data = nmds_coord, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa = taxa))
-    } else if(input$plot_type == 'biplot'){
-      nmds_coord_species <- get_species_nmds_coord()
-      nmds_coord_sites <- get_sites_nmds_coord()
-      if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-      } else{
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-      }
-      p <- ggplot() +
-        geom_point(data = nmds_coord_species, aes(x=NMDS1, y=NMDS2, color=.data[[input$rank_color]], taxa=taxa), size=4) +
-        geom_point(data = nmds_coord_sites, aes(x=NMDS1, y=NMDS2, fill=.data[[get_meta_col()]], sample.id = phyloseq::sample_names(physeq())), shape=23, size=6)
-    }
-
-    if(input$envfit_switch){
+    p <- ggplot2::ggplot()
+    axes <- get_axis_names()
+    if('samples' %in% input$plot_type){
+      sites_coord <- get_sites_coord()
       # browser()
-      env <- as(r$sdat(), 'data.frame')
-      env <- env[, input$envfit_param]
-      en <- vegan::envfit(ord(), env)
-      if(length(env %>% select_if(is.numeric) %>% colnames())>0){
-        en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
-        p <- p + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
-                              data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30") +
-                geom_text(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30",
-                    fontface = "bold", label = row.names(en_coord_cont))
+      
+      p <- p +
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23)
+      if(!isNumFactor()){
+        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
-      if(length(env %>% select_if(is.character) %>% colnames())>0){
-        en_coord_cat <- as.data.frame(vegan::scores(en, "factors")) * vegan::ordiArrowMul(en)
-        p <- p + geom_point(data = en_coord_cat, aes(x = NMDS1, y = NMDS2),
-                            shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-          geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2),
-                    label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+    } 
+    
+    if ('taxa' %in% input$plot_type){
+      species_coord <- get_species_coord()
+      # browser()
+      if(r$rank_glom() == 'ASV'){
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+      } else{
+        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
-
+      p <- p +
+            geom_point(data = species_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
+    } 
+    
+    if ('env' %in% input$plot_type){
+      if(input$ordination == 'RDA'){
+        scr <- vegan::scores(ord())
+        if(!is.null(scr$biplot)){
+          en_coord_cont <- as.data.frame(scr$biplot)
+          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+                      fontface = "bold", label = row.names(en_coord_cont))
+        }
+        if(!is.null(scr$centroids)){
+          en_coord_cat <- as.data.frame(scr$centroids)
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+        }
+      }
+      
+      if(input$envfit_switch){
+        
+        en <- get_env_fit()
+        
+        if(!is.null(en$vectors)){
+          en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
+          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+                      fontface = "bold", label = row.names(en_coord_cont))
+        }
+        if(!is.null(en$factors)){
+          en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+        }
+        
+      }
     }
+    
     # p$layers[[1]] <- NULL
     # 
     # xrange <- c()
@@ -666,22 +641,17 @@ mod_beta_server <- function(input, output, session, r = r){
   get_formula <- reactive({
     req(input$metrics, get_meta_col())
     form <- glue::glue('dist ~ Depth + ')
-    if(!is.null(input$covariate_fact)){
-      cov1 = paste(input$covariate_fact, collapse = " + ")
+    if(!is.null(input$adonis_factor)){
+      cov1 = paste(input$adonis_factor, collapse = " + ")
       form <- paste(form, glue::glue('{cov1} + {get_meta_col()}'), sep='')
-    }
-    else if(!is.null(input$interFactor)){
-      cov1 = paste(input$interFactor, collapse = "*")
-      form <- paste(form, glue::glue('{get_meta_col()}*{cov1}'), sep='')
-    }
-    else{
+    } else{
       form <- paste(form, glue::glue('{get_meta_col()}'), sep='')
     }
     return(form)
   })
   
   
-  get_dispersion_res <- reactive({
+  get_dispersion_res <- eventReactive(input$launch_beta,{
     req(physeq_dist(), get_meta_col())
     res <- vegan::betadisper(physeq_dist(), local_metadata()[,get_meta_col()])
     return(res)
@@ -702,7 +672,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_adonis_res <- reactive({
+  get_adonis_res <- eventReactive(input$launch_beta  | input$update_test_btn, {
     req(physeq_dist(), get_formula())
     dist <- physeq_dist()
     mdata <- local_metadata()
@@ -714,7 +684,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_pairwise_res <- reactive({
+  get_pairwise_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_meta_col(), local_metadata())
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
     return(res)
@@ -735,7 +705,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  dfdisper <- reactive({
+  dfdisper <- eventReactive(input$launch_beta,{
     cat(file=stderr(),'dfdisper ...',"\n")
     
     df1 = cbind.data.frame(distances = get_dispersion_res()$distances, group = get_dispersion_res()$group)

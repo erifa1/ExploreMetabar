@@ -23,26 +23,17 @@ mod_compo_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
-        # radioButtons(
-        #   ns("compo_norm_bool"),
-        #   label = "Use normalized data",
-        #   inline = TRUE,
-        #   choices = list(
-        #     "Raw" = 0 ,
-        #     "Normalized" = 1
-        #   ), selected = 0
-        # ),
-
         selectInput(
           ns("RankCompo"),
           label = "Select rank to plot: ",
           choices = ""
         ),
 
-        selectInput(
+        shinyWidgets::pickerInput(
           ns("Ord1"),
           label = "Select variable to order/split samples (X axis): ",
-          choices = ""
+          choices = "",
+          multiple = T
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
@@ -93,22 +84,60 @@ mod_compo_server <- function(input, output, session, r = r){
     updateSelectInput(session, "RankCompo",
                       choices = ranks1,
                       selected = ranks1[length(ranks1)])
-    updateSelectInput(session, "Ord1",
+    shinyWidgets::updatePickerInput(session, "Ord1",
                       choices = r$phyloseq_filtered()@sam_data@names)
   })
-
+  
+  
+  get_meta_col <- reactive({
+    req(input$Ord1)
+    metadata <- as(r$sdat(), "data.frame")
+    if(length(input$Ord1) == 1){
+      meta.col <- input$Ord1
+    } else if(length(input$Ord1) > 1) {
+      validate(
+        need(!any(sapply(metadata[, input$Ord1], is.numeric)), message = "You can't select multiple numeric factors")
+      )
+      meta.col <- paste0(input$Ord1, collapse='_')
+    }
+    return(meta.col)
+  })
+  
+  
+  local_metadata <- reactive({
+    req(input$Ord1, r$sdat())
+    metadata <- as(r$sdat(), "data.frame")
+    if(! all(sapply(metadata[, input$Ord1], is.numeric))){
+      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Ord1, na.rm=TRUE)
+      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
+      metadata <- select(metadata, "sample.id", get_meta_col())
+    }
+    else{
+      metadata <- select(metadata, "sample.id", input$Ord1)
+    }
+    return(metadata)
+  })
+  
+  
+  local_physeq <- reactive({
+    phy <- r$phyloseq_filtered()
+    sample_data(phy) <- sample_data(local_metadata())
+    return(phy)
+  })
+  
+  
   compo <- eventReactive(input$go1, {
     cat(file=stderr(),'Creating plots...',"\n")
-    req(input$topTax, input$Ord1, input$RankCompo, r$phyloseq_filtered(), r$phyloseq_filtered_norm)
+    req(input$topTax, get_meta_col(), input$RankCompo, local_physeq())
+    # browser()
     LL=list()
-
-    Fdata <- r$phyloseq_filtered()
+    Fdata <- local_physeq()
 
     withProgress({
-      if(input$radio1 == 3){
+      if(input$radio1 == 3){  # merge samples
         cat(file=stderr(),'Merged...',"\n")
-        Fdata <- phyloseq::merge_samples(Fdata, group=input$Ord1, fun=mean)
-        sample_data(Fdata)[[input$Ord1]] <- sample_names(Fdata)
+        Fdata <- phyloseq::merge_samples(Fdata, group=get_meta_col(), fun=mean)
+        sample_data(Fdata)[[get_meta_col()]] <- sample_names(Fdata)
         split1 = FALSE
 
       }else{
@@ -116,8 +145,8 @@ mod_compo_server <- function(input, output, session, r = r){
         cat(file=stderr(),'Std...',"\n")
       }
 
-      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance")
-      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = input$Ord1, relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance")
+      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance")
+      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance")
 
       LL
 
