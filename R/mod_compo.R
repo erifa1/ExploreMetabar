@@ -85,18 +85,18 @@ mod_compo_server <- function(input, output, session, r = r){
                       choices = ranks1,
                       selected = ranks1[length(ranks1)])
     shinyWidgets::updatePickerInput(session, "Ord1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = r$var_list())
   })
   
   
   get_meta_col <- reactive({
-    req(input$Ord1)
-    metadata <- as(r$sdat(), "data.frame")
+    req(input$Ord1, r$sdat())
+    metadata <- r$sdat()
     if(length(input$Ord1) == 1){
       meta.col <- input$Ord1
     } else if(length(input$Ord1) > 1) {
       validate(
-        need(!any(sapply(metadata[, input$Ord1], is.numeric)), message = "You can't select multiple numeric factors")
+        need(!any(sapply(metadata[, input$Ord1], is.numeric)), message = "You can't select multiple with numeric factors")
       )
       meta.col <- paste0(input$Ord1, collapse='_')
     }
@@ -106,7 +106,7 @@ mod_compo_server <- function(input, output, session, r = r){
   
   local_metadata <- reactive({
     req(input$Ord1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(! all(sapply(metadata[, input$Ord1], is.numeric))){
       metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Ord1, na.rm=TRUE)
       metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])

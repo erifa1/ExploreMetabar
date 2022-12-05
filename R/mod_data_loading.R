@@ -592,9 +592,22 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$sdat <- reactive({
     req(r_values$phyobj_final)
     sdat <- sample_data(r_values$phyobj_final)
+    sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
+    sdat <- as(sdat, "data.frame")
     return(sdat)
   })
 
+  r$var_list <- reactive({
+    req(r_values$phyobj_final, r$sdat)
+    sdat <- r$sdat()
+    var_list <- colnames(sdat)
+    if('sample.id' %in% var_list){
+      var_list <- var_list[! var_list %in% 'sample.id']
+    }
+    return(var_list)
+  })
+  
+  
 }
 
 ## To be copied in the UI
