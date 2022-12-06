@@ -160,7 +160,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
   
   observe({
     req(r$phyloseq_filtered(), r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
     tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
     updateSelectInput(session, "Fact1",
@@ -170,7 +170,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   output$lvls1 = renderUI({
     req(input$Fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     level1 <- na.omit(unique(metadata[,input$Fact1]))
     checkboxGroupInput(ns("lvls1"), label = "Select up to 5 levels :",
                        choices = level1, inline = TRUE, selected = level1[1:3])

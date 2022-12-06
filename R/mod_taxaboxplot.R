@@ -67,17 +67,16 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
 
   observe({
-    req(r$phyloseq_filtered(), r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    req(r$phyloseq_filtered(), r$var_list())
     updateSelectInput(session, "boxplot_fact1",
-                      choices = setdiff(colnames(metadata), 'sample.id'))
+                      choices = r$var_list())
 
   })
   
   
   isNumFactor <- reactive({
     req(input$boxplot_fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(is.numeric(metadata[, input$boxplot_fact1])){
       return(TRUE)
     } else{
@@ -119,7 +118,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     otable <- otu_table(r$phyloseq_filtered_norm()) %>% t() %>%
       as.data.frame(stringsAsFactors = FALSE) %>%
       rownames_to_column('sample.id')
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     metadata <- metadata[, input$boxplot_fact1, drop=FALSE] %>% rownames_to_column('sample.id')
     mtable <- left_join(otable, metadata, by='sample.id')
     return(mtable)

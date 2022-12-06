@@ -102,10 +102,9 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
   ns <- session$ns
 
   get_meta_fact <- reactive({
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
     tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
-    tmp <- tmp[! tmp %in% c('sample.id')]
     return(tmp)
   })
   

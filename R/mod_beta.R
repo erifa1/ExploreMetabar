@@ -129,7 +129,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   get_meta_col <- reactive({
     req(input$beta_factor, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(length(input$beta_factor) == 1){
       meta.col <- input$beta_factor
     } else if(length(input$beta_factor) > 1) {
@@ -144,7 +144,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   local_metadata <- reactive({
     req(input$beta_factor, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(! all(sapply(metadata[, input$beta_factor], is.numeric))){
       metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_factor, na.rm=TRUE)
       metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
@@ -301,8 +301,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$ui_beta_factor <- renderUI({
-    req(r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    req(r$var_list())
     tags$div(
       hr(style = "border-top: 1px solid #000000;"),
       h4('Sample ordination options: '),
@@ -310,7 +309,7 @@ mod_beta_server <- function(input, output, session, r = r){
             shinyWidgets::pickerInput(
                ns("beta_factor"),
                label = "Select factor to test and color samples: ",
-               choices = colnames(metadata),
+               choices = r$var_list(),
                multiple = TRUE
              )
       )
@@ -446,6 +445,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   ord <- reactive({
     req(input$ordination, physeq())
+    flog.info(msg = 'ord() starting...')
     if(input$ordination == 'NMDS'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
@@ -472,6 +472,7 @@ mod_beta_server <- function(input, output, session, r = r){
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
+    flog.info(msg = 'ord() end.')
     return(res)
   })
 
@@ -488,6 +489,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_species_coord <- reactive({
+    flog.info(msg = 'get_species_coord() starting...')
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     
     if(r$rank_glom() == 'ASV'){
@@ -503,6 +505,7 @@ mod_beta_server <- function(input, output, session, r = r){
                                    as_tibble(rownames=r$rank_glom()) %>% 
                                    select(r$rank_glom(), input$rank_color), by=r$rank_glom())
     }
+    flog.info(msg = 'get_species_coord() end.')
     return(nmds_coord)
   })
   
@@ -512,9 +515,11 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   get_env_fit <- eventReactive( input$launch_beta, {
+    flog.info(msg = 'get_env_fit() starting...')
     env <- as(r$sdat(), 'data.frame')
     env <- env[, input$envfit_param, drop=F]
     en <- vegan::envfit(ord(), env)
+    flog.info(msg = 'get_env_fit() end.')
     return(en)
   })
   
@@ -529,7 +534,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   base_plot <- reactive({
-
+    flog.info('base_plot() starting...')
     p <- ggplot2::ggplot()
     axes <- get_axis_names()
     if('samples' %in% input$plot_type){
@@ -606,6 +611,7 @@ mod_beta_server <- function(input, output, session, r = r){
     # yrange[1] <- layer_scales(p)$y$range$range[1] - abs(layer_scales(p)$y$range$range[1])*3
     # yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*3
     # return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
+    flog.info('base_plot() end.')
     return(list('plot'=p))
   })
 
@@ -653,40 +659,50 @@ mod_beta_server <- function(input, output, session, r = r){
   
   get_dispersion_res <- eventReactive(input$launch_beta,{
     req(physeq_dist(), get_meta_col())
+    flog.info(msg = 'get_dispersion_res() starting...')
     res <- vegan::betadisper(physeq_dist(), local_metadata()[,get_meta_col()])
+    flog.info(msg = 'get_dispersion_res() end.')
     return(res)
   })
   
   
   get_dispersion_anova <- reactive({
     req(get_dispersion_res())
+    flog.info(msg = 'get_dispersion_anova() starting...')
     res <- anova(get_dispersion_res())
+    flog.info(msg = 'get_dispersion_anova() end.')
     return(res)
   })
   
   
   get_dispersion_tukey <- reactive({
     req(get_dispersion_res())
+    flog.info(msg = 'get_dispersion_tukey() starting...')
     res <- TukeyHSD(get_dispersion_res())
+    flog.info(msg = 'get_dispersion_tukey() end.')
     return(res)
   })
   
   
   get_adonis_res <- eventReactive(input$launch_beta  | input$update_test_btn, {
     req(physeq_dist(), get_formula())
+    flog.info(msg = 'get_adonis_res() starting...')
     dist <- physeq_dist()
     mdata <- local_metadata()
     mdata$Depth <- sample_sums(physeq())
     # Filter NA value in metadata
     mdata <- mdata %>% filter(!is.na(get_meta_col()))
     res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
+    flog.info(msg = 'get_adonis_res() end.')
     return(data.frame(res))
   })
   
   
   get_pairwise_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_meta_col(), local_metadata())
+    flog.info(msg = 'get_pairwise_res() starting...')
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
+    flog.info(msg = 'get_pairwise_res() end.')
     return(res)
   })
   

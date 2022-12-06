@@ -92,7 +92,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   
   get_meta_col <- reactive({
     req(input$Fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(length(input$Fact1) == 1){
       meta.col <- input$Fact1
     } else if(length(input$Fact1) > 1) {
@@ -107,7 +107,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   
   local_metadata <- reactive({
     req(input$Fact1, r$sdat())
-    metadata <- as(r$sdat(), "data.frame")
+    metadata <- r$sdat()
     if(! all(sapply(metadata[, input$Fact1], is.numeric))){
       metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Fact1, na.rm=TRUE)
       metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
@@ -136,9 +136,9 @@ mod_alpha_server <- function(input, output, session, r = r){
   
   
   observe({
-    req(r$phyloseq_filtered())
+    req(r$phyloseq_filtered(), r$var_list())
     shinyWidgets::updatePickerInput(session, "Fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = r$var_list())
   })
   
   

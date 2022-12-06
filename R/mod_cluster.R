@@ -89,7 +89,7 @@ mod_cluster_server <- function(input, output, session, r = r){
     observe({
       req(r$phyloseq_filtered_norm())
       updateSelectInput(session, "clust_fact1",
-                        choices = colnames(as(r$sdat(), "data.frame")))
+                        choices = r$var_list())
     })
 
     observe({
@@ -151,14 +151,14 @@ mod_cluster_server <- function(input, output, session, r = r){
       ct <- cutree(compute.clust(), k=compute.k())
       ct <- as.data.frame(ct)
       colnames(ct) <- c('clstr')
-      ct$fact <- as(r$sdat(), "data.frame")[rownames(ct),input$clust_fact1]
+      ct$fact <- r$sdat()[rownames(ct),input$clust_fact1]
       return(ct)
     })
 
     plot.dendro <- eventReactive(input$launch_clust,{
       dd <- as.dendrogram(compute.clust())
       # browser()
-      colours <- colourvalues::colour_values(as(r$sdat(), "data.frame")[labels(dd),input$clust_fact1], palette="viridis")
+      colours <- colourvalues::colour_values(r$sdat()[labels(dd),input$clust_fact1], palette="viridis")
       dd <- dendextend::color_labels(dd, col=colours)
       if(input$branchcolor){
         dd <- dendextend::color_branches(dd, col=colours)
@@ -169,7 +169,7 @@ mod_cluster_server <- function(input, output, session, r = r){
       # browser()
       par(mar = c(2,2,2,15))
       if(input$leaflabels){
-        labels(dd) <- as(r$sdat(), "data.frame")[labels(dd),input$clust_fact1]
+        labels(dd) <- r$sdat()[labels(dd),input$clust_fact1]
         plot(dd, horiz = TRUE)
       } else{
         plot(dd, leaflab="none", horiz = TRUE)
@@ -225,7 +225,7 @@ mod_cluster_server <- function(input, output, session, r = r){
       otable <- phyloseq::otu_table(sub.phy)
       data.com <- reshape2::melt(otable)
       #browser()
-      data.com$xlabel <- as.factor(as(r$sdat(), "data.frame")[as.character(data.com$Var2),input$clust_fact1])
+      data.com$xlabel <- as.factor(r$sdat()[as.character(data.com$Var2),input$clust_fact1])
       names(data.com) <- c("Tax", "Sample", "Abundance", "xlabel")
       # data.com$Tax = factor(data.com$Tax, levels = sort(unique(as.character(data.com$Tax))))
 
