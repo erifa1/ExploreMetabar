@@ -216,11 +216,11 @@ mod_beta_server <- function(input, output, session, r = r){
     }
     spe <- veganifyOTU(physeq())
     if(input$ordination == 'RDA'){
-      mod0 <- vegan::rda(spe ~ 1, data = env)
-      mod1 <- vegan::rda(spe ~ ., data = env)
+      mod0 <- vegan::rda(spe ~ 1, data = env, na.action = 'na.omit')
+      mod1 <- vegan::rda(spe ~ ., data = env, na.action = 'na.omit')
     } else if(input$ordination == 'CCA'){
-      mod0 <- vegan::cca(spe ~ 1, data = env)
-      mod1 <- vegan::cca(spe ~ ., data = env)
+      mod0 <- vegan::cca(spe ~ 1, data = env, na.action = 'na.omit')
+      mod1 <- vegan::cca(spe ~ ., data = env, na.action = 'na.omit')
     }
     sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE)
     return(sel)
@@ -464,15 +464,15 @@ mod_beta_server <- function(input, output, session, r = r){
     } else if(input$ordination == 'RDA'){
       env <- as(r$sdat(), 'data.frame')
       spe <- veganifyOTU(physeq())
-      res <- vegan::rda(as.formula(get_constr_formula()), data = env)
+      res <- vegan::rda(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else if(input$ordination == 'CCA'){
       env <- as(r$sdat(), 'data.frame')
       spe <- veganifyOTU(physeq())
-      res <- vegan::cca(as.formula(get_constr_formula()), data = env)
+      res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else{
       res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
     }
-    flog.info(msg = 'ord() end.')
+    message('ord() end.')
     return(res)
   })
 
@@ -518,7 +518,7 @@ mod_beta_server <- function(input, output, session, r = r){
     flog.info(msg = 'get_env_fit() starting...')
     env <- as(r$sdat(), 'data.frame')
     env <- env[, input$envfit_param, drop=F]
-    en <- vegan::envfit(ord(), env)
+    en <- vegan::envfit(ord(), env, na.rm = T)
     flog.info(msg = 'get_env_fit() end.')
     return(en)
   })
