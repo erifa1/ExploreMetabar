@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 1.1.0
+Version: 1.2.0
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
@@ -18,6 +18,7 @@ Imports:
     bslib,
     cluster,
     config,
+    datamods,
     DESeq2,
     dplyr,
     DT,

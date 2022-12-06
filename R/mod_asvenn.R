@@ -11,7 +11,7 @@ mod_asvenn_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      useShinyalert(),
+      #useShinyalert(),
       fluidRow(
         infoBox("",
                 "Select conditions to highlight shared taxa",
