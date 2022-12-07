@@ -300,7 +300,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   })
   
   
-  reacalpha <- eventReactive(input$launch_alpha, {
+  reacalpha <- reactive({
     req(input$metrics, get_meta_col(), boxtab())
     
     cat(file=stderr(),'Alpha tests...',"\n")

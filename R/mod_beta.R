@@ -198,7 +198,7 @@ mod_beta_server <- function(input, output, session, r = r){
     if(input$param_mode == 'picker'){
       shinyWidgets::pickerInput(inputId = ns('constr_picker'),
                                 label = 'Select terms to create a formula',
-                                choices = colnames(r$sdat()),
+                                choices = r$var_list(),
                                 multiple = TRUE
       )
     } else if(input$param_mode == 'ordiR2step'){
@@ -209,12 +209,13 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   get_ordiR2step <- reactive({
-    req(r$sdat(), physeq())
-    env <- as(r$sdat(), 'data.frame')
+    req(r$sdat(), local_physeq())
+    env <- r$sdat()
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
     }
-    spe <- veganifyOTU(physeq())
+    spe <- veganifyOTU(local_physeq())
+    spe <- vegan::decostand(spe, method = 'hell')
     if(input$ordination == 'RDA'){
       mod0 <- vegan::rda(spe ~ 1, data = env, na.action = 'na.omit')
       mod1 <- vegan::rda(spe ~ ., data = env, na.action = 'na.omit')
@@ -228,7 +229,6 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$constr_ordiR2step_out <- renderPrint({
     sel <- get_ordiR2step()
-    print(sel)
     print(sel$anova)
   })
   
@@ -254,7 +254,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   output$ui_taxa_rank <- renderUI({
-    req(input$ordination, physeq())
+    req(input$ordination, local_physeq())
     if(input$ordination %in% c('NMDS', 'PCOA')){
       tags$div(
         hr(style = "border-top: 1px solid #000000;"),
@@ -263,8 +263,8 @@ mod_beta_server <- function(input, output, session, r = r){
            selectInput(
              ns("rank_color"),
              label = "Select rank to color taxa points: ",
-             choices = rank_names(physeq()),
-             selected = rank_names(physeq())[length(rank_names(physeq()))]
+             choices = rank_names(local_physeq()),
+             selected = rank_names(local_physeq())[length(rank_names(local_physeq()))]
            )
         )
       )
@@ -412,7 +412,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
   output$ui_adonis_factor = renderUI({
     req(get_meta_col(), r$sdat())
-    facts = phyloseq::sample_variables(r$sdat())
+    facts = r$var_list()
     Fchoices = facts[facts != get_meta_col()]
   
     shinyWidgets::pickerInput(inputId = ns('adonis_factor'),
@@ -423,10 +423,11 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  physeq <- reactive({
+  local_physeq <- reactive({
     req(r$phyloseq_filtered(), r$phyloseq_filtered_norm(), input$beta_norm_bool, local_metadata())
     if(input$beta_norm_bool==0){
-      data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
+      data <- r$phyloseq_filtered()
+      # data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
     }
     if(input$beta_norm_bool==1){
       data <- r$phyloseq_filtered_norm()
@@ -437,21 +438,21 @@ mod_beta_server <- function(input, output, session, r = r){
 
   
   physeq_dist <- reactive({
-    req(input$metrics, physeq())
-    res <- phyloseq::distance(physeq(), method = input$metrics)
+    req(input$metrics, local_physeq())
+    res <- phyloseq::distance(local_physeq(), method = input$metrics)
     return(res)
   })
 
   
   ord <- reactive({
-    req(input$ordination, physeq())
-    flog.info(msg = 'ord() starting...')
+    req(input$ordination, local_physeq())
+    loggit::loggit('INFO', 'ord() starting...')
     if(input$ordination == 'NMDS'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
         )
       if(input$metrics %in% c('bray', 'jaccard', 'none')){
-        res <- vegan::metaMDS(veganifyOTU(physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+        res <- vegan::metaMDS(veganifyOTU(local_physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         res <- vegan::metaMDS(physeq_dist())
       }
@@ -459,20 +460,22 @@ mod_beta_server <- function(input, output, session, r = r){
       validate(
         need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For PCoA ordination only bray and jaccard distances allowed.')
       )
-      spe <- veganifyOTU(physeq())
+      spe <- veganifyOTU(local_physeq())
       res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
     } else if(input$ordination == 'RDA'){
-      env <- as(r$sdat(), 'data.frame')
-      spe <- veganifyOTU(physeq())
+      env <- r$sdat()
+      spe <- veganifyOTU(local_physeq())
+      spe <- vegan::decostand(spe, method = 'hell')
       res <- vegan::rda(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else if(input$ordination == 'CCA'){
-      env <- as(r$sdat(), 'data.frame')
-      spe <- veganifyOTU(physeq())
+      env <- r$sdat()
+      spe <- veganifyOTU(local_physeq())
+      spe <- vegan::decostand(spe, method = 'hell')
       res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else{
-      res <- phyloseq::ordinate(physeq= physeq(), distance = physeq_dist(), method= input$ordination)
+      res <- phyloseq::ordinate(physeq= local_physeq(), distance = physeq_dist(), method= input$ordination)
     }
-    message('ord() end.')
+    loggit::loggit('INFO', 'ord() end.')
     return(res)
   })
 
@@ -489,23 +492,23 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_species_coord <- reactive({
-    flog.info(msg = 'get_species_coord() starting...')
+    req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
+    loggit::loggit('INFO', 'get_species_coord() starting...')
     nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
-    
     if(r$rank_glom() == 'ASV'){
       nmds_coord <- nmds_coord %>% 
-                      inner_join(., tax_table(physeq()) %>% 
+                      inner_join(., tax_table(local_physeq()) %>% 
                                    as.data.frame() %>% 
                                    as_tibble(rownames="ASV") %>% 
                                    select(ASV, input$rank_color), by='ASV')
     } else{
       nmds_coord <- nmds_coord %>% 
-                      inner_join(., tax_table(physeq()) %>% 
+                      inner_join(., tax_table(local_physeq()) %>% 
                                    as.data.frame() %>% 
                                    as_tibble(rownames=r$rank_glom()) %>% 
                                    select(r$rank_glom(), input$rank_color), by=r$rank_glom())
     }
-    flog.info(msg = 'get_species_coord() end.')
+    loggit::loggit('INFO', 'get_species_coord() end.')
     return(nmds_coord)
   })
   
@@ -516,8 +519,10 @@ mod_beta_server <- function(input, output, session, r = r){
   
   get_env_fit <- eventReactive( input$launch_beta, {
     flog.info(msg = 'get_env_fit() starting...')
-    env <- as(r$sdat(), 'data.frame')
+    env <- r$sdat()
     env <- env[, input$envfit_param, drop=F]
+    data.split <- PCAmixdata::splitmix(env)
+    env[, data.split$col.quant] <- scale(env[, data.split$col.quant], center = T, scale = T)
     en <- vegan::envfit(ord(), env, na.rm = T)
     flog.info(msg = 'get_env_fit() end.')
     return(en)
@@ -542,7 +547,7 @@ mod_beta_server <- function(input, output, session, r = r){
       # browser()
       
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(physeq()))), shape=23)
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(local_physeq()))), shape=23)
       if(!isNumFactor()){
         p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
@@ -552,9 +557,9 @@ mod_beta_server <- function(input, output, session, r = r){
       species_coord <- get_species_coord()
       # browser()
       if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+        taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
       } else{
-        taxa <- tax_table(physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+        taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
       p <- p +
             geom_point(data = species_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
@@ -689,7 +694,7 @@ mod_beta_server <- function(input, output, session, r = r){
     flog.info(msg = 'get_adonis_res() starting...')
     dist <- physeq_dist()
     mdata <- local_metadata()
-    mdata$Depth <- sample_sums(physeq())
+    mdata$Depth <- sample_sums(local_physeq())
     # Filter NA value in metadata
     mdata <- mdata %>% filter(!is.na(get_meta_col()))
     res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)

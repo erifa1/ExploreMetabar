@@ -121,13 +121,13 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     req(input$Fact1, r$phyloseq_filtered())
     selectInput(ns("Cond1"),
       label = "Select Condition 1 to compare: ",
-      choices = unique(r$sdat()[,input$Fact1] %>% pull)
+      choices = unique(r$sdat()[,input$Fact1])
       )
   })
 
   output$cond2 = renderUI({
     req(input$Cond1, input$Fact1, r$phyloseq_filtered())
-    Conds <- unique(r$sdat()[,input$Fact1] %>% pull)
+    Conds <- unique(r$sdat()[,input$Fact1])
     choices2 <- Conds[Conds != input$Cond1]
     selectInput(ns("Cond2"),
                 label = "Select Condition 2 to compare: ",
