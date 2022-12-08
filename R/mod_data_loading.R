@@ -13,15 +13,18 @@
 #' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
+#' @import datamods
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      infoBox("",
-        HTML(paste("New interface to select your data.", br(), "You must validate each step by clicking each button, even if you did not make any modification.", br())),
-        icon = icon("info-circle"), fill=TRUE, width = 10
-      ),
+      fluidRow(infoBox("",
+        HTML(paste("You must validate each step by clicking each button, even if you did not make any modification.")),
+        icon = icon("info-circle"), fill=TRUE, width = 6
+      )),
+
+
       fluidRow(
         box(
           title = "Input phyloseq object", status = "warning", solidHeader = TRUE,
@@ -38,16 +41,43 @@ mod_data_loading_ui <- function(id){
           verbatimTextOutput(ns("phy_prev"))
         )
       ),
-      fluidRow(
-        box(
-          solidHeader = TRUE, status = "primary", title ="STEP 1: Select your samples", collapsible=TRUE, collapsed=FALSE, width=12,
-          fluidPage(
-            h3(icon("diagnoses"), "Use table filters to subset your dataset based on your metadata.")
+
+      fluidRow(box(title = "STEP 1: Metadata table",solidHeader = TRUE, status = "warning", width=12,
+
+        tabBox(width=12,
+
+          tabPanel("Metadata / Filters",
+            tags$h3(icon("diagnoses"), "Use filters to subset your dataset based on your metadata :"),
+
+              fluidRow(
+                column(
+                  width = 3,
+                  datamods::filter_data_ui(ns("filtering"), max_height = "500px")
+                ),
+                column(
+                  width = 9,
+                  # progressBar(
+                  #   id = ns("pbar"), value = 100,
+                  #   total = 100, display_pct = TRUE
+                  # ),
+                  DT::dataTableOutput(outputId = ns("metadata_table"))
+                )
+              )
+
+            ),
+          tabPanel("Update variables",
+            fluidRow(
+                column(
+                  width = 12,
+                  datamods::update_variables_ui(ns("vars"))
+                )
+              )
+            )
           ),
-          DT::dataTableOutput(ns("metadata_table")),
-          shinyBS::bsButton(inputId = ns('update_metadata'), label = "Update Sample", block = F, style = 'danger', type='action')
-        )
-      ),
+          actionButton(ns('update_metadata'), " Update Sample", icon("paper-plane"), 
+                  style="color: #fff; background-color: #D73925; border-color: #DB4836")
+        )),
+
       fluidRow(
         box(
           title = "STEP 2: Select Your Taxonomy Rank and filtering options", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
@@ -63,17 +93,35 @@ mod_data_loading_ui <- function(id){
           shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger', type='action')
         )
       ),
-      fluidRow(
-        box(
-          solidHeader = TRUE, status = "primary", title ="STEP 3: Select your taxa, preview abundances & representative sequences", collapsible=TRUE, collapsed=FALSE, width=12,
-          fluidPage(
-            h3(icon("diagnoses"), "Use table filters to subset your dataset based on your taxonomy.")
-          ),
-          DT::dataTableOutput(ns("taxonomy_table")),
-          shinyBS::bsButton(inputId = ns('subset_taxo'), label = "Update Taxonomy", block = F, style = 'danger', type='action')
-          # actionButton(ns('subset_taxo'), "Update Taxonomy", class='butt2')
-        )
-      ),
+
+      fluidRow(box(title = "STEP 3: Select your taxa, preview abundances & representative sequences",solidHeader = TRUE, status = "warning", width=12,
+
+        # tabBox(width=12,
+
+          # tabPanel("Metadata / Filters",
+            h3(icon("diagnoses"), "Use filters to subset your dataset based on your taxonomy."),
+
+              fluidRow(
+                column(
+                  width = 3,
+                  datamods::filter_data_ui(ns("filtering_taxo"), max_height = "500px")
+                ),
+                column(
+                  width = 9,
+                  # progressBar(
+                  #   id = ns("pbar"), value = 100,
+                  #   total = 100, display_pct = TRUE
+                  # ),
+                  DT::dataTableOutput(outputId = ns("table_taxoFILT"))
+                )
+              ),
+          # actionButton(inputId = ns('subset_taxo'), label = "Update Taxo"),
+          actionButton(ns('subset_taxo'), " Update Taxo", icon("paper-plane"), 
+                style="color: #fff; background-color: #D73925; border-color: #DB4836")
+        # )
+      )),
+
+
       fluidRow(
         box(
           title = 'STEP 4: Normalization options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
@@ -121,7 +169,6 @@ mod_data_loading_ui <- function(id){
 
 
 merge_table <- function(rank, table){
-  # print("Merge tables")
   FNGdata <- table
   rnames <- phyloseq::rank_names(FNGdata)
   if(rank=="ASV"){
@@ -130,7 +177,6 @@ merge_table <- function(rank, table){
   else{
     rank1 = rank
   }
-  # print("ttable")
   ttable <- FNGdata %>%
     tax_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
@@ -143,21 +189,20 @@ merge_table <- function(rank, table){
     otu_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
-  # print("otable")
+
 
   rawtaxasum1 <-  table %>%
     taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
   names(rawtaxasum1)[2] <- "RawAbundanceSum"
-  # print("taxsum")
+
   joinGlom <-
     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
     mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
     dplyr::left_join(otable, by = "rowname")
 
   if(rank=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
-    # print("add sequence to dataframe")
     showNotification("Sequences added to dataframe.", type="message", duration = 5)
     refseq1 <- FNGdata %>%
       refseq %>%
@@ -171,7 +216,6 @@ merge_table <- function(rank, table){
   }else{
     showNotification("No refseq in object.", type="error", duration = 3)
     dplyr::rename(joinGlom, asvname = rowname)
-    # print(str(as.data.frame(as.matrix(ttable))))
     FTAB = as.data.frame(joinGlom)
   }
   return(FTAB)
@@ -188,6 +232,60 @@ mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
+  ###Filtering metadata
+  res_filter <- datamods::filter_data_server(
+    id = "filtering",
+    # data = data,
+    data = reactive({
+      flog.info("FILTER metadata")
+      req(sdat_initial())
+      if(is.null(updated_data())){
+        sdat_initial()
+      }else{
+      req(updated_data())
+        updated_data()
+      }   
+    }),
+    name = reactive("feature_table"),
+    vars = reactive(NULL),
+    widget_num = "slider",
+    widget_date = "slider",
+    label_na = "Missing"
+  )
+
+  
+  output$metadata_table <- DT::renderDT({
+    res_filter$filtered()
+  }, options = list(pageLength = 10, scrollX = TRUE))
+
+  
+  ## update tab
+  updated_data <- datamods::update_variables_server(
+    id = "vars",
+    data = reactive({
+      req(sdat_initial())
+      sdat_initial()
+    })
+  )
+
+
+  dataModal <- function(failed = FALSE){
+    modalDialog(
+      column(
+        width = 12,
+        datamods::update_variables_ui(ns("vars"))
+      ),
+      easyClose = TRUE,
+      footer = modalButton("Close")
+    )
+  }
+
+  # Show modal when button is clicked.
+  observeEvent(input$show, {
+    showModal(dataModal())
+  })
+
+
   phyloseq_data <- reactive({
     cat(file=stderr(), 'phyloseq_data fun', "\n")
     ne <- new.env()
@@ -203,10 +301,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
     fun = glue::glue("r_values$phyobj_initial <- ne${names(obj)}")
     eval(parse(text = fun))
     r_values$phyobj_tmp <- r_values$phyobj_initial
-    # fun = glue::glue("return(ne${names(obj)})")
-    # eval(parse(text = fun))
 
-    r_values$phyobj_initial
+    return(r_values$phyobj_initial)
   })
 
   output$phy_prev <- renderPrint({
@@ -215,31 +311,28 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyloseq_data()
   })
 
-  sdat <- reactive({
-    as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
+  
+  
+  sdat_initial <- reactive({
+    req(r_values$phyobj_initial)
+    sdat <- sample_data(r_values$phyobj_initial)
+    if( !"sample.id" %in% colnames(sdat) ){
+      sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(r_values$phyobj_initial), .before = 1)
+    }
+    return(sdat)
   })
 
-  rowCallback <- c(
-    "function(row, data){",
-    "  for(var i=0; i<data.length; i++){",
-    "    if(data[i] === null){",
-    "      $('td:eq('+i+')', row).html('NA')",
-    "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
-    "    }",
-    "  }",
-    "}"
-  )
-
-  output$metadata_table <- DT::renderDataTable({
-    sdat()
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE, rowCallback = DT::JS(rowCallback)), server=TRUE)
 
   subset_samples <- reactive({
-    req(r_values$phyobj_initial)
+    req(r_values$phyobj_initial, res_filter$filtered)
+    filt_sdata <- res_filter$filtered()
+
     cat(file=stderr(), 'subset samples...', "\n")
     cat(file=stderr(), 'initial number of samples before',phyloseq::nsamples(r_values$phyobj_initial), "\n")
-    physeq <- phyloseq::prune_samples(phyloseq::sample_names(r_values$phyobj_initial)[input$metadata_table_rows_all],r_values$phyobj_initial)
+
+    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
+
     cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
@@ -265,6 +358,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'success')
   })
 
+  
   observeEvent(input$launch_all, {
     subset_samples()
     glom_taxo0()
@@ -287,21 +381,23 @@ mod_data_loading_server <- function(input, output, session, r=r){
                       selected = "ASV")
   }) #updateSelectInput
 
+  
   observe({
     cat(file=stderr(), 'updating minAb numericInput...', "\n")
     updateNumericRangeInput(session, 'minAb',"Minimum taxa overall raw abundance:", value=c(1,max(taxa_sums(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
+  
   observe({
     cat(file=stderr(), 'updating minPrev numericInput...', "\n")
     updateNumericRangeInput(session, 'minPrev',"Minimum taxa prevalence in samples:", value=c(1,max(nsamples(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
+  
   glom_taxo0 <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
     cat(file=stderr(), 'filter_taxonomy...', "\n")
     tmp <- r_values$phyobj_sub_samples
-    # print(rank_names(tmp))
     withProgress({
       if(input$rank_glom != 'ASV'){
         if(nsamples(tmp)>1000){
@@ -309,7 +405,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
           tmp <- fast_tax_glom(tmp, input$rank_glom)
         }else{
           tmp <- tax_glom(tmp, input$rank_glom)
-          print(tmp)
+
         }
         FGnames <- tax_table(tmp)[,input$rank_glom]
         nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
@@ -320,16 +416,16 @@ mod_data_loading_server <- function(input, output, session, r=r){
     cat(file=stderr(), 'done.', "\n")
   })
 
+  
   glom_taxo <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
     withProgress({
       tmp <- r_values$phyobj_taxglom0
-      print(tmp)
+
       tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
-      print(max(taxa_sums(tmp)))
-      print(input$minAb[2])
+
       tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
-      print(tmp)
+
       prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
       taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
       tmp <- prune_taxa(taxToKeep1, tmp)
@@ -338,21 +434,24 @@ mod_data_loading_server <- function(input, output, session, r=r){
       }
 
       cat(file=stderr(), 'glom object', "\n")
-      print(tmp)
+
       r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
       cat(file=stderr(), 'filter_taxonomy done.', "\n")
     },message = "Update taxonomy, please wait...")
   })
 
+  
   observeEvent(input$update_taxo0, {
     glom_taxo0()
   },ignoreInit = TRUE)
 
+  
   observeEvent(input$update_taxo, {
     glom_taxo()
   },ignoreInit = TRUE)
 
+  
   render_taxonomy_table <- reactive({
     withProgress({
 
@@ -391,7 +490,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
       dplyr::left_join(otable, by = "rowname")
 
       if(input$rank_glom=="ASV" & !is.null(refseq(phyloseq_obj, errorIfNULL=FALSE)) ){
-        # print("add sequence to dataframe")
         showNotification("Sequences added to dataframe.", type="message", duration = 5)
         refseq1 <- phyloseq_obj %>%
         refseq %>%
@@ -425,9 +523,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   subset_taxa <- reactive({
     withProgress({
-      req(r_values$phyobj_taxglom)
+      req(r_values$phyobj_taxglom, res_filter_taxo$filtered)
+      filttax <- res_filter_taxo$filtered()
+      # tt <- render_taxonomy_table()
+      # browser()
       cat(file=stderr(), 'subset_taxa fun', "\n")
-      selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
+      selected <- filttax[,1]
+
+      # selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
       phy_obj <- prune_taxa(selected, r_values$phyobj_taxglom)
       r_values$phyobj_final <- phy_obj
       r_values$phyobj_tmp <- phy_obj
@@ -442,6 +545,28 @@ mod_data_loading_server <- function(input, output, session, r=r){
     cat(file=stderr(), 'button subset_taxo', "\n")
     subset_taxa()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
+
+  
+  ## Filter taxo 
+  res_filter_taxo <- filter_data_server(
+    id = "filtering_taxo",
+    # data = data,
+    data = reactive({
+      req(render_taxonomy_table())
+      render_taxonomy_table()   
+    }),
+    name = reactive("tax_table"),
+    vars = reactive(NULL),
+    widget_num = "slider",
+    widget_date = "slider",
+    label_na = "Missing"
+  )
+
+  
+  output$table_taxoFILT <- DT::renderDT({
+    res_filter_taxo$filtered()
+  }, options = list(pageLength = 10, scrollX = TRUE))
+
 
   normalize <- reactive({
     req(r_values$phyobj_final, input$norm_method)
@@ -472,9 +597,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
       },message = "VST normalization, please wait...")
     }
     r_values$phyobj_norm <- FNGdata
-    # print(r_values$phyobj_norm)
   })
 
+  
   observeEvent(input$norm, {
     cat(file=stderr(), 'button normalize', "\n")
     normalize()

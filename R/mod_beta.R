@@ -116,6 +116,7 @@ veganifyOTU <- function(physeq){
 mod_beta_server <- function(input, output, session, r = r){
   ns <- session$ns
 
+  ### local metadata and phyloseq object functions
   
   isNumFactor <- reactive({
     req(get_meta_col(), local_metadata())
@@ -152,7 +153,9 @@ mod_beta_server <- function(input, output, session, r = r){
     return(metadata)
   })
   
+  ### dynamic UI rendering functions
   
+  # distance based radioButton
   output$ui_metrics <- renderUI({
     req(input$ordi_type)
     if(input$ordi_type == 'Distance-based'){
@@ -163,21 +166,7 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
-  
-  
-  output$ui_envfit_switch <- renderUI({
-    req(input$ordination)
-    if(input$ordination %in% c('NMDS', 'PCOA')){
-      materialSwitch(
-        ns('envfit_switch'),
-        label = 'Try envfit',
-        value = FALSE,
-        status = 'primary'
-      )
-    }
-  })
-  
-  
+  # constrain based radioButton
   output$ui_constrain <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
@@ -193,6 +182,22 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
+  # envfit switch. to keep ?
+  output$ui_envfit_switch <- renderUI({
+    req(input$ordination)
+    if(input$ordination %in% c('NMDS', 'PCOA')){
+      materialSwitch(
+        ns('envfit_switch'),
+        label = 'Try envfit',
+        value = FALSE,
+        status = 'primary'
+      )
+    }
+  })
+  
+  
+  ## constrained based box for model parameters
   output$constr_select <- renderUI({
     req(input$param_mode)
     if(input$param_mode == 'picker'){
@@ -208,6 +213,8 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
+  ## ordiR2step fonction
   get_ordiR2step <- reactive({
     req(r$sdat(), local_physeq())
     env <- r$sdat()
