@@ -53,24 +53,6 @@ mod_beta_ui <- function(id){
               )
             ),
             fluidRow(
-              shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
-                           choices =
-                             list("samples", "taxa", "env"),
-                           selected = c("samples")
-              )
-            ),
-            fluidRow(
-              uiOutput(ns('ui_beta_factor')),
-              uiOutput(ns('ui_beta_fact2'))
-            ),
-            fluidRow(
-              uiOutput(ns('ui_taxa_rank'))
-            ),
-            fluidRow(
-              uiOutput(ns('ui_envfit_switch'))
-              
-            ),
-            fluidRow(
               actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
                            style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
             )
@@ -80,6 +62,18 @@ mod_beta_ui <- function(id){
         uiOutput(ns('ui_ordistep')),
         uiOutput(ns('ui_envfit_box')),
         uiOutput(ns('ui_envfit_box_res'))
+      ),
+      fluidRow(
+        box(
+          shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
+                                            choices =
+                                              list("samples", "taxa", "env"),
+                                            selected = c("samples")
+          ),
+          uiOutput(ns('ui_beta_factor')),
+          uiOutput(ns('ui_taxa_rank')),
+          title = "Plot options", width = 12
+        )
       ),
       fluidRow(
         box(
@@ -182,20 +176,7 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
-  
-  # envfit switch. to keep ?
-  output$ui_envfit_switch <- renderUI({
-    req(input$ordination)
-    if(input$ordination %in% c('NMDS', 'PCOA')){
-      materialSwitch(
-        ns('envfit_switch'),
-        label = 'Try envfit',
-        value = FALSE,
-        status = 'primary'
-      )
-    }
-  })
-  
+
   
   ## constrained based box for model parameters
   output$constr_select <- renderUI({
@@ -263,17 +244,11 @@ mod_beta_server <- function(input, output, session, r = r){
   output$ui_taxa_rank <- renderUI({
     req(input$ordination, local_physeq())
     if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
-      tags$div(
-        hr(style = "border-top: 1px solid #000000;"),
-        h4('Taxa ordination options: '),
-        column(4,
-           selectInput(
-             ns("rank_color"),
-             label = "Select rank to color taxa points: ",
-             choices = rank_names(local_physeq()),
-             selected = rank_names(local_physeq())[length(rank_names(local_physeq()))]
-           )
-        )
+      selectInput(
+       ns("rank_color"),
+       label = "Select rank to color taxa points: ",
+       choices = rank_names(local_physeq()),
+       selected = rank_names(local_physeq())[length(rank_names(local_physeq()))]
       )
     }
   })
@@ -309,33 +284,58 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$ui_beta_factor <- renderUI({
     req(r$var_list())
-    tags$div(
-      hr(style = "border-top: 1px solid #000000;"),
-      h4('Sample ordination options: '),
-      column(4,
-            shinyWidgets::pickerInput(
-               ns("beta_factor"),
-               label = "Select factor to test and color samples: ",
-               choices = r$var_list(),
-               multiple = TRUE
-             )
-      )
-    )
+    shinyWidgets::pickerInput(
+       ns("beta_factor"),
+       label = "Select factor to color samples and ellipses",
+       choices = r$var_list(),
+       selected = r$var_list()[2],
+       multiple = TRUE,
+       options = pickerOptions(
+         actionsBox = TRUE,
+         liveSearch = TRUE,
+         showContent = FALSE
+       ),
+       choicesOpt = list(
+         content = unlist(lapply(
+           X = r$var_list(),
+           FUN = function(x) {
+             htmltools::doRenderTags(
+              tags$div(
+                splitLayout(cellWidths = 200,
+                  tags$div(
+                    style = htmltools::css(fontWeight = "bold"),
+                    x
+                  ),
+                  tags$div(
+                    style = htmltools::css(color = 'grey'),
+                    class(r$sdat()[,x])
+                  )
+                )
+              )
+            )
+           }
+         ))
+       )
+     )
   })
 
   
   output$ui_envfit_box <- renderUI({
-    req(input$ordination, input$envfit_switch, local_metadata())
-    if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
+    req(input$ordination, local_metadata())
+    if(input$ordination %in% c('NMDS', 'PCOA')){
       box(
-        multiInput(
+        shinyWidgets::pickerInput(
           ns('envfit_param'),
-          label = "Select variables: ",
-          choices = NULL,
-          choiceValues = colnames(local_metadata()),
-          choiceNames = colnames(local_metadata())
+          label = "Select environment variables",
+          choices = colnames(local_metadata())
         ),
-        numericInput(ns('envfit_pval'), 'p-value', value = 1, min = 0, max = 1, step = 0.01),
+        numericInput(
+          ns('envfit_pval'), 
+          'p-value', value = 1,
+          min = 0,
+          max = 1,
+          step = 0.01
+        ),
         title = 'VEGAN envfit', status = 'primary'
       )
     }
@@ -343,8 +343,8 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   output$ui_envfit_box_res <- renderUI({
-    req(input$ordination, input$envfit_switch)
-    if(input$ordination %in% c('NMDS', 'PCOA') && input$envfit_switch){
+    req(input$ordination)
+    if(input$ordination %in% c('NMDS', 'PCOA')){
       box(
         verbatimTextOutput(
           ns('envfit_res')
@@ -464,7 +464,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   
-  ord <- reactive({
+  ord <- eventReactive(input$launch_beta, {
     req(input$ordination, local_physeq())
     flog.info('ord() starting...')
     if(input$ordination == 'NMDS'){
@@ -567,6 +567,57 @@ mod_beta_server <- function(input, output, session, r = r){
     return(axes)
   })
   
+  get_ggplot <- reactive({
+    p <- ggplot2::ggplot()
+    return(p)
+  })
+  
+  
+  get_sample_plot <- reactive({
+    flog.info('get_sample_plot() starting...')
+    p <- get_ggplot()
+    p <- p + geom_point(data = get_sites_coord(), mapping = aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(local_physeq()))), shape=23)
+    if(!isNumFactor()){
+      p <- p + stat_ellipse(data = get_sites_coord(), mapping = aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
+    }
+    flog.info('get_sample_plot() end.')
+    return(p)
+  })
+  
+  
+  get_taxa_plot <- reactive({
+    flog.info('get_taxa_plot() starting...')
+    if('samples' %in% input$plot_type){
+      p <- get_sample_plot()
+    } else {
+      p <- get_ggplot()
+    }
+    
+    flog.info('base_plot() plotting taxa...')
+    if(r$rank_glom() == 'ASV'){
+      taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+    } else{
+      taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+    }
+    p <- p +
+      geom_point(data = get_species_coord(), aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), color=.data[[input$rank_color]], taxa = taxa))
+    
+    return(p)
+    flog.info('get_taxa_plot() end.')
+  })
+  
+  get_plot <- reactive({
+    flog.info('get_plot() starting...')
+    if('samples' %in% input$plot_type){
+      p <- get_sample_plot()
+    }
+    if ('taxa' %in% input$plot_type){
+      p <- get_taxa_plot()
+    }
+    flog.info('get_plot() end.')
+    return(p)
+  })
+  
   base_plot <- reactive({
     flog.info('base_plot() starting...')
     p <- ggplot2::ggplot()
@@ -610,12 +661,8 @@ mod_beta_server <- function(input, output, session, r = r){
             geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
                       label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
         }
-      }
-      
-      if(input$envfit_switch){
-        
+      } else if(input$ordination %in% c('PCOA', 'NMDS')){
         en <- get_env_fit()
-        
         if(!is.null(en$vectors)){
           en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
           p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
@@ -630,7 +677,6 @@ mod_beta_server <- function(input, output, session, r = r){
             geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
                       label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
         }
-        
       }
     }
     
@@ -654,9 +700,10 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  beta_plot <- eventReactive(input$launch_beta, {
+  beta_plot <- reactive({
     withProgress({
       p <- base_plot()$plot
+      # p <- get_plot()
       # p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
       # p <- p + geom_point() + theme_bw()
       # browser()
