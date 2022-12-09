@@ -200,6 +200,7 @@ mod_beta_server <- function(input, output, session, r = r){
   ## ordiR2step fonction
   get_ordiR2step <- reactive({
     req(r$sdat(), local_physeq())
+    flog.info('get_ordiR2step() starting...')
     env <- r$sdat()
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
@@ -222,6 +223,7 @@ mod_beta_server <- function(input, output, session, r = r){
       eval(parse(text=fun))
     }
     sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE, trace = FALSE)
+    flog.info('get_ordiR2step() end.')
     return(sel)
   })
   
@@ -236,7 +238,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_constr_formula <- reactive({
-    req(input$param_mode, get_ordiR2step())
+    req(input$param_mode)
     if(input$param_mode == 'picker'){
       if(length(input$constr_picker) == 0){
         f <- 'spe ~ 1'
@@ -618,7 +620,7 @@ mod_beta_server <- function(input, output, session, r = r){
       flog.info('base_plot() plotting samples...')
       sites_coord <- get_sites_coord()
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(local_physeq()))), shape=23)
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23)
       if(!isNumFactor()){
         p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
@@ -641,6 +643,7 @@ mod_beta_server <- function(input, output, session, r = r){
         scr <- vegan::scores(ord())
         if(!is.null(scr$biplot)){
           en_coord_cont <- as.data.frame(scr$biplot)
+          en_coord_cont <- en_coord_cont[rownames(en_coord_cont) %in% colnames(local_metadata()),]
           p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
                                 data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
             geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
@@ -770,7 +773,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_pairwise_res <- eventReactive(input$launch_beta, {
+  get_pairwise_res <- eventReactive(input$launch_beta | input$update_test_btn, {
     req(physeq_dist(), get_meta_col(), local_metadata())
     flog.info(msg = 'get_pairwise_res() starting...')
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
@@ -793,8 +796,8 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
 
-  dfdisper <- eventReactive(input$launch_beta,{
-    cat(file=stderr(),'dfdisper ...',"\n")
+  dfdisper <- eventReactive(input$launch_beta | input$update_test_btn,{
+    flog.info('dfdisper() starting...',"\n")
     
     df1 = cbind.data.frame(distances = get_dispersion_res()$distances, group = get_dispersion_res()$group)
 
@@ -802,8 +805,7 @@ mod_beta_server <- function(input, output, session, r = r){
       print("ORDER factor")
       df1$group = factor( df1$group, levels = gtools::mixedsort(levels(df1$group)) ) 
     }
-    cat(file=stderr(),'Done ...',"\n")
-    
+    flog.info('dfdisper() end.',"\n")
     return(df1)
   })
 
