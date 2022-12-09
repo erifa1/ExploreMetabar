@@ -105,6 +105,8 @@ veganifyOTU <- function(physeq){
 #' @importFrom plotly ggplotly
 #' @importFrom DT renderDataTable
 #' @importFrom permute how
+#' @import htmltools
+#' @import formula.tools
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){
@@ -210,8 +212,16 @@ mod_beta_server <- function(input, output, session, r = r){
     } else if(input$ordination == 'CCA'){
       mod0 <- vegan::cca(spe ~ 1, data = env, na.action = 'na.omit')
       mod1 <- vegan::cca(spe ~ ., data = env, na.action = 'na.omit')
+    } else if(input$ordination == 'dbRDA'){
+      validate(
+        need(input$metrics %in% c('bray', 'jaccard'), message = 'ordiR2step works only with bray and jaccard distances.')
+      )
+      fun <- glue::glue('mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = "{input$metrics}")')
+      eval(parse(text=fun))
+      fun <- glue::glue('mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = "{input$metrics}")')
+      eval(parse(text=fun))
     }
-    sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE)
+    sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE, trace = FALSE)
     return(sel)
   })
   
@@ -226,7 +236,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   get_constr_formula <- reactive({
-    req(input$param_mode)
+    req(input$param_mode, get_ordiR2step())
     if(input$param_mode == 'picker'){
       if(length(input$constr_picker) == 0){
         f <- 'spe ~ 1'
@@ -234,7 +244,7 @@ mod_beta_server <- function(input, output, session, r = r){
         f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
       }
     } else if(input$param_mode == 'ordiR2step'){
-      f <- formula(get_ordiR2step())
+      f <- as.character(formula(get_ordiR2step()))
     } else if(input$param_mode == 'manual'){
       f <- input$constr_manual_formula
     }
@@ -324,14 +334,43 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination, local_metadata())
     if(input$ordination %in% c('NMDS', 'PCOA')){
       box(
+        htmltools::p('The envfit function fits environmental vectors or factors onto an ordination.'),
         shinyWidgets::pickerInput(
-          ns('envfit_param'),
-          label = "Select environment variables",
-          choices = colnames(local_metadata())
+          ns("envfit_param"),
+          label = "Select factor to color samples and ellipses",
+          choices = colnames(local_metadata()),
+          # selected = colnames(local_metadata())[2],
+          multiple = TRUE,
+          options = pickerOptions(
+            actionsBox = TRUE,
+            liveSearch = TRUE,
+            showContent = FALSE
+          ),
+          choicesOpt = list(
+            content = unlist(lapply(
+              X = colnames(local_metadata()),
+              FUN = function(x) {
+                htmltools::doRenderTags(
+                  tags$div(
+                    splitLayout(cellWidths = 200,
+                                tags$div(
+                                  style = htmltools::css(fontWeight = "bold"),
+                                  x
+                                ),
+                                tags$div(
+                                  style = htmltools::css(color = 'grey'),
+                                  class(local_metadata()[,x])
+                                )
+                    )
+                  )
+                )
+              }
+            ))
+          )
         ),
         numericInput(
           ns('envfit_pval'), 
-          'p-value', value = 1,
+          'p-value threshold to be plotted', value = 1,
           min = 0,
           max = 1,
           step = 0.01
@@ -348,7 +387,8 @@ mod_beta_server <- function(input, output, session, r = r){
       box(
         verbatimTextOutput(
           ns('envfit_res')
-        )
+        ),
+        title = 'envfit results'
       )
     }
   })
@@ -405,6 +445,7 @@ mod_beta_server <- function(input, output, session, r = r){
     if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
       box(
         title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+        htmltools::p(paste0('Permanova is done on the dissimilarity matrix computed with the selected index.', ' (', input$metrics, ')')),
         uiOutput(ns("ui_adonis_factor")),
         actionButton(ns("update_test_btn"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         h3('ADONIS formula:'),
@@ -455,11 +496,11 @@ mod_beta_server <- function(input, output, session, r = r){
   
   get_env_scaled <- reactive({
     req(r$sdat())
-    flog.info('get_env_scaled() starting...')
-    env <- r$sdat()
+    # flog.info('get_env_scaled() starting...')
+    env <- local_metadata()
     data.split <- PCAmixdata::splitmix(env)
     env[,data.split$col.quant] <- scale(env[,data.split$col.quant], center = T, scale = T)
-    flog.info('get_env_scaled() end.')
+    # flog.info('get_env_scaled() end.')
     return(env)
   })
 
@@ -474,7 +515,7 @@ mod_beta_server <- function(input, output, session, r = r){
       if(input$metrics %in% c('bray', 'jaccard', 'none')){
         res <- vegan::metaMDS(veganifyOTU(local_physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
-        res <- vegan::metaMDS(physeq_dist())
+        res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE)
       }
     } else if(input$ordination == 'PCOA'){
       validate(
@@ -521,7 +562,7 @@ mod_beta_server <- function(input, output, session, r = r){
   get_species_coord <- reactive({
     req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
     flog.info('get_species_coord() starting...')
-    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', scaling = 2) %>% as_tibble(rownames=r$rank_glom())
     if(r$rank_glom() == 'ASV'){
       nmds_coord <- nmds_coord %>% 
                       inner_join(., tax_table(local_physeq()) %>% 
@@ -545,11 +586,11 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   get_env_fit <- eventReactive( input$launch_beta, {
-    flog.info(msg = 'get_env_fit() starting...')
+    # flog.info(msg = 'get_env_fit() starting...')
     env <- get_env_scaled()
     env <- env[, input$envfit_param, drop=F]
     en <- vegan::envfit(ord(), env, na.rm = T)
-    flog.info(msg = 'get_env_fit() end.')
+    # flog.info(msg = 'get_env_fit() end.')
     return(en)
   })
   
@@ -567,58 +608,9 @@ mod_beta_server <- function(input, output, session, r = r){
     return(axes)
   })
   
-  get_ggplot <- reactive({
-    p <- ggplot2::ggplot()
-    return(p)
-  })
-  
-  
-  get_sample_plot <- reactive({
-    flog.info('get_sample_plot() starting...')
-    p <- get_ggplot()
-    p <- p + geom_point(data = get_sites_coord(), mapping = aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',phyloseq::sample_names(local_physeq()))), shape=23)
-    if(!isNumFactor()){
-      p <- p + stat_ellipse(data = get_sites_coord(), mapping = aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
-    }
-    flog.info('get_sample_plot() end.')
-    return(p)
-  })
-  
-  
-  get_taxa_plot <- reactive({
-    flog.info('get_taxa_plot() starting...')
-    if('samples' %in% input$plot_type){
-      p <- get_sample_plot()
-    } else {
-      p <- get_ggplot()
-    }
-    
-    flog.info('base_plot() plotting taxa...')
-    if(r$rank_glom() == 'ASV'){
-      taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-    } else{
-      taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-    }
-    p <- p +
-      geom_point(data = get_species_coord(), aes(x=!!sym(get_axis_names()[1]), y=!!sym(get_axis_names()[2]), color=.data[[input$rank_color]], taxa = taxa))
-    
-    return(p)
-    flog.info('get_taxa_plot() end.')
-  })
-  
-  get_plot <- reactive({
-    flog.info('get_plot() starting...')
-    if('samples' %in% input$plot_type){
-      p <- get_sample_plot()
-    }
-    if ('taxa' %in% input$plot_type){
-      p <- get_taxa_plot()
-    }
-    flog.info('get_plot() end.')
-    return(p)
-  })
-  
+
   base_plot <- reactive({
+    req(ord())
     flog.info('base_plot() starting...')
     p <- ggplot2::ggplot()
     axes <- get_axis_names()
@@ -764,12 +756,12 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_adonis_res <- eventReactive(input$launch_beta  | input$update_test_btn, {
-    req(physeq_dist(), get_formula())
+  get_adonis_res <- eventReactive(input$launch_beta | input$update_test_btn, {
+    req(physeq_dist(), get_formula(), ord())
     flog.info(msg = 'get_adonis_res() starting...')
     dist <- physeq_dist()
     mdata <- local_metadata()
-    mdata$Depth <- sample_sums(local_physeq())
+    mdata$Depth <- sample_sums(r$phyloseq_filtered())
     # Filter NA value in metadata
     mdata <- mdata %>% filter(!is.na(get_meta_col()))
     res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
