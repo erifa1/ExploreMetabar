@@ -327,13 +327,12 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(r_values$phyobj_initial, res_filter$filtered)
     filt_sdata <- res_filter$filtered()
 
-    cat(file=stderr(), 'subset samples...', "\n")
-    cat(file=stderr(), 'initial number of samples before',phyloseq::nsamples(r_values$phyobj_initial), "\n")
-
-    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
+    flog.info('subset samples() starting...')
+    flog.info(paste0('initial number of samples before ', phyloseq::nsamples(r_values$phyobj_initial)))
+    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id), r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
-    cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
+    flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
   })
@@ -548,7 +547,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   
   ## Filter taxo 
-  res_filter_taxo <- filter_data_server(
+  res_filter_taxo <- datamods::filter_data_server(
     id = "filtering_taxo",
     # data = data,
     data = reactive({
@@ -556,7 +555,13 @@ mod_data_loading_server <- function(input, output, session, r=r){
       render_taxonomy_table()   
     }),
     name = reactive("tax_table"),
-    vars = reactive(NULL),
+    vars = reactive({
+      req(render_taxonomy_table())
+      s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
+      col_names <- colnames(render_taxonomy_table())
+      filt <- dplyr::setdiff(col_names, s_names)
+      return(filt)
+    }),
     widget_num = "slider",
     widget_date = "slider",
     label_na = "Missing"
