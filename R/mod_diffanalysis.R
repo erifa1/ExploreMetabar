@@ -429,7 +429,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
       withProgress({
       req(input$Alpha1, input$Cond1, input$Cond2, input$Fact1)
-      print("merge")
+        flog.info("merge")
       # req(wilcoxDA(), mtcoderDA(), deseqDA(), mgSeqDA(), input$Alpha1)
 
         # wTab = wilcoxDA()$res
@@ -440,8 +440,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         if(all(is.na(mtList))){
           mtList <- NULL
         }
-        print("mtList")
-        print(head(mtList))
+        flog.info("mtList")
+        # print(head(mtList))
 
         deTab = deseqDA()
         deTab = deTab[!is.na(deTab$padj),]
@@ -462,14 +462,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         ListAllOtu = unique(unlist(TF))
 
         #Construction de la table
-        print('Building table...')
+        flog.info('Building table...')
         comp1 = paste(input$Cond1, '_vs_' , input$Cond2,sep='')
         col_comp = rep(comp1, length(ListAllOtu))
         TABf = cbind.data.frame(ListAllOtu, col_comp)
 
 
-        # Test si chaque ASV est diff dans les méthdes.
-        print('Check methods ...')
+        # Test si chaque ASV est diff dans les methdes.
+        flog.info('Check methods ...')
         for (j in 1:length(TF)){
           TABtest = TF[[j]]
           # TABtest=gsub("\\[|\\]", "", TF[[j]]) # cherche les ASVids
@@ -493,7 +493,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         # input$Cond1="Feces"
         # input$Cond2="Soil"
 
-        print('Calculating mean relative abundance...')
+        flog.info('Calculating mean relative abundance...')
         data = r$phyloseq_filtered()
         normf = function(x){ x/sum(x) }
         data.norm <- transform_sample_counts(data, normf)
@@ -507,14 +507,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
           seqs <- refseq(data.norm)
         }
 
-        print("mean1")
+        flog.info("mean1")
         Gtab <- cbind(as.data.frame(ssample), t(otableNORM))
         MeanRelAbcond1 = NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond1,i], na.rm=TRUE)
           MeanRelAbcond1=c(MeanRelAbcond1,tt)
         }
-        print("mean2")
+        flog.info("mean2")
         MeanRelAbcond2=NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond2,i], na.rm=TRUE)
@@ -523,7 +523,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         TABfbak <- TABf <- cbind(TABf, MeanRelAbcond1, MeanRelAbcond2)
 
         #Adjust table
-        print('Adjusting table...')
+        flog.info('Adjusting table...')
         TABf <- TABf[!is.na(TABf$DESeqLFC),]
         TABf$Condition = rep(NA, nrow(TABf))
         TABf[TABf$DESeqLFC>0, "Condition"] = as.character(input$Cond1)
@@ -531,15 +531,11 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         TABf$Condition = factor(TABf$Condition,
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
-        print("Adding taxonomy and sequences...")
-        # Debug
-        # LL = list()
-        # LL$TABf = TABf; LL$ttax =ttax[as.character(TABf[,1]),] ;  LL$seq = seqs[as.character(TABf[,1])]
-        # save(LL, file = "~/Téléchargements/debug_explore.rdata")
+        flog.info("Adding taxonomy and sequences...")
 
         TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),]@.Data)
         if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, sequences = seqs[as.character(TABf[,1])])}
-        print("done")
+        flog.info("done")
 
 
         LL = list()

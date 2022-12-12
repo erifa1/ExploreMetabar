@@ -25,6 +25,7 @@ Imports:
     DT,
     forcats,
     formula.tools,
+    formulaic,
     futile.logger,
     ggplot2,
     ggpolypath,

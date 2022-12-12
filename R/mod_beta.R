@@ -178,7 +178,7 @@ mod_beta_server <- function(input, output, session, r = r){
     if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
       box(title = 'Model parameters',
           radioButtons(inputId = ns('param_mode'),
-                       label = 'méthode to select parameters',
+                       label = 'methode to select parameters',
                        choices = c('picker', 'ordiR2step', 'manual')),
           uiOutput(ns('constr_select')),
           verbatimTextOutput(

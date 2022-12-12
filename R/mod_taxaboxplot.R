@@ -62,6 +62,7 @@ mod_taxaboxplot_ui <- function(id){
 #' @importFrom DT formatStyle
 #' @importFrom DT formatRound
 #' @importFrom DT styleInterval
+#' @import formulaic
 
 mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
