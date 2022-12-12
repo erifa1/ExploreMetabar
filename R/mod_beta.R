@@ -11,6 +11,10 @@
 #' @importFrom DT dataTableOutput
 #' @importFrom plotly plot_ly
 #' @importFrom plotly add_trace
+#' @import PCAmixdata
+#' @import shinycustomloader
+#' @import shinyWidgets
+#' 
 
 mod_beta_ui <- function(id){
   ns <- NS(id)
@@ -107,6 +111,12 @@ veganifyOTU <- function(physeq){
 #' @importFrom permute how
 #' @import htmltools
 #' @import formula.tools
+#' @import tidyr
+#' @import glue
+#' @import PCAmixdata
+#' @import grid
+#' @import gtools
+
 #'
 #' @noRd
 mod_beta_server <- function(input, output, session, r = r){

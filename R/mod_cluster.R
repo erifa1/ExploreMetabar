@@ -7,7 +7,7 @@
 #' @noRd 
 #'
 #' @importFrom shiny NS tagList 
-#' @import dendextend
+
 mod_cluster_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -75,6 +75,13 @@ mod_cluster_ui <- function(id){
 #' cluster Server Functions
 #'
 #' @noRd 
+#' @import colourvalues
+#' @import dendextend
+#' @import phyloseq
+#' @import cluster
+#' @import indicspecies
+#' @import reshape2
+
 mod_cluster_server <- function(input, output, session, r = r){
 
     ns <- session$ns
