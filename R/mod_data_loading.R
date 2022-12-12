@@ -301,7 +301,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyloseq_data()
   })
 
-  sdat_initial <- reactive({
+  r$sdat <- sdat_initial <- reactive({
     req(r_values$phyobj_initial)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
@@ -310,6 +310,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     }else{
       print("sample.id OK")
     }
+    print(sdat)
     return(sdat)
   })
 
@@ -713,14 +714,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
     input$rank_glom
   }) 
 
-  # Export metadata
-  r$sdat <- reactive({
-    req(r_values$phyobj_final)
-    sdat <- sample_data(r_values$phyobj_final)
-    sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
-    sdat <- as(sdat, "data.frame")
-    return(sdat)
-  })
+  # # Export metadata
+  # r$sdat <- reactive({
+  #   req(r_values$phyobj_final)
+  #   sdat <- sample_data(r_values$phyobj_final)
+  #   sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
+  #   sdat <- as(sdat, "data.frame")
+  #   return(sdat)
+  # })
 
   r$var_list <- reactive({
     req(r_values$phyobj_final, r$sdat)
