@@ -210,14 +210,26 @@ mod_beta_server <- function(input, output, session, r = r){
   
   ## ordiR2step fonction
   get_ordiR2step <- reactive({
-    req(r$sdat(), local_physeq())
-    flog.info('get_ordiR2step() starting...')
-    env <- r$sdat()
+    req(local_metadata(), local_physeq())
+    # flog.info('get_ordiR2step() starting...')
+    
+    spe <- veganifyOTU(local_physeq())
+    spe <- vegan::decostand(spe, method = 'hell')
+    
+    env <- local_metadata()
+    nsample_before <- nrow(env)
+    env <- na.omit(env)
+    nsample_after <- nrow(env)
+    
+    spe <- spe[env$sample.id,]
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
     }
-    spe <- veganifyOTU(local_physeq())
-    spe <- vegan::decostand(spe, method = 'hell')
+    
+    validate(
+      need(nsample_after == 0, message = 'Too much NAs in your env variables. No sample left.')
+    )
+    
     if(input$ordination == 'RDA'){
       mod0 <- vegan::rda(spe ~ 1, data = env, na.action = 'na.omit')
       mod1 <- vegan::rda(spe ~ ., data = env, na.action = 'na.omit')
@@ -233,14 +245,20 @@ mod_beta_server <- function(input, output, session, r = r){
       fun <- glue::glue('mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = "{input$metrics}")')
       eval(parse(text=fun))
     }
-    sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE, trace = FALSE)
-    flog.info('get_ordiR2step() end.')
-    return(sel)
+    res <- list()
+    
+    res$sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE, trace = FALSE)
+    res$lostsamples <- nsample_before - nsample_after
+    # flog.info('get_ordiR2step() end.')
+    return(res)
   })
   
   output$constr_ordiR2step_out <- renderPrint({
-    sel <- get_ordiR2step()
-    print(sel$anova)
+    res <- get_ordiR2step()
+    if(res$lostsamples != 0){
+      print(paste0('warn: ', res$lostsamples, ' samples omitted due to NAs in envirnomental variables.'))
+    }
+    print(res$sel$anova)
   })
   
   output$formula <- renderPrint({
@@ -257,7 +275,7 @@ mod_beta_server <- function(input, output, session, r = r){
         f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
       }
     } else if(input$param_mode == 'ordiR2step'){
-      f <- as.character(formula(get_ordiR2step()))
+      f <- as.character(formula(get_ordiR2step()$sel))
     } else if(input$param_mode == 'manual'){
       f <- input$constr_manual_formula
     }
@@ -784,7 +802,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_pairwise_res <- eventReactive(input$launch_beta | input$update_test_btn, {
+  get_pairwise_res <- eventReactive(input$update_test_btn, {
     req(physeq_dist(), get_meta_col(), local_metadata())
     flog.info(msg = 'get_pairwise_res() starting...')
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
@@ -808,6 +826,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   dfdisper <- eventReactive(input$launch_beta | input$update_test_btn,{
+    req(get_dispersion_res())
     flog.info('dfdisper() starting...')
     
     df1 = cbind.data.frame(distances = get_dispersion_res()$distances, group = get_dispersion_res()$group)
