@@ -233,45 +233,42 @@ mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
-###Filtering metadata
+  ###Filtering metadata
 
-      res_filter <- datamods::filter_data_server(
-        id = "filtering",
-        # data = data,
-        data = reactive({
-          print("FILTER metadata")
-          print(str(updated_data()))
-          req(sdat_initial())
-          if(is.null(updated_data())){
-            sdat_initial()
-          }else{
-          req(updated_data())
-            updated_data()
-          }   
-        }),
-        name = reactive("feature_table"),
-        vars = reactive(NULL),
-        widget_num = "slider",
-        widget_date = "slider",
-        label_na = "Missing"
-      )
-
-      output$metadata_table <- DT::renderDT({
-        res_filter$filtered()
-      }, options = list(pageLength = 10, scrollX = TRUE))
-
-      ## update tab
-     updated_data <- update_variables_server(
-        id = "vars",
-        data = reactive({
-            req(sdat_initial())
-            sdat_initial()  #data()
-        })
-      )
-
-
-
-
+  res_filter <- datamods::filter_data_server(
+    id = "filtering",
+    # data = data,
+    data = reactive({
+      print("FILTER metadata")
+      print(str(updated_data()))
+      req(sdat_initial())
+      if(is.null(updated_data())){
+        sdat_initial()
+      }else{
+      req(updated_data())
+        updated_data()
+      }   
+    }),
+    name = reactive("feature_table"),
+    vars = reactive(NULL),
+    widget_num = "slider",
+    widget_date = "slider",
+    label_na = "Missing"
+  )
+  
+  output$metadata_table <- DT::renderDT({
+    res_filter$filtered()
+  }, options = list(pageLength = 10, scrollX = TRUE))
+  
+  ## update tab
+  updated_data <- datamods::update_variables_server(
+    id = "vars",
+    data = reactive({
+        req(sdat_initial())
+        sdat_initial()  #data()
+    })
+  )
+  
 
   phyloseq_data <- reactive({
     flog.info('phyloseq_data() starting...')
@@ -280,8 +277,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
       load(input$fileRData$datapath, envir = ne)
     }
     else{
-      # load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
-      load(system.file("data_test", "phy_test_numeric.rdata", package="ExploreMetabar"), envir = ne)
+      load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
+      # load(system.file("data_test", "phy_test_numeric.rdata", package="ExploreMetabar"), envir = ne)
     }
     classes1 = sapply(ne, class)
     obj = classes1[classes1 == "phyloseq"]
@@ -301,16 +298,13 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyloseq_data()
   })
 
-  r$sdat <- sdat_initial <- reactive({
+  sdat_initial <- reactive({
     req(r_values$phyobj_initial)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
     if( !"sample.id" %in% colnames(sdat) ){
       sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
-    }else{
-      print("sample.id OK")
     }
-    print(sdat)
     return(sdat)
   })
 
@@ -322,7 +316,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     flog.info('subset samples() starting...')
     flog.info(paste0('initial number of samples before ', phyloseq::nsamples(r_values$phyobj_initial)))
 
-    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
+    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
     flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
@@ -516,10 +510,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
   subset_taxa <- reactive({
     withProgress({
       req(r_values$phyobj_taxglom, res_filter_taxo$filtered)
-      filttax <- res_filter_taxo$filtered()
-      # tt <- render_taxonomy_table()
-      # browser()
       flog.info('subset_taxa fun')
+      filttax <- res_filter_taxo$filtered()
       selected <- filttax[,1]
 
       # selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
@@ -542,18 +534,16 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
     res_filter_taxo <- datamods::filter_data_server(
       id = "filtering_taxo",
-      # data = data,
       data = reactive({
         req(render_taxonomy_table())
-        print("FILTER taxo")
         render_taxonomy_table()   
       }),
       name = reactive("tax_table"),
       vars = reactive({
-      req(render_taxonomy_table())
-      s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
-      col_names <- colnames(render_taxonomy_table())
-      filt <- dplyr::setdiff(col_names, s_names)
+        req(render_taxonomy_table())
+        s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
+        col_names <- colnames(render_taxonomy_table())
+        filt <- dplyr::setdiff(col_names, s_names)
       return(filt)
       }),
       widget_num = "slider",
@@ -564,7 +554,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
     output$table_taxoFILT <- DT::renderDT({
       res_filter_taxo$filtered()
     }, options = list(pageLength = 10, scrollX = TRUE))
-
 
 
 
@@ -713,22 +702,25 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$rank_glom <- reactive({
     input$rank_glom
   }) 
-
-  # # Export metadata
-  # r$sdat <- reactive({
-  #   req(r_values$phyobj_final)
-  #   sdat <- sample_data(r_values$phyobj_final)
-  #   sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
-  #   sdat <- as(sdat, "data.frame")
-  #   return(sdat)
-  # })
+  
+  # Export metadata
+  r$sdat <- reactive({
+    req(r_values$phyobj_final)
+    sdat <- sample_data(r_values$phyobj_final)
+    sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
+    sdat <- as(sdat, "data.frame")
+    if(! 'sample.id' %in% colnames(sdat)){
+      sdat$sample.id <- rownames(sdat)
+    }
+    return(sdat)
+  })
 
   r$var_list <- reactive({
     req(r_values$phyobj_final, r$sdat)
     sdat <- r$sdat()
     var_list <- colnames(sdat)
     if('sample.id' %in% var_list){
-      var_list <- var_list[! var_list %in% 'sample.id']
+      var_list <- sort(var_list[! var_list %in% 'sample.id'])
     }
     return(var_list)
   })

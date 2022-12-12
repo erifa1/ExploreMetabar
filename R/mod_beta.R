@@ -225,7 +225,7 @@ mod_beta_server <- function(input, output, session, r = r){
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
     }
-    
+    # browser()
     validate(
       need(nsample_after == 0, message = 'Too much NAs in your env variables. No sample left.')
     )
@@ -284,7 +284,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$ui_taxa_rank <- renderUI({
     req(input$ordination, local_physeq())
-    if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
+    if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA', 'CCA', 'RDA')){
       selectInput(
        ns("rank_color"),
        label = "Select rank to color taxa points: ",
@@ -369,7 +369,7 @@ mod_beta_server <- function(input, output, session, r = r){
         shinyWidgets::pickerInput(
           ns("envfit_param"),
           label = "Select factor to color samples and ellipses",
-          choices = colnames(local_metadata()),
+          choices = sort(colnames(local_metadata())),
           # selected = colnames(local_metadata())[2],
           multiple = TRUE,
           options = pickerOptions(
@@ -379,7 +379,7 @@ mod_beta_server <- function(input, output, session, r = r){
           ),
           choicesOpt = list(
             content = unlist(lapply(
-              X = colnames(local_metadata()),
+              X = sort(colnames(local_metadata())),
               FUN = function(x) {
                 htmltools::doRenderTags(
                   tags$div(
@@ -540,20 +540,22 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination, local_physeq())
     flog.info('ord() starting...')
     if(input$ordination == 'NMDS'){
-      validate(
-        need(input$metrics %in% c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'), 'For NMDS ordination only bray and jaccard distances allowed.')
-        )
       if(input$metrics %in% c('bray', 'jaccard', 'none')){
         res <- vegan::metaMDS(veganifyOTU(local_physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE)
       }
     } else if(input$ordination == 'PCOA'){
-      validate(
-        need(input$metrics %in% c('bray', 'jaccard', 'none'), 'For PCoA ordination only bray and jaccard distances allowed.')
-      )
       spe <- veganifyOTU(local_physeq())
-      res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
+      if(input$metrics %in% c('bray', 'jaccard', 'none')){
+        res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
+      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+        dist <- physeq_dist()
+        res <- vegan::capscale(dist ~ 1, comm = spe)
+      }
+      
+      
+      
     } else if(input$ordination == 'RDA'){
       env <- get_env_scaled()
       spe <- veganifyOTU(local_physeq())
@@ -593,7 +595,14 @@ mod_beta_server <- function(input, output, session, r = r){
   get_species_coord <- reactive({
     req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
     flog.info('get_species_coord() starting...')
-    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', scaling = 2) %>% as_tibble(rownames=r$rank_glom())
+    if(input$ordination %in% c('PCA', 'RDA', 'PCOA')){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', correlation = TRUE) %>% as_tibble(rownames=r$rank_glom())
+    } else if(input$ordination %in% c('CCA')){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', hill = TRUE) %>% as_tibble(rownames=r$rank_glom())
+    } else {
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
+    }
+    
     if(r$rank_glom() == 'ASV'){
       nmds_coord <- nmds_coord %>% 
                       inner_join(., tax_table(local_physeq()) %>% 
@@ -639,6 +648,17 @@ mod_beta_server <- function(input, output, session, r = r){
     return(axes)
   })
   
+  
+  observe({
+    req(input$metrics)
+    if(input$metrics %in% c('unifrac', 'wunifrac') && input$ordination %in% c('NMDS')){
+      ch <- c('samples', 'env')
+    } else{
+      ch <- c('samples', 'taxa', 'env')
+    }
+    shinyWidgets::updatePrettyCheckboxGroup(inputId = 'plot_type', choices = ch, selected = 'samples', inline = TRUE)
+  })
+  
 
   base_plot <- reactive({
     req(ord())
@@ -673,10 +693,12 @@ mod_beta_server <- function(input, output, session, r = r){
         if(!is.null(scr$biplot)){
           en_coord_cont <- as.data.frame(scr$biplot)
           en_coord_cont <- en_coord_cont[rownames(en_coord_cont) %in% colnames(local_metadata()),]
-          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
-                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
-            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
-                      fontface = "bold", label = row.names(en_coord_cont))
+          if(nrow(en_coord_cont) > 0){
+            p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+                                  data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+              geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+                        fontface = "bold", label = row.names(en_coord_cont))
+          }
         }
         if(!is.null(scr$centroids)){
           en_coord_cat <- as.data.frame(scr$centroids)
