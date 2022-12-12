@@ -20,7 +20,8 @@ mod_data_loading_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(infoBox("",
-        HTML(paste("You must validate each step by clicking each button, even if you did not make any modification.")),
+        HTML(paste("You must validate each step (filtering, normalization) by clicking each button, even if you did not make any modification.")),
+        HTML(paste("Otherwise you just need to click 'Launch all' button, then you can use others modules.")),
         icon = icon("info-circle"), fill=TRUE, width = 6
       )),
 
@@ -232,58 +233,44 @@ mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
-  ###Filtering metadata
-  res_filter <- datamods::filter_data_server(
-    id = "filtering",
-    # data = data,
-    data = reactive({
-      flog.info("FILTER metadata")
-      req(sdat_initial())
-      if(is.null(updated_data())){
-        sdat_initial()
-      }else{
-      req(updated_data())
-        updated_data()
-      }   
-    }),
-    name = reactive("feature_table"),
-    vars = reactive(NULL),
-    widget_num = "slider",
-    widget_date = "slider",
-    label_na = "Missing"
-  )
+###Filtering metadata
 
-  
-  output$metadata_table <- DT::renderDT({
-    res_filter$filtered()
-  }, options = list(pageLength = 10, scrollX = TRUE))
+      res_filter <- datamods::filter_data_server(
+        id = "filtering",
+        # data = data,
+        data = reactive({
+          print("FILTER metadata")
+          print(str(updated_data()))
+          req(sdat_initial())
+          if(is.null(updated_data())){
+            sdat_initial()
+          }else{
+          req(updated_data())
+            updated_data()
+          }   
+        }),
+        name = reactive("feature_table"),
+        vars = reactive(NULL),
+        widget_num = "slider",
+        widget_date = "slider",
+        label_na = "Missing"
+      )
 
-  
-  ## update tab
-  updated_data <- datamods::update_variables_server(
-    id = "vars",
-    data = reactive({
-      req(sdat_initial())
-      sdat_initial()
-    })
-  )
+      output$metadata_table <- DT::renderDT({
+        res_filter$filtered()
+      }, options = list(pageLength = 10, scrollX = TRUE))
+
+      ## update tab
+     updated_data <- update_variables_server(
+        id = "vars",
+        data = reactive({
+            req(sdat_initial())
+            sdat_initial()  #data()
+        })
+      )
 
 
-  dataModal <- function(failed = FALSE){
-    modalDialog(
-      column(
-        width = 12,
-        datamods::update_variables_ui(ns("vars"))
-      ),
-      easyClose = TRUE,
-      footer = modalButton("Close")
-    )
-  }
 
-  # Show modal when button is clicked.
-  observeEvent(input$show, {
-    showModal(dataModal())
-  })
 
 
   phyloseq_data <- reactive({
@@ -300,23 +287,28 @@ mod_data_loading_server <- function(input, output, session, r=r){
     obj = classes1[classes1 == "phyloseq"]
     fun = glue::glue("r_values$phyobj_initial <- ne${names(obj)}")
     eval(parse(text = fun))
+    if(is.null(refseq(r_values$phyobj_initial, errorIfNULL=FALSE)) ){
+      showNotification("No refseq in object.", type="error", duration = 3)
+    }
     r_values$phyobj_tmp <- r_values$phyobj_initial
     flog.info('phyloseq_data() end.')
     return(r_values$phyobj_initial)
   })
 
   output$phy_prev <- renderPrint({
-    cat('Running ExploreMetabar v1.1.0\n')
+    cat(file=stderr(), 'rendering phy_prev', "\n")
+    cat('Running ExploreMetabar v1.2.0\n')
     phyloseq_data()
   })
 
-  
-  
-  sdat_initial <- reactive({
+  r$data <- sdat_initial <- reactive({
     req(r_values$phyobj_initial)
-    sdat <- sample_data(r_values$phyobj_initial)
+    phyobj <- r_values$phyobj_initial
+    sdat <- do.call(cbind.data.frame, phyobj@sam_data)
     if( !"sample.id" %in% colnames(sdat) ){
-      sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(r_values$phyobj_initial), .before = 1)
+      sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
+    }else{
+      print("sample.id OK")
     }
     return(sdat)
   })
@@ -328,7 +320,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
     flog.info('subset samples() starting...')
     flog.info(paste0('initial number of samples before ', phyloseq::nsamples(r_values$phyobj_initial)))
-    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id), r_values$phyobj_initial)
+
+    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
     flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
@@ -499,11 +492,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
         dplyr::rename(asvname = rowname)
         FTAB = as.data.frame(joinGlom2, stringsAsFactors = TRUE)
       }else{
-        showNotification("No refseq in object.", type="error", duration = 3)
         dplyr::rename(joinGlom, asvname = rowname)
         FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
       flog.info('render_taxonomy_table done.')
+      showNotification("Render taxonomy table ...", type="message", duration = 1)
       return(FTAB)
     },message = "Processing, please wait...")
 
@@ -544,32 +537,35 @@ mod_data_loading_server <- function(input, output, session, r=r){
     subset_taxa()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
 
-  
   ## Filter taxo 
-  res_filter_taxo <- datamods::filter_data_server(
-    id = "filtering_taxo",
-    # data = data,
-    data = reactive({
-      req(render_taxonomy_table())
-      render_taxonomy_table()   
-    }),
-    name = reactive("tax_table"),
-    vars = reactive({
+
+    res_filter_taxo <- datamods::filter_data_server(
+      id = "filtering_taxo",
+      # data = data,
+      data = reactive({
+        req(render_taxonomy_table())
+        print("FILTER taxo")
+        render_taxonomy_table()   
+      }),
+      name = reactive("tax_table"),
+      vars = reactive({
       req(render_taxonomy_table())
       s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
       col_names <- colnames(render_taxonomy_table())
       filt <- dplyr::setdiff(col_names, s_names)
       return(filt)
-    }),
-    widget_num = "slider",
-    widget_date = "slider",
-    label_na = "Missing"
-  )
+      }),
+      widget_num = "slider",
+      widget_date = "slider",
+      label_na = "Missing"
+    )
 
-  
-  output$table_taxoFILT <- DT::renderDT({
-    res_filter_taxo$filtered()
-  }, options = list(pageLength = 10, scrollX = TRUE))
+    output$table_taxoFILT <- DT::renderDT({
+      res_filter_taxo$filtered()
+    }, options = list(pageLength = 10, scrollX = TRUE))
+
+
+
 
 
   normalize <- reactive({
@@ -600,10 +596,10 @@ mod_data_loading_server <- function(input, output, session, r=r){
         FNGdata <- FGdata; FNGdata@otu_table@.Data <- otableVST
       },message = "VST normalization, please wait...")
     }
+    showNotification("Dataset ready !", type="message", duration = 5)
     r_values$phyobj_norm <- FNGdata
   })
 
-  
   observeEvent(input$norm, {
     flog.info('button normalize')
     normalize()
