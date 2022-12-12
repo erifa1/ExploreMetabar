@@ -287,7 +287,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   phyloseq_data <- reactive({
-    cat(file=stderr(), 'phyloseq_data fun', "\n")
+    flog.info('phyloseq_data() starting...')
     ne <- new.env()
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne)
@@ -301,12 +301,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
     fun = glue::glue("r_values$phyobj_initial <- ne${names(obj)}")
     eval(parse(text = fun))
     r_values$phyobj_tmp <- r_values$phyobj_initial
-
+    flog.info('phyloseq_data() end.')
     return(r_values$phyobj_initial)
   })
 
   output$phy_prev <- renderPrint({
-    cat(file=stderr(), 'rendering phy_prev', "\n")
     cat('Running ExploreMetabar v1.1.0\n')
     phyloseq_data()
   })
@@ -367,14 +366,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
   
   observeEvent(input$update_metadata, {
-    cat(file=stderr(), 'button update_metadata', "\n")
+    flog.info('button update_metadata')
     subset_samples()
   },
   ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
   observe({
-    cat(file=stderr(), 'updating rank_glom selectInput...', "\n")
+    flog.info('updating rank_glom selectInput...')
     updateSelectInput(session, "rank_glom",
                       choices = c( rank_names(phyloseq_data()), "ASV" ),
                       selected = "ASV")
@@ -382,20 +381,20 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   
   observe({
-    cat(file=stderr(), 'updating minAb numericInput...', "\n")
+    flog.info('updating minAb numericInput...')
     updateNumericRangeInput(session, 'minAb',"Minimum taxa overall raw abundance:", value=c(1,max(taxa_sums(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
   
   observe({
-    cat(file=stderr(), 'updating minPrev numericInput...', "\n")
+    flog.info('updating minPrev numericInput...')
     updateNumericRangeInput(session, 'minPrev',"Minimum taxa prevalence in samples:", value=c(1,max(nsamples(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
   
   glom_taxo0 <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-    cat(file=stderr(), 'filter_taxonomy...', "\n")
+    flog.info('filter_taxonomy...')
     tmp <- r_values$phyobj_sub_samples
     withProgress({
       if(input$rank_glom != 'ASV'){
@@ -412,7 +411,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       }
     }, message = 'Taxonomy agglomeration, please wait.')
     r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
-    cat(file=stderr(), 'done.', "\n")
+    flog.info('done.')
   })
 
   
@@ -432,11 +431,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
 
-      cat(file=stderr(), 'glom object', "\n")
+      flog.info('glom object')
 
       r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
-      cat(file=stderr(), 'filter_taxonomy done.', "\n")
+      flog.info('filter_taxonomy done.')
     },message = "Update taxonomy, please wait...")
   })
 
@@ -455,7 +454,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     withProgress({
 
       req(r_values$phyobj_tmp, input$rank_glom)
-      cat(file=stderr(), 'render_taxonomy_table fun', "\n")
+      flog.info('render_taxonomy_table fun')
 
       phyloseq_obj <- r_values$phyobj_tmp
       rnames <- phyloseq::rank_names(phyloseq_obj)
@@ -504,7 +503,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
         dplyr::rename(joinGlom, asvname = rowname)
         FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
-      cat(file=stderr(), 'render_taxonomy_table done.', "\n")
+      flog.info('render_taxonomy_table done.')
       return(FTAB)
     },message = "Processing, please wait...")
 
@@ -526,14 +525,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
       filttax <- res_filter_taxo$filtered()
       # tt <- render_taxonomy_table()
       # browser()
-      cat(file=stderr(), 'subset_taxa fun', "\n")
+      flog.info('subset_taxa fun')
       selected <- filttax[,1]
 
       # selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
       phy_obj <- prune_taxa(selected, r_values$phyobj_taxglom)
       r_values$phyobj_final <- phy_obj
       r_values$phyobj_tmp <- phy_obj
-      cat(file=stderr(), 'subset_taxa fun done.', "\n")
+      flog.info('subset_taxa fun done.')
       # phy_obj
 
     },message = "Subset taxonomy, please wait...")
@@ -541,7 +540,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   observeEvent(input$subset_taxo, {
-    cat(file=stderr(), 'button subset_taxo', "\n")
+    flog.info('button subset_taxo')
     subset_taxa()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
 
@@ -606,22 +605,22 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   
   observeEvent(input$norm, {
-    cat(file=stderr(), 'button normalize', "\n")
+    flog.info('button normalize')
     normalize()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
   output$phy_after <- renderPrint({
-    cat(file=stderr(), 'rendering phyloseq_after...', "\n")
+    flog.info('rendering phyloseq_after...')
     print(r_values$phyobj_tmp)
-    cat(file=stderr(), 'rendering phyloseq_after done.', "\n")
+    flog.info('rendering phyloseq_after done.')
   })
 
   output$phy_norm <- renderPrint({
     req(r_values$phyobj_norm)
-    cat(file=stderr(), 'rendering phyloseq_norm...', "\n")
+    flog.info('rendering phyloseq_norm...')
     print(r_values$phyobj_norm)
-    cat(file=stderr(), 'rendering phyloseq_norm done.', "\n")
+    flog.info('rendering phyloseq_norm done.')
   })
 
 
