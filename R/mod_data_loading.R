@@ -301,7 +301,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyloseq_data()
   })
 
-  r$data <- sdat_initial <- reactive({
+  sdat_initial <- reactive({
     req(r_values$phyobj_initial)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
