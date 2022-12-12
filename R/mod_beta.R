@@ -177,6 +177,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination)
     if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
       box(title = 'Model parameters',
+          htmltools::p('Warning: when integrating environmental variable, samples with missing values are omitted.'),
           radioButtons(inputId = ns('param_mode'),
                        label = 'methode to select parameters',
                        choices = c('picker', 'ordiR2step', 'manual')),
@@ -807,15 +808,15 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   dfdisper <- eventReactive(input$launch_beta | input$update_test_btn,{
-    flog.info('dfdisper() starting...',"\n")
+    flog.info('dfdisper() starting...')
     
     df1 = cbind.data.frame(distances = get_dispersion_res()$distances, group = get_dispersion_res()$group)
 
     if(input$order1){
-      print("ORDER factor")
+      flog.info("ORDER factor")
       df1$group = factor( df1$group, levels = gtools::mixedsort(levels(df1$group)) ) 
     }
-    flog.info('dfdisper() end.',"\n")
+    flog.info('dfdisper() end.')
     return(df1)
   })
 
