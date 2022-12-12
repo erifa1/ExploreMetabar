@@ -33,7 +33,7 @@ mod_compo_ui <- function(id){
           ns("Ord1"),
           label = "Select variable to order/split samples (X axis): ",
           choices = "",
-          multiple = T
+          multiple = TRUE
         ),
         numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
         radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
