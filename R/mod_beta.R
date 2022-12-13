@@ -583,8 +583,17 @@ mod_beta_server <- function(input, output, session, r = r){
   get_sites_coord <- reactive({
     req(ord(), local_metadata(), get_meta_col())
     flog.info('get_sites_coord() starting...')
-    nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
-                    as_tibble(rownames="sample.id")
+    if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites', correlation = TRUE) %>% 
+        as_tibble(rownames="sample.id")
+    } else if(input$ordination %in% c('CCA')){
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites', hill = TRUE) %>% 
+        as_tibble(rownames="sample.id")
+    } else {
+      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
+        as_tibble(rownames="sample.id")
+    }
+    
     nmds_coord <- nmds_coord %>% 
                     inner_join(., local_metadata() %>% 
                                  select(sample.id, !!get_meta_col()), by="sample.id")
