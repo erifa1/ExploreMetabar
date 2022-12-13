@@ -478,7 +478,7 @@ mod_beta_server <- function(input, output, session, r = r){
     if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
       box(
         title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
-        htmltools::p(paste0('Permanova is done on the dissimilarity matrix computed with the selected index.', ' (', input$metrics, ')')),
+        htmltools::p(paste0('Permanova is done on the dissimilarity matrix computed with the selected index.', ' (here ', input$metrics, ' is used)')),
         uiOutput(ns("ui_adonis_factor")),
         actionButton(ns("update_test_btn"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         h3('ADONIS formula:'),
@@ -497,7 +497,7 @@ mod_beta_server <- function(input, output, session, r = r){
     Fchoices = facts[facts != get_meta_col()]
   
     shinyWidgets::pickerInput(inputId = ns('adonis_factor'),
-                              label = 'Select factor(s) to test: ',
+                              label = 'Select factor(s) to add as covariable: ',
                               choices = Fchoices,
                               multiple = TRUE
     )
