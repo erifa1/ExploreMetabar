@@ -29,17 +29,7 @@ mod_beta_ui <- function(id){
       fluidRow(
         box(
           fluidPage(
-            fluidRow(
-              radioButtons(
-                ns("beta_norm_bool"),
-                label = "Use normalized data (prefer TSS normalization)",
-                inline = TRUE,
-                choices = list(
-                  "Raw" = 0 ,
-                  "Normalized" = 1
-                ), selected = 1
-              )
-            ),
+            htmltools::p('In this module, asv table is normalized by hellinger (Legendre & Gallagher 2001) method and environmental variables are centered and scaled.'),
             fluidRow(
               radioButtons(ns('ordi_type'), 'Choose your ordination type:',
                            inline = T,
@@ -166,7 +156,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordi_type)
     if(input$ordi_type == 'Distance-based'){
       radioButtons(ns("metrics"), "Choose one distance metric:", inline = TRUE,
-                   choices =c('bray', 'jaccard', 'unifrac', 'wunifrac', 'none'),
+                   choices =c('bray', 'jaccard', 'unifrac', 'wunifrac'),
                    selected = c("bray")
       )
     }
@@ -225,9 +215,9 @@ mod_beta_server <- function(input, output, session, r = r){
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
     }
-    # browser()
+
     validate(
-      need(nsample_after == 0, message = 'Too much NAs in your env variables. No sample left.')
+      need(nsample_after > 0, message = 'Too much NAs in your env variables. No sample left.')
     )
     
     if(input$ordination == 'RDA'){
@@ -240,10 +230,22 @@ mod_beta_server <- function(input, output, session, r = r){
       validate(
         need(input$metrics %in% c('bray', 'jaccard'), message = 'ordiR2step works only with bray and jaccard distances.')
       )
-      fun <- glue::glue('mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = "{input$metrics}")')
-      eval(parse(text=fun))
-      fun <- glue::glue('mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = "{input$metrics}")')
-      eval(parse(text=fun))
+      if(input$metrics %in% c('bray', 'jaccard')){
+        fun <- glue::glue('mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = "{input$metrics}")')
+        eval(parse(text=fun))
+        fun <- glue::glue('mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = "{input$metrics}")')
+        eval(parse(text=fun))
+      } 
+      # else if(input$metrics %in% c('unifrac', 'wunifrac')){
+      #   phy <- phyloseq::prune_samples(rownames(spe), local_physeq())
+      #   phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(phy)>0, phy)
+      #   dist <- phyloseq::distance(physeq = phy, method = input$metrics)
+      #   browser()
+      #   fun <- glue::glue('mod0 <- vegan::capscale(dist ~ 1, data = env, na.action = "na.omit", comm = spe)')
+      #   eval(parse(text=fun))
+      #   fun <- glue::glue('mod1 <- vegan::capscale(dist ~ ., data = env, na.action = "na.omit", comm = spe)')
+      #   eval(parse(text=fun))
+      # }
     }
     res <- list()
     
@@ -503,14 +505,8 @@ mod_beta_server <- function(input, output, session, r = r){
 
 
   local_physeq <- reactive({
-    req(r$phyloseq_filtered(), r$phyloseq_filtered_norm(), input$beta_norm_bool, local_metadata())
-    if(input$beta_norm_bool==0){
-      data <- r$phyloseq_filtered()
-      # data <- phyloseq::rarefy_even_depth(r$phyloseq_filtered(), rngseed = 20210225, verbose = FALSE)
-    }
-    if(input$beta_norm_bool==1){
-      data <- r$phyloseq_filtered_norm()
-    }
+    req(r$phyloseq_filtered(), local_metadata())
+    data <- r$phyloseq_filtered()
     sample_data(data) <- sample_data(local_metadata())
     return(data)
   })
@@ -540,22 +536,22 @@ mod_beta_server <- function(input, output, session, r = r){
     req(input$ordination, local_physeq())
     flog.info('ord() starting...')
     if(input$ordination == 'NMDS'){
-      if(input$metrics %in% c('bray', 'jaccard', 'none')){
+      if(input$metrics %in% c('bray', 'jaccard')){
+        spe <- veganifyOTU(local_physeq())
+        spe <- vegan::decostand(spe, method = 'hell')
         res <- vegan::metaMDS(veganifyOTU(local_physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE)
       }
     } else if(input$ordination == 'PCOA'){
       spe <- veganifyOTU(local_physeq())
-      if(input$metrics %in% c('bray', 'jaccard', 'none')){
+      spe <- vegan::decostand(spe, method = 'hell')
+      if(input$metrics %in% c('bray', 'jaccard')){
         res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         dist <- physeq_dist()
         res <- vegan::capscale(dist ~ 1, comm = spe)
       }
-      
-      
-      
     } else if(input$ordination == 'RDA'){
       env <- get_env_scaled()
       spe <- veganifyOTU(local_physeq())
@@ -568,9 +564,14 @@ mod_beta_server <- function(input, output, session, r = r){
       res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else if(input$ordination == 'dbRDA'){
       env <- get_env_scaled()
-      # browser()
-      spe <- veganifyOTU(local_physeq())
-      res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics)
+      if(input$metrics %in% c('bray', 'jaccard')){
+        spe <- veganifyOTU(local_physeq())
+        spe <- vegan::decostand(spe, method = 'hell')
+        res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics)
+      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+        spe <- physeq_dist()
+        res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics, comm = veganifyOTU(local_physeq()))
+      }
     } else{
       res <- phyloseq::ordinate(physeq= local_physeq(), distance = physeq_dist(), method= input$ordination)
     }
@@ -595,10 +596,16 @@ mod_beta_server <- function(input, output, session, r = r){
   get_species_coord <- reactive({
     req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
     flog.info('get_species_coord() starting...')
-    if(input$ordination %in% c('PCA', 'RDA', 'PCOA')){
+    if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
       nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', correlation = TRUE) %>% as_tibble(rownames=r$rank_glom())
     } else if(input$ordination %in% c('CCA')){
       nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', hill = TRUE) %>% as_tibble(rownames=r$rank_glom())
+    } else if(input$ordination %in% c('NMDS') && input$metrics %in% c('unifrac', 'wunifrac')){
+      spe <- veganifyOTU(local_physeq())
+      spe <- vegan::decostand(spe, method = 'hell')
+      res <- ord()
+      vegan::sppscores(res) <- spe
+      nmds_coord <- vegan::scores(res, choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     } else {
       nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie') %>% as_tibble(rownames=r$rank_glom())
     }
@@ -648,17 +655,17 @@ mod_beta_server <- function(input, output, session, r = r){
     return(axes)
   })
   
-  
-  observe({
-    req(input$metrics)
-    if(input$metrics %in% c('unifrac', 'wunifrac') && input$ordination %in% c('NMDS')){
-      ch <- c('samples', 'env')
-    } else{
-      ch <- c('samples', 'taxa', 'env')
-    }
-    shinyWidgets::updatePrettyCheckboxGroup(inputId = 'plot_type', choices = ch, selected = 'samples', inline = TRUE)
-  })
-  
+  # 
+  # observe({
+  #   req(input$metrics)
+  #   if(input$metrics %in% c('unifrac', 'wunifrac') && input$ordination %in% c('NMDS')){
+  #     ch <- c('samples', 'env')
+  #   } else{
+  #     ch <- c('samples', 'taxa', 'env')
+  #   }
+  #   shinyWidgets::updatePrettyCheckboxGroup(inputId = 'plot_type', choices = ch, selected = 'samples', inline = TRUE)
+  # })
+  # 
 
   base_plot <- reactive({
     req(ord())
@@ -824,7 +831,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   
-  get_pairwise_res <- eventReactive(input$update_test_btn, {
+  get_pairwise_res <- eventReactive(input$launch_beta | input$update_test_btn, {
     req(physeq_dist(), get_meta_col(), local_metadata())
     flog.info(msg = 'get_pairwise_res() starting...')
     res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
