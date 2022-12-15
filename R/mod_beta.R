@@ -172,6 +172,7 @@ mod_beta_server <- function(input, output, session, r = r){
                        label = 'methode to select parameters',
                        choices = c('picker', 'ordiR2step', 'manual')),
           uiOutput(ns('constr_select')),
+          uiOutput(ns('ordiR2_out')),
           verbatimTextOutput(
             ns('formula')
           )
@@ -179,19 +180,55 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  
+  # ordiR2step verbatim output
+  output$ordiR2_out <- renderUI({
+    req(input$param_mode)
+    if(input$param_mode == 'ordiR2step'){
+      verbatimTextOutput(ns('constr_ordiR2step_out'))
+    }
+  })
 
   
   ## constrained based box for model parameters
   output$constr_select <- renderUI({
     req(input$param_mode)
-    if(input$param_mode == 'picker'){
+    if(input$param_mode %in% c('picker', 'ordiR2step')){
       shinyWidgets::pickerInput(inputId = ns('constr_picker'),
                                 label = 'Select terms to create a formula',
-                                choices = r$var_list(),
-                                multiple = TRUE
+                                choices = colnames(local_metadata()),
+                                multiple = TRUE,
+                                options = pickerOptions(
+                                  actionsBox = TRUE,
+                                  liveSearch = TRUE,
+                                  showContent = FALSE
+                                ),
+                                choicesOpt = list(
+                                  content = unlist(lapply(
+                                    X = colnames(local_metadata()),
+                                    FUN = function(x) {
+                                      htmltools::doRenderTags(
+                                        tags$div(
+                                          splitLayout(cellWidths = 200,
+                                                      tags$div(
+                                                        style = htmltools::css(fontWeight = "bold"),
+                                                        x
+                                                      ),
+                                                      tags$div(
+                                                        style = htmltools::css(color = 'grey'),
+                                                        class(local_metadata()[,x])
+                                                      ),
+                                                      tags$div(
+                                                        style = htmltools::css(color = 'grey'),
+                                                        paste0(sum(is.na(local_metadata()[,x])), '/', nrow(local_metadata()), ' NAs')
+                                                      )
+                                          )
+                                        )
+                                      )
+                                    }
+                                  ))
+                                )
       )
-    } else if(input$param_mode == 'ordiR2step'){
-      verbatimTextOutput(ns('constr_ordiR2step_out'))
     } else if(input$param_mode == 'manual'){
       textInput(ns('constr_manual_formula'), label = 'Enter your own formula:', placeholder = 'spe ~')
     }
@@ -206,7 +243,7 @@ mod_beta_server <- function(input, output, session, r = r){
     spe <- veganifyOTU(local_physeq())
     spe <- vegan::decostand(spe, method = 'hell')
     
-    env <- local_metadata()
+    env <- local_metadata()[, input$constr_picker]
     nsample_before <- nrow(env)
     env <- na.omit(env)
     nsample_after <- nrow(env)
