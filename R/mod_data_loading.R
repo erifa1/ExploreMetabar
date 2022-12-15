@@ -294,7 +294,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v1.2.0\n')
+    cat('Running ExploreMetabar v2.0.0\n')
     phyloseq_data()
   })
 
