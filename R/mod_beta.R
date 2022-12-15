@@ -66,13 +66,15 @@ mod_beta_ui <- function(id){
           ),
           uiOutput(ns('ui_beta_factor')),
           uiOutput(ns('ui_taxa_rank')),
+          shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
           title = "Plot options", width = 12
         )
       ),
       fluidRow(
         box(
           shinycustomloader::withLoader(
-            plotly::plotlyOutput(ns("plot1"), height = "730px"),
+            uiOutput(ns('ui_plot')),
+            # plotly::plotlyOutput(ns("plot1"), height = "730px"),
             type = "html", loader = "loader4"
           ),
           title = "Ordination plot:", width = 12, height = "800px", status = "primary", solidHeader = TRUE
@@ -549,7 +551,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   
-  physeq_dist <- reactive({
+  physeq_dist <- eventReactive(input$launch_beta, {
     req(input$metrics, local_physeq())
     flog.info('physeq_dist() starting...')
     res <- phyloseq::distance(local_physeq(), method = input$metrics)
@@ -643,7 +645,11 @@ mod_beta_server <- function(input, output, session, r = r){
     req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
     flog.info('get_species_coord() starting...')
     if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', correlation = TRUE) %>% as_tibble(rownames=r$rank_glom())
+      if(input$ordination %in% c('dbRDA') && input$metrics %in% c('unifrac', 'wunifrac')){
+        nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', scalling = 2) %>% as_tibble(rownames=r$rank_glom())
+      } else {
+        nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', correlation = TRUE) %>% as_tibble(rownames=r$rank_glom())
+      }
     } else if(input$ordination %in% c('CCA')){
       nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', hill = TRUE) %>% as_tibble(rownames=r$rank_glom())
     } else if(input$ordination %in% c('NMDS') && input$metrics %in% c('unifrac', 'wunifrac')){
@@ -680,6 +686,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
   get_env_fit <- eventReactive( input$launch_beta, {
     # flog.info(msg = 'get_env_fit() starting...')
+    req(ord())
     env <- get_env_scaled()
     env <- env[, input$envfit_param, drop=F]
     en <- vegan::envfit(ord(), env, na.rm = T)
@@ -688,6 +695,7 @@ mod_beta_server <- function(input, output, session, r = r){
   })
   
   get_axis_names <- reactive({
+    req(ord())
     flog.info('get_axis_names() starting...')
     flog.debug(input$ordination)
     if(input$ordination == 'NMDS'){
@@ -722,7 +730,7 @@ mod_beta_server <- function(input, output, session, r = r){
       flog.info('base_plot() plotting samples...')
       sites_coord <- get_sites_coord()
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23)
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5)
       if(!isNumFactor()){
         p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
@@ -790,37 +798,57 @@ mod_beta_server <- function(input, output, session, r = r){
     # yrange[2] <- layer_scales(p)$y$range$range[2] + abs(layer_scales(p)$y$range$range[2])*3
     # return(list('plot'=p, 'xrange'=xrange, 'yrange'=yrange))
     flog.info('base_plot() end.')
-    return(list('plot'=p))
-  })
-
-
-  output$plot1 <- plotly::renderPlotly({
-    beta_plot()
-  })
-
-
-  beta_plot <- reactive({
-    withProgress({
-      p <- base_plot()$plot
-      # p <- get_plot()
-      # p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
-      # p <- p + geom_point() + theme_bw()
-      # browser()
-    #   if(input$plot_type == 'samples'){
-    #     p <- ggplotly(p, tooltip=c("x", "y", "sample.id"))
-    #   } else if(input$plot_type == 'taxa'){
-    #     p <- ggplotly(p, tooltip=c("x", "y", "taxa"))
-    #   }
-    #   else if(input$plot_type == 'biplot'){
-    #     p <- ggplotly(p, tooltip=c("x", "y", "taxa", "sample.id"))
-    #   }else{
-    #     
-    #   }
-    #   p <- p %>% config(toImageButtonOptions = list(format = "svg"))
-    #   
-    }, message = "Plot Beta...")
     return(p)
   })
+
+  output$ui_plot <- renderUI({
+    if(input$ggplot_switch){
+      flog.info('plotly ui...')
+      plotly::plotlyOutput(ns("beta_plotly"), height = "730px")
+    } else{
+      plotOutput(ns('beta_ggplot'), height = "730px")
+    }
+  })
+
+  
+  observe({
+    req(base_plot())
+    if(input$ggplot_switch){
+      flog.info('plotly render...')
+      output$beta_plotly <- plotly::renderPlotly({
+        base_plot()
+      })
+    } else {
+      output$beta_ggplot <- renderPlot({
+        base_plot()
+      })
+    }
+  })
+  
+
+# 
+#   beta_plot <- reactive({
+#     withProgress({
+#       p <- base_plot()$plot
+#       # p <- get_plot()
+#       # p <- p + xlim(base_plot()$xrange) + ylim(base_plot()$yrange)
+#       # p <- p + geom_point() + theme_bw()
+#       # browser()
+#     #   if(input$plot_type == 'samples'){
+#     #     p <- ggplotly(p, tooltip=c("x", "y", "sample.id"))
+#     #   } else if(input$plot_type == 'taxa'){
+#     #     p <- ggplotly(p, tooltip=c("x", "y", "taxa"))
+#     #   }
+#     #   else if(input$plot_type == 'biplot'){
+#     #     p <- ggplotly(p, tooltip=c("x", "y", "taxa", "sample.id"))
+#     #   }else{
+#     #     
+#     #   }
+#     #   p <- p %>% config(toImageButtonOptions = list(format = "svg"))
+#     #   
+#     }, message = "Plot Beta...")
+#     return(p)
+#   })
 
   
   get_formula <- reactive({

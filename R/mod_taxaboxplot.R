@@ -23,7 +23,7 @@ mod_taxaboxplot_ui <- function(id){
       infoBox("Reminder :",
               "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module",
               icon = icon("info-circle"), fill=TRUE, width = 10),
-
+    fluidRow(
       box(
         shinyWidgets::pickerInput(
           ns("boxplot_fact1"),
@@ -35,18 +35,22 @@ mod_taxaboxplot_ui <- function(id){
         actionButton(ns("go1"), "Run Test/Correlation", icon = icon("play-circle"),
                      style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
         title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-      ),
-
+      )
+    ),
+    fluidRow(
       box(
-      h2(icon("diagnoses"),"Click on feature below to generate plot:"),
-      DT::dataTableOutput(ns("pvalout1")),
-      title = "Features:", width = 12, status = "warning", solidHeader = TRUE
-      ),
+        h2(icon("diagnoses"),"Click on feature below to generate plot:"),
+        DT::dataTableOutput(ns("pvalout1")),
+        title = "Features:", width = 12, status = "warning", solidHeader = TRUE
+      )
+    ),
+    fluidRow(
       box(
-          checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
-          plotlyOutput(ns("boxplot1")), #, height=500
-          title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
-          ),
+        checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
+        plotlyOutput(ns("boxplot1")), #, height=500
+        title = "Boxplot:", width = 12, status = "primary", solidHeader = TRUE
+      ) 
+    ),
       uiOutput(ns('ui_pair_test'))
     )
 
@@ -157,7 +161,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   })
   
   
-  get_merged_table <- reactive({
+  get_merged_table <- eventReactive(input$go1, {
     otable <- otu_table(local_physeq()) %>% t() %>%
       as.data.frame(stringsAsFactors = FALSE) %>%
       rownames_to_column('sample.id')
