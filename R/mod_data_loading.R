@@ -53,7 +53,7 @@ mod_data_loading_ui <- function(id){
               fluidRow(
                 column(
                   width = 3,
-                  filter_data_ui(ns("filtering"), max_height = "500px")
+                  datamods::filter_data_ui(ns("filtering"), max_height = "500px")
                 ),
                 column(
                   width = 9,
@@ -61,7 +61,7 @@ mod_data_loading_ui <- function(id){
                   #   id = ns("pbar"), value = 100,
                   #   total = 100, display_pct = TRUE
                   # ),
-                  DT::dataTableOutput(outputId = ns("table"))
+                  DT::dataTableOutput(outputId = ns("metadata_table"))
                 )
               )
 
@@ -70,12 +70,12 @@ mod_data_loading_ui <- function(id){
             fluidRow(
                 column(
                   width = 12,
-                  update_variables_ui(ns("vars"))
+                  datamods::update_variables_ui(ns("vars"))
                 )
               )
             )
           ),
-          actionButton(ns('update_metadata'), " Update Sample", icon("paper-plane"), 
+          actionButton(ns('update_metadata'), " Update Sample", icon("paper-plane"),
                   style="color: #fff; background-color: #D73925; border-color: #DB4836")
         )),
 
@@ -105,7 +105,7 @@ mod_data_loading_ui <- function(id){
               fluidRow(
                 column(
                   width = 3,
-                  filter_data_ui(ns("filtering_taxo"), max_height = "500px")
+                  datamods::filter_data_ui(ns("filtering_taxo"), max_height = "500px")
                 ),
                 column(
                   width = 9,
@@ -117,7 +117,7 @@ mod_data_loading_ui <- function(id){
                 )
               ),
           # actionButton(inputId = ns('subset_taxo'), label = "Update Taxo"),
-          actionButton(ns('subset_taxo'), " Update Taxo", icon("paper-plane"), 
+          actionButton(ns('subset_taxo'), " Update Taxo", icon("paper-plane"),
                 style="color: #fff; background-color: #D73925; border-color: #DB4836")
         # )
       )),
@@ -170,7 +170,6 @@ mod_data_loading_ui <- function(id){
 
 
 merge_table <- function(rank, table){
-  # print("Merge tables")
   FNGdata <- table
   rnames <- phyloseq::rank_names(FNGdata)
   if(rank=="ASV"){
@@ -179,7 +178,6 @@ merge_table <- function(rank, table){
   else{
     rank1 = rank
   }
-  # print("ttable")
   ttable <- FNGdata %>%
     tax_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
@@ -192,21 +190,20 @@ merge_table <- function(rank, table){
     otu_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
-  # print("otable")
+
 
   rawtaxasum1 <-  table %>%
     taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
   names(rawtaxasum1)[2] <- "RawAbundanceSum"
-  # print("taxsum")
+
   joinGlom <-
     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
     mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
     dplyr::left_join(otable, by = "rowname")
 
   if(rank=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
-    # print("add sequence to dataframe")
     showNotification("Sequences added to dataframe.", type="message", duration = 5)
     refseq1 <- FNGdata %>%
       refseq %>%
@@ -220,7 +217,6 @@ merge_table <- function(rank, table){
   }else{
     showNotification("No refseq in object.", type="error", duration = 3)
     dplyr::rename(joinGlom, asvname = rowname)
-    # print(str(as.data.frame(as.matrix(ttable))))
     FTAB = as.data.frame(joinGlom)
   }
   return(FTAB)
@@ -237,62 +233,43 @@ mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
-###Filtering metadata
+  ###Filtering metadata
 
-      res_filter <- filter_data_server(
-        id = "filtering",
-        # data = data,
-        data = reactive({
-          print("FILTER metadata")
-          print(str(updated_data()))
-          req(r$data())
-          if(is.null(updated_data())){
-            r$data()
-          }else{
-          req(updated_data())
-            updated_data()
-          }   
-        }),
-        name = reactive("feature_table"),
-        vars = reactive(NULL),
-        widget_num = "slider",
-        widget_date = "slider",
-        label_na = "Missing"
-      )
-
-      output$table <- DT::renderDT({
-        res_filter$filtered()
-      }, options = list(pageLength = 10, scrollX = TRUE))
-
-      ## update tab
-     updated_data <- update_variables_server(
-        id = "vars",
-        data = reactive({
-            r$data()  #data()
-        })
-      )
-
-
-      dataModal <- function(failed = FALSE) {
-        modalDialog(
-          column(
-            width = 12,
-            update_variables_ui(ns("vars"))
-          ),
-          easyClose = TRUE,
-          footer = modalButton("Close")
-        )
+  res_filter <- datamods::filter_data_server(
+    id = "filtering",
+    # data = data,
+    data = reactive({
+      req(sdat_initial())
+      if(is.null(updated_data())){
+        sdat_initial()
+      }else{
+      req(updated_data())
+        updated_data()
       }
+    }),
+    name = reactive("feature_table"),
+    vars = reactive(NULL),
+    widget_num = "slider",
+    widget_date = "slider",
+    label_na = "Missing"
+  )
 
-      # Show modal when button is clicked.
-      observeEvent(input$show, {
-        showModal(dataModal())
-      })  
+  output$metadata_table <- DT::renderDT({
+    res_filter$filtered()
+  }, options = list(pageLength = 10, scrollX = TRUE))
 
+  ## update tab
+  updated_data <- datamods::update_variables_server(
+    id = "vars",
+    data = reactive({
+        req(sdat_initial())
+        sdat_initial()  #data()
+    })
+  )
 
 
   phyloseq_data <- reactive({
-    cat(file=stderr(), 'phyloseq_data fun', "\n")
+    flog.info('phyloseq_data() starting...')
     ne <- new.env()
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne)
@@ -309,31 +286,24 @@ mod_data_loading_server <- function(input, output, session, r=r){
       showNotification("No refseq in object.", type="error", duration = 3)
     }
     r_values$phyobj_tmp <- r_values$phyobj_initial
-
-    # fun = glue::glue("return(ne${names(obj)})")
-    # eval(parse(text = fun))
-
-    r_values$phyobj_initial
+    flog.info('phyloseq_data() end.')
+    return(r_values$phyobj_initial)
   })
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v1.2.0\n')
+    cat('Running ExploreMetabar v2.0.0\n')
     phyloseq_data()
   })
 
-  r$data <- data <- sdat <- reactive({
-    # sdat <- as.data.frame(as.matrix(phyloseq::sample_data(r_values$phyobj_initial)), stringsAsFactors = TRUE)
+  sdat_initial <- reactive({
+    req(r_values$phyobj_initial)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
     if( !"sample.id" %in% colnames(sdat) ){
       sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
-    }else{
-      print("sample.id OK")
     }
-    sdat
-
-    # write.table(sdat, "./test.csv", sep=",",row.names = FALSE)
+    return(sdat)
   })
 
 
@@ -341,13 +311,13 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(r_values$phyobj_initial, res_filter$filtered)
     filt_sdata <- res_filter$filtered()
 
-    cat(file=stderr(), 'subset samples...', "\n")
-    cat(file=stderr(), 'initial number of samples before',phyloseq::nsamples(r_values$phyobj_initial), "\n")
+    flog.info('subset samples() starting...')
+    flog.info(paste0('initial number of samples before ', phyloseq::nsamples(r_values$phyobj_initial)))
 
-    physeq <- phyloseq::prune_samples(filt_sdata$sample.id,r_values$phyobj_initial)
+    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),r_values$phyobj_initial)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
-    cat(file=stderr(), 'initial number of samples after',phyloseq::nsamples(physeq), "\n")
+    flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
   })
@@ -372,6 +342,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'success')
   })
 
+
   observeEvent(input$launch_all, {
     subset_samples()
     glom_taxo0()
@@ -379,36 +350,38 @@ mod_data_loading_server <- function(input, output, session, r=r){
     subset_taxa()
     normalize()
   })
-  
+
   observeEvent(input$update_metadata, {
-    cat(file=stderr(), 'button update_metadata', "\n")
+    flog.info('button update_metadata')
     subset_samples()
   },
   ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
   observe({
-    cat(file=stderr(), 'updating rank_glom selectInput...', "\n")
+    flog.info('updating rank_glom selectInput...')
     updateSelectInput(session, "rank_glom",
                       choices = c( rank_names(phyloseq_data()), "ASV" ),
                       selected = "ASV")
   }) #updateSelectInput
 
+
   observe({
-    cat(file=stderr(), 'updating minAb numericInput...', "\n")
+    flog.info('updating minAb numericInput...')
     updateNumericRangeInput(session, 'minAb',"Minimum taxa overall raw abundance:", value=c(1,max(taxa_sums(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
+
   observe({
-    cat(file=stderr(), 'updating minPrev numericInput...', "\n")
+    flog.info('updating minPrev numericInput...')
     updateNumericRangeInput(session, 'minPrev',"Minimum taxa prevalence in samples:", value=c(1,max(nsamples(r_values$phyobj_tmp))))
   }) #updateNumericRangeInput
 
+
   glom_taxo0 <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-    cat(file=stderr(), 'filter_taxonomy...', "\n")
+    flog.info('filter_taxonomy...')
     tmp <- r_values$phyobj_sub_samples
-    # print(rank_names(tmp))
     withProgress({
       if(input$rank_glom != 'ASV'){
         if(nsamples(tmp)>1000){
@@ -416,7 +389,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
           tmp <- fast_tax_glom(tmp, input$rank_glom)
         }else{
           tmp <- tax_glom(tmp, input$rank_glom)
-          print(tmp)
+
         }
         FGnames <- tax_table(tmp)[,input$rank_glom]
         nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
@@ -425,19 +398,19 @@ mod_data_loading_server <- function(input, output, session, r=r){
     showNotification("Taxonomy agglomeration done...", type="message", duration = 1)
     }, message = 'Processing, please wait.')
     r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
-    cat(file=stderr(), 'done.', "\n")
+    flog.info('done.')
   })
+
 
   glom_taxo <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
 
       tmp <- r_values$phyobj_taxglom0
-      print(tmp)
+
       tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
-      print(max(taxa_sums(tmp)))
-      print(input$minAb[2])
+
       tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
-      print(tmp)
+
       prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
       taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
       tmp <- prune_taxa(taxToKeep1, tmp)
@@ -445,27 +418,30 @@ mod_data_loading_server <- function(input, output, session, r=r){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
 
-      cat(file=stderr(), 'glom object', "\n")
-      print(tmp)
+      flog.info('glom object')
+
       r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
-      cat(file=stderr(), 'filter_taxonomy done.', "\n")
-      showNotification("Filter taxonomy done...", type="message", duration = 1)
+      flog.info('filter_taxonomy done.')
+    },message = "Update taxonomy, please wait...")
   })
+
 
   observeEvent(input$update_taxo0, {
     glom_taxo0()
   },ignoreInit = TRUE)
 
+
   observeEvent(input$update_taxo, {
     glom_taxo()
   },ignoreInit = TRUE)
+
 
   render_taxonomy_table <- reactive({
     withProgress({
 
       req(r_values$phyobj_tmp, input$rank_glom)
-      cat(file=stderr(), 'render_taxonomy_table fun', "\n")
+      flog.info('render_taxonomy_table fun')
 
       phyloseq_obj <- r_values$phyobj_tmp
       rnames <- phyloseq::rank_names(phyloseq_obj)
@@ -499,7 +475,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
       dplyr::left_join(otable, by = "rowname")
 
       if(input$rank_glom=="ASV" & !is.null(refseq(phyloseq_obj, errorIfNULL=FALSE)) ){
-        # print("add sequence to dataframe")
         showNotification("Sequences added to dataframe.", type="message", duration = 5)
         refseq1 <- phyloseq_obj %>%
         refseq %>%
@@ -514,7 +489,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
         dplyr::rename(joinGlom, asvname = rowname)
         FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
-      cat(file=stderr(), 'render_taxonomy_table done.', "\n")
+      flog.info('render_taxonomy_table done.')
       showNotification("Render taxonomy table ...", type="message", duration = 1)
       return(FTAB)
     },message = "Processing, please wait...")
@@ -534,17 +509,15 @@ mod_data_loading_server <- function(input, output, session, r=r){
   subset_taxa <- reactive({
     withProgress({
       req(r_values$phyobj_taxglom, res_filter_taxo$filtered)
+      flog.info('subset_taxa fun')
       filttax <- res_filter_taxo$filtered()
-      # tt <- render_taxonomy_table()
-      # browser()
-      cat(file=stderr(), 'subset_taxa fun', "\n")
       selected <- filttax[,1]
 
       # selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
       phy_obj <- prune_taxa(selected, r_values$phyobj_taxglom)
       r_values$phyobj_final <- phy_obj
       r_values$phyobj_tmp <- phy_obj
-      cat(file=stderr(), 'subset_taxa fun done.', "\n")
+      flog.info('subset_taxa fun done.')
       # phy_obj
 
     },message = "Subset taxonomy, please wait...")
@@ -552,22 +525,26 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   observeEvent(input$subset_taxo, {
-    cat(file=stderr(), 'button subset_taxo', "\n")
+    flog.info('button subset_taxo')
     subset_taxa()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
 
-  ## Filter taxo 
+  ## Filter taxo
 
-    res_filter_taxo <- filter_data_server(
+    res_filter_taxo <- datamods::filter_data_server(
       id = "filtering_taxo",
-      # data = data,
       data = reactive({
         req(render_taxonomy_table())
-        print("FILTER taxo")
-        render_taxonomy_table()   
+        render_taxonomy_table()
       }),
       name = reactive("tax_table"),
-      vars = reactive(NULL),
+      vars = reactive({
+        req(render_taxonomy_table())
+        s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
+        col_names <- colnames(render_taxonomy_table())
+        filt <- dplyr::setdiff(col_names, s_names)
+      return(filt)
+      }),
       widget_num = "slider",
       widget_date = "slider",
       label_na = "Missing"
@@ -576,7 +553,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
     output$table_taxoFILT <- DT::renderDT({
       res_filter_taxo$filtered()
     }, options = list(pageLength = 10, scrollX = TRUE))
-
 
 
 
@@ -611,26 +587,25 @@ mod_data_loading_server <- function(input, output, session, r=r){
     }
     showNotification("Dataset ready !", type="message", duration = 5)
     r_values$phyobj_norm <- FNGdata
-    # print(r_values$phyobj_norm)
   })
 
   observeEvent(input$norm, {
-    cat(file=stderr(), 'button normalize', "\n")
+    flog.info('button normalize')
     normalize()
   },ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
   output$phy_after <- renderPrint({
-    cat(file=stderr(), 'rendering phyloseq_after...', "\n")
+    flog.info('rendering phyloseq_after...')
     print(r_values$phyobj_tmp)
-    cat(file=stderr(), 'rendering phyloseq_after done.', "\n")
+    flog.info('rendering phyloseq_after done.')
   })
 
   output$phy_norm <- renderPrint({
     req(r_values$phyobj_norm)
-    cat(file=stderr(), 'rendering phyloseq_norm...', "\n")
+    flog.info('rendering phyloseq_norm...')
     print(r_values$phyobj_norm)
-    cat(file=stderr(), 'rendering phyloseq_norm done.', "\n")
+    flog.info('rendering phyloseq_norm done.')
   })
 
 
@@ -701,7 +676,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   r$phyloseq_data <- reactive({
     req(r_values$phyobj_initial)
     r_values$phyobj_initial
-    
+
   })
 
   # final filtered object
@@ -725,7 +700,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   # Chosen rank to glom taxa
   r$rank_glom <- reactive({
     input$rank_glom
-  }) 
+  })
 
   # Export metadata
   r$sdat <- reactive({
@@ -733,6 +708,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
     sdat <- sample_data(r_values$phyobj_final)
     sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
     sdat <- as(sdat, "data.frame")
+    if(! 'sample.id' %in% colnames(sdat)){
+      sdat$sample.id <- rownames(sdat)
+    }
     return(sdat)
   })
 
@@ -741,12 +719,12 @@ mod_data_loading_server <- function(input, output, session, r=r){
     sdat <- r$sdat()
     var_list <- colnames(sdat)
     if('sample.id' %in% var_list){
-      var_list <- var_list[! var_list %in% 'sample.id']
+      var_list <- sort(var_list[! var_list %in% 'sample.id'])
     }
     return(var_list)
   })
-  
-  
+
+
 }
 
 ## To be copied in the UI

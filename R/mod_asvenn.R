@@ -11,7 +11,6 @@ mod_asvenn_ui <- function(id){
   ns <- NS(id)
   tagList(
     fluidPage(
-      #useShinyalert(),
       fluidRow(
         infoBox("",
                 "Select conditions to highlight shared taxa",
@@ -35,7 +34,7 @@ mod_asvenn_ui <- function(id){
       fluidRow(
         box(
         # plotOutput(ns("venn1"), height = "800px"),
-        
+
           imageOutput(ns("venn1"), width = "100%", height = "100%"),
           title = "Venn Diagram VennR:", width = 12, status = "primary", solidHeader = TRUE,
           collapsible = TRUE, collapsed = FALSE
@@ -44,7 +43,7 @@ mod_asvenn_ui <- function(id){
       fluidRow(
         box(
           plotOutput(ns("venn2"), height = "800px"),
-          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE, 
+          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE,
           collapsible = TRUE, collapsed = TRUE
         )
       ),
@@ -58,8 +57,8 @@ mod_asvenn_ui <- function(id){
       ),
       fluidRow(
         box(
-          plotly::plotlyOutput(ns('radar_chart'), width = '100%', height = '100%'),
-          title = "Radar Chart:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
+          plotly::plotlyOutput(ns('boxplot_chart'), width = '100%', height = '100%'),
+          title = "Boxplot Chart: (click on one taxa above)", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
         )
       ),
       fluidRow(
@@ -112,7 +111,7 @@ plot_krona <- function(physeq,output,variable, trim=F){
   df[,2]<-as.factor(df[,2])
   # Create a directory for krona files
   dir.create(output)
-  
+
   # For each level of the Description variable
   # Abundance and taxonomic assignations for each OTU are fetched
   # and written to a file that would be processed by Krona.
@@ -156,40 +155,45 @@ plot_krona <- function(physeq,output,variable, trim=F){
 
 
 mod_asvenn_server <- function(input, output, session, r=r){
-  ns <- session$ns  
-  
+  ns <- session$ns
+
+
   observe({
-    req(r$phyloseq_filtered())
+    req(r$phyloseq_filtered(), r$sdat())
+    metadata <- r$sdat()
+    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
     updateSelectInput(session, "Fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = tmp)
   })
 
 
   output$lvls1 = renderUI({
-    req(input$Fact1, r$phyloseq_filtered())
-    level1 <- na.omit(levels(r$sdat()[,input$Fact1]))
+    req(input$Fact1, r$sdat())
+    metadata <- r$sdat()
+    level1 <- na.omit(unique(metadata[,input$Fact1]))
     checkboxGroupInput(ns("lvls1"), label = "Select up to 5 levels :",
                        choices = level1, inline = TRUE, selected = level1[1:3])
 
   })
-  
+
   output$krona_select <- renderUI({
     req(input$lvls1)
     checkboxGroupInput(ns('krona_select'), "Select your shared factors:", choices=input$lvls1, inline = TRUE)
   })
-  
+
   output$krona_glom <- renderUI({
     req(input$krona_select)
     radioButtons(ns('krona_glom'), "Select if you want to agglomerate samples by factor or not:", choices = list('TRUE'=1, 'FALSE'=0), inline=TRUE, selected=1)
   })
-  
+
   output$krona_exclud <- renderUI({
     req(input$krona_select)
     ch <- dplyr::setdiff(input$lvls1, input$krona_select)
     checkboxGroupInput(ns('krona_exclud'), "Select your excluded factors:", choices=ch, inline = TRUE)
   })
 
-  
+
   addResourcePath('tmp', '/tmp')
   resVenn <- eventReactive(input$go1, {
     req(r$phyloseq_filtered(), input$lvls1)
@@ -198,46 +202,47 @@ mod_asvenn_server <- function(input, output, session, r=r){
       shinyalert("Oops!", "You need to choose between 2 and 5 factors...", type = "error")
     }
     else{
-      res <-
+      res <- list()
       TFdata <- list()
       TFtax <- tibble(taxa = character(), taxo = character())
+
       for(lvl in input$lvls1){
         flog.info(lvl)
         fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% '",lvl,"')",sep="")
         eval(parse(text=fun))
         sp_data <- prune_taxa(taxa_sums(data.tmp) > 0, data.tmp)
-  
+
         abund_to_zero = function(x){
           x[x < input$minAb] <- 0
           return(x)
         }
         sp_data <- transform_sample_counts(sp_data, fun = abund_to_zero)
         sp_data <- prune_taxa(taxa_sums(sp_data) > 0, sp_data)
-        
+
         TT = cbind(otu_table(sp_data),tax_table(sp_data))
-        
+
         TFdata[[lvl]] <- TT
         TFtax <- dplyr::full_join(TFtax, as_tibble(cbind(taxa = row.names(TT), taxo =  as.character(apply(TT[,colnames(tax_table(sp_data))], 1, paste, collapse=";") ) )), by = c("taxa", "taxo"))
         row.names(TFtax[[lvl]]) = TFtax[[lvl]][,1]
       }
-      
+
       TF <- sapply(TFdata, row.names, simplify = FALSE)
       names(TF) = input$lvls1
 
       outfile <- tempfile(fileext='.svg')
       venn.res <- nVennR::plotVenn(TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile)
-      
+
       res$svg.obj <- list(src = normalizePath(outfile), width = "100%", height = "100%")
       v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
       res$TF <- TF
-
+      # browser()
       return(res)
     }
   })
 
-  
+
   output$venn1 <- renderImage(
     resVenn()$svg.obj
   , deleteFile=TRUE)
@@ -246,8 +251,8 @@ mod_asvenn_server <- function(input, output, session, r=r){
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
         # grid.draw
         # grDevices::replayPlot(resVenn()$venn.plot2)
-        venn::venn(resVenn()$TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2, 
-                          ggplot = FALSE) 
+        venn::venn(resVenn()$TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2,
+                          ggplot = FALSE)
   })
 
 
@@ -262,34 +267,30 @@ mod_asvenn_server <- function(input, output, session, r=r){
       write.table(resVenn()$v.table, file, sep="\t", row.names=FALSE)
     }
   )
-  
-  get_radar_data <- reactive({
+
+  get_boxplot_data <- reactive({
     req(input$tabvenn1_row_last_clicked, input$lvls1)
     fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% c('",paste(input$lvls1, collapse='\',\''),"'))",sep="")
     eval(parse(text=fun))
-    
+
     obj <- prune_taxa(pull(resVenn()$v.table[input$tabvenn1_row_last_clicked,1]), data.tmp)
     ot <- as.data.frame(otu_table(obj))
     ot <- as.data.frame(t(ot))
     mt <- as.data.frame(as.matrix(sample_data(obj)))
     ot[input$Fact1] <- as.vector(mt[rownames(ot), input$Fact1])
-    
+
     return(ot)
   })
-  
-  get_radar <- reactive({
-    dt <- get_radar_data()
-    fact <- get_radar_data()
-    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box") %>%
-      plotly::layout(xaxis = list(title = colnames(dt)[2]),
-      yaxis = list(title = colnames(dt)[1]),
-      title = colnames(dt)[1] )
+
+  get_boxplot <- reactive({
+    dt <- get_boxplot_data()
+    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box" )
     return(fig)
   })
-  
-  
-  output$radar_chart <- plotly::renderPlotly({
-    get_radar()
+
+
+  output$boxplot_chart <- plotly::renderPlotly({
+    get_boxplot()
   })
 
   get_krona_plot <- reactive({
@@ -310,7 +311,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
     df <- dplyr::select(df, c('taxa', input$krona_select))
 
     df$sum <- rowSums(select_if(df, is.numeric))
-  
+
     dff <- dplyr::filter(df, df$sum == length(input$krona_select))
     phy_obj <- phyloseq::phyloseq(otu_table(r$phyloseq_filtered()), tax_table(r$phyloseq_filtered()), sample_data(r$phyloseq_filtered()))
 

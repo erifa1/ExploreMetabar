@@ -101,12 +101,19 @@ mod_diffanalysis_ui <- function(id){
 mod_diffanalysis_server <- function(input, output, session, r = r){
   ns <- session$ns
 
+  get_meta_fact <- reactive({
+    metadata <- r$sdat()
+    num_col_names <- metadata %>% dplyr::select_if(is.numeric) %>% colnames
+    tmp <- dplyr::setdiff(colnames(metadata), num_col_names)
+    return(tmp)
+  })
+  
   output$factor1 = renderUI({
     req(r$phyloseq_filtered())
     selectInput(
       ns("Fact1"),
       label = "Select factor to test: ",
-      choices = r$phyloseq_filtered()@sam_data@names
+      choices = get_meta_fact()
     )
   })
 
@@ -114,24 +121,18 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     req(input$Fact1, r$phyloseq_filtered())
     selectInput(ns("Cond1"),
       label = "Select Condition 1 to compare: ",
-      choices = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
+      choices = unique(r$sdat()[,input$Fact1])
       )
   })
 
   output$cond2 = renderUI({
     req(input$Cond1, input$Fact1, r$phyloseq_filtered())
-    Conds = unique(r$phyloseq_filtered()@sam_data[,input$Fact1])
-    if(length(Conds) <= 2){
-      print(Conds)
-      choices2 = Conds
-    }else{
-      choices2 = Conds[Conds != input$Cond1]
-    }
+    Conds <- unique(r$sdat()[,input$Fact1])
+    choices2 <- Conds[Conds != input$Cond1]
     selectInput(ns("Cond2"),
                 label = "Select Condition 2 to compare: ",
                 choices = choices2
     )
-
   })
 
   output$alpha1 = renderUI({
@@ -149,17 +150,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       # print(unique(r$phyloseq_filtered()@sam_data[,input$Fact1]))
       cat("\n")
       print( glue("Compare {input$Cond1} and {input$Cond2} ") )
-
-      # print(head(tax_table(r$phyloseq_filtered())))
     })
-
-
-    #Taxonomy subset (asvselect)
-    # data1 <- reactive({
-    #   req(r$asvselect(), r$phyloseq_filtered())
-    #   Fdata <- prune_taxa(r$asvselect(), r$phyloseq_filtered())
-    #   Fdata
-    # })
 
 
     deseqDA = eventReactive(input$go1, {
@@ -183,14 +174,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       }
 
       print('geoMeans')
-      geoMeans = apply(counts(deseq), 1, gm_mean)
+      geoMeans <- apply(counts(deseq), 1, gm_mean)
       print(geoMeans)
-      deseq = estimateSizeFactors(deseq, geoMeans = geoMeans)
+      deseq <- estimateSizeFactors(deseq, geoMeans = geoMeans)
       print("deseq")
-      deseq = DESeq(deseq, test="Wald", fitType="parametric")
+      deseq <- DESeq(deseq, test="Wald", fitType="parametric")
 
       print("res")
-      res = results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
+      res <- results(deseq, cooksCutoff = FALSE, contrast = c(input$Fact1, input$Cond1 , input$Cond2))
       res
 
       }, message = "Performing DESeq2...")
@@ -279,7 +270,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
 
     ### MEtacoder
-    mtcoderDA = eventReactive(input$go4, {
+    mtcoderDA <- eventReactive(input$go4, {
 
       withProgress({
 
@@ -438,7 +429,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
       withProgress({
       req(input$Alpha1, input$Cond1, input$Cond2, input$Fact1)
-      print("merge")
+        flog.info("merge")
       # req(wilcoxDA(), mtcoderDA(), deseqDA(), mgSeqDA(), input$Alpha1)
 
         # wTab = wilcoxDA()$res
@@ -449,8 +440,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         if(all(is.na(mtList))){
           mtList <- NULL
         }
-        print("mtList")
-        print(head(mtList))
+        flog.info("mtList")
+        # print(head(mtList))
 
         deTab = deseqDA()
         deTab = deTab[!is.na(deTab$padj),]
@@ -471,14 +462,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         ListAllOtu = unique(unlist(TF))
 
         #Construction de la table
-        print('Building table...')
+        flog.info('Building table...')
         comp1 = paste(input$Cond1, '_vs_' , input$Cond2,sep='')
         col_comp = rep(comp1, length(ListAllOtu))
         TABf = cbind.data.frame(ListAllOtu, col_comp)
 
 
-        # Test si chaque ASV est diff dans les méthdes.
-        print('Check methods ...')
+        # Test si chaque ASV est diff dans les methdes.
+        flog.info('Check methods ...')
         for (j in 1:length(TF)){
           TABtest = TF[[j]]
           # TABtest=gsub("\\[|\\]", "", TF[[j]]) # cherche les ASVids
@@ -502,7 +493,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         # input$Cond1="Feces"
         # input$Cond2="Soil"
 
-        print('Calculating mean relative abundance...')
+        flog.info('Calculating mean relative abundance...')
         data = r$phyloseq_filtered()
         normf = function(x){ x/sum(x) }
         data.norm <- transform_sample_counts(data, normf)
@@ -516,14 +507,14 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
           seqs <- refseq(data.norm)
         }
 
-        print("mean1")
+        flog.info("mean1")
         Gtab <- cbind(as.data.frame(ssample), t(otableNORM))
         MeanRelAbcond1 = NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond1,i], na.rm=TRUE)
           MeanRelAbcond1=c(MeanRelAbcond1,tt)
         }
-        print("mean2")
+        flog.info("mean2")
         MeanRelAbcond2=NULL
         for(i in TABf$ListAllOtu){
           tt=mean(Gtab[Gtab[,input$Fact1]==input$Cond2,i], na.rm=TRUE)
@@ -532,7 +523,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         TABfbak <- TABf <- cbind(TABf, MeanRelAbcond1, MeanRelAbcond2)
 
         #Adjust table
-        print('Adjusting table...')
+        flog.info('Adjusting table...')
         TABf <- TABf[!is.na(TABf$DESeqLFC),]
         TABf$Condition = rep(NA, nrow(TABf))
         TABf[TABf$DESeqLFC>0, "Condition"] = as.character(input$Cond1)
@@ -540,15 +531,11 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         TABf$Condition = factor(TABf$Condition,
                                 levels=c(as.character(input$Cond1),as.character(input$Cond2)) )
 
-        print("Adding taxonomy and sequences...")
-        # Debug
-        # LL = list()
-        # LL$TABf = TABf; LL$ttax =ttax[as.character(TABf[,1]),] ;  LL$seq = seqs[as.character(TABf[,1])]
-        # save(LL, file = "~/Téléchargements/debug_explore.rdata")
+        flog.info("Adding taxonomy and sequences...")
 
         TABf <- cbind.data.frame(TABf, ttax[as.character(TABf[,1]),]@.Data)
         if(!is.null(seqs)){TABf <- cbind.data.frame(TABf, sequences = seqs[as.character(TABf[,1])])}
-        print("done")
+        flog.info("done")
 
 
         LL = list()
@@ -559,13 +546,6 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       }, message = "Merging results...")
 
     })
-
-
-
-
-
-
-
 
 
     output$mergeTab <- DT::renderDataTable({

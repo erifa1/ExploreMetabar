@@ -25,10 +25,11 @@ mod_alpha_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
-        selectInput(
+        shinyWidgets::pickerInput(
           ns("Fact1"),
           label = "Select factor to test: ",
-          choices = ""
+          choices = "",
+          multiple = TRUE
         ),
         checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
 
@@ -59,16 +60,7 @@ mod_alpha_ui <- function(id){
         plotly::plotlyOutput(ns("plot2")),
         width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
       ),
-      box(
-        h3("ANOVA results"),
-        box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
-
-        h3("TukeyHSD test results"),
-        downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
-        DT::dataTableOutput(ns("boxstats")),
-
-        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
-      )
+      uiOutput(ns('anovaBox'))
     )
   )
 }
@@ -86,6 +78,54 @@ mod_alpha_ui <- function(id){
 
 mod_alpha_server <- function(input, output, session, r = r){
   ns <- session$ns
+  
+  isNumFactor <- reactive({
+    req(get_meta_col(), local_metadata())
+    metadata <- local_metadata()
+    if(is.numeric(metadata[, get_meta_col()])){
+      return(TRUE)
+    } else{
+      return(FALSE)
+    }
+  })
+  
+  
+  get_meta_col <- reactive({
+    req(input$Fact1, r$sdat())
+    metadata <- r$sdat()
+    if(length(input$Fact1) == 1){
+      meta.col <- input$Fact1
+    } else if(length(input$Fact1) > 1) {
+      validate(
+        need(!any(sapply(metadata[, input$Fact1], is.numeric)), message = "You can't select multiple numeric factors")
+      )
+      meta.col <- paste0(input$Fact1, collapse='_')
+    }
+    return(meta.col)
+  })
+  
+  
+  local_metadata <- reactive({
+    req(input$Fact1, r$sdat())
+    metadata <- r$sdat()
+    if(! all(sapply(metadata[, input$Fact1], is.numeric))){
+      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Fact1, na.rm=TRUE)
+      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
+      metadata <- select(metadata, "sample.id", get_meta_col())
+    }
+    else{
+      metadata <- select(metadata, "sample.id", input$Fact1)
+    }
+    return(metadata)
+  })
+  
+  
+  local_physeq <- reactive({
+    phy <- r$phyloseq_filtered()
+    sample_data(phy) <- sample_data(local_metadata())
+    return(phy)
+  })
+  
 
   observeEvent(r$tabs$tabselected, {
     print(r$tabs$tabselected)
@@ -94,32 +134,32 @@ mod_alpha_server <- function(input, output, session, r = r){
       shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
-
-
+  
+  
   observe({
-    req(r$phyloseq_filtered())
-    updateSelectInput(session, "Fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+    req(r$phyloseq_filtered(), r$var_list())
+    shinyWidgets::updatePickerInput(session, "Fact1",
+                      choices = r$var_list())
   })
-
-  alpha1 <- eventReactive(input$launch_alpha,{
+  
+  
+  alpha1 <- eventReactive(input$launch_alpha, {
     withProgress(message = 'Computing alpha diversity tables', min=0, max=10, value = 0,{
       flog.info('computing alpha1...')
-      req(r$phyloseq_filtered())
-  
-      data <- r$phyloseq_filtered()
+      req(local_physeq())
+
+      data <- local_physeq()
       setProgress(value = 5, detail = 'estimate richness')
       alphatab <- estimate_richness(data, measures = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
                                                        "InvSimpson") )
       row.names(alphatab) = sample_names(data)
-  
+
       LL=list()
       LL$alphatab = as.data.frame(alphatab)
       LL$data = data
       flog.info('computing alpha1 done.')
       setProgress(value = 10, detail = 'done')
       return(LL)
-      
     })
   })
 
@@ -129,24 +169,27 @@ mod_alpha_server <- function(input, output, session, r = r){
     LL$alphatab
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
 
-  alphagrp_table <- reactive({
+  
+  alphagrp_table <- eventReactive(input$launch_alpha, {
+    req(alpha1(), local_metadata(), get_meta_col())
     withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
-    metadata = tibble::rownames_to_column(r$sdat())
-    metadata <- select(metadata, rowname, input$Fact1)
+    
     alpha.table =  tibble::rownames_to_column(alpha.table)
-    alpha.table <- dplyr::left_join(metadata, alpha.table, by = "rowname")
+    alpha.table <- dplyr::left_join(local_metadata(), alpha.table, by = c( "sample.id" = "rowname"))
 
     alpha.table[,'rowname'] <- NULL
-    
-    alpha.table <- alpha.table %>%
-      group_by_at(input$Fact1) %>%
-      summarise(
-        tibble(
-          across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
-          across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+
+    if(!isNumFactor()){
+      alpha.table <- alpha.table %>%
+        group_by_at(get_meta_col()) %>%
+        summarise(
+          tibble(
+            across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
+            across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+          )
         )
-      )
+    }
     return(alpha.table)
     setProgress(value = 10, detail = 'done')
     })
@@ -170,23 +213,22 @@ mod_alpha_server <- function(input, output, session, r = r){
   )
 
 
-  boxtab <- eventReactive(input$launch_alpha,{
-    req(r$sdat(), input$Fact1, r$phyloseq_filtered())
+  boxtab <- eventReactive(input$launch_alpha, {
+    req(get_meta_col(), local_physeq(), local_metadata())
     withProgress(message = 'Boxplot table', min=0, max=10, value = 0,{
-    flog.info('boxtab function')
+    flog.info('boxtab function...')
     LL = alpha1()
-
-    metadata = tibble::rownames_to_column(r$sdat())
     alphatab =  tibble::rownames_to_column(LL$alphatab)
 
-
-    boxtab <- dplyr::left_join(metadata, alphatab, by = "rowname")
+    boxtab <- dplyr::left_join(local_metadata(), alphatab, by = c('sample.id' = "rowname"))
     
-    if(input$checkbox1){
-      print("ORDER factor")
-      fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(boxtab${input$Fact1})) ) ")
+    if(! is.numeric(boxtab[, get_meta_col()])){
+      if(input$checkbox1){
+        print("ORDER factor")
+        fun = glue::glue( "boxtab${get_meta_col()} = factor( boxtab${get_meta_col()}, levels = gtools::mixedsort(levels(as.factor(boxtab${get_meta_col()}))) ) ")
 
-      eval(parse(text=fun))
+        eval(parse(text=fun))
+      }
     }
 
     if( !any(names(boxtab)=="sample.id") ) {
@@ -194,68 +236,113 @@ mod_alpha_server <- function(input, output, session, r = r){
       dplyr::rename(boxtab, sample.id = rowname)
     }
 
-    boxtab$Depth <- sample_sums(r$phyloseq_filtered())
+    boxtab$Depth <- sample_sums(local_physeq())
     setProgress(value = 10, detail = 'done')
-    boxtab
-    })  
+    flog.info('boxtab done.')
+    return(boxtab)
+    })
   }
 )
 
 
-  output$plot2 <- renderPlotly({
+  get_box_plot <- reactive({
+    req(boxtab(), get_meta_col())
+    flog.info('renderPloty...')
     withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
-    plot_ly(boxtab(), x = as.formula(glue("~{input$Fact1}")), y = as.formula(glue("~{input$metrics}")),
-           color = as.formula(glue("~{input$Fact1}")), type = 'box') %>% #, name = ~variable, color = ~variable) %>% #, color = ~variable
-     layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), xaxis = list(title = 'Samples'), barmode = 'stack') %>%
-    config(toImageButtonOptions = list(format = "svg"))
-    
+      dt <- boxtab()
+      if(is.numeric(dt[,get_meta_col()])){
+        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
+                     color = as.formula(glue("~{get_meta_col()}")), type = 'scatter')
+      } else{
+        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
+                     color = as.formula(glue("~{get_meta_col()}")), type = 'box')
+      }
+      p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
+        config(toImageButtonOptions = list(format = "svg"))
+    })
   })
- })
+  
+  
+  output$plot2 <- renderPlotly({
+    get_box_plot()
+  })
+  
+  output$alphalrm <- renderPrint(
+    print(alpha_lm())
+  )
+  
+  alpha_lm <- reactive({
+    dt <- boxtab()
+    form1 = glue::glue("{input$metrics} ~ Depth + {get_meta_col()}")
+    fit = lm(as.formula(form1), data=dt)
+    return(summary(fit))
+  })
 
+  output$anovaBox <- renderUI({
+    if(isNumFactor()){
+      box(
+        h3("Linear regression model"),
+        box(verbatimTextOutput(ns("alphalrm")), width=12, status = "primary"),
+        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+      )
+    }
+    else{
+      box(
+            h3("ANOVA results"),
+            box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
 
+            h3("TukeyHSD test results"),
+            downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
+            DT::dataTableOutput(ns("boxstats")),
+
+            width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+          )
+    }
+  })
+  
+  
   reacalpha <- reactive({
-    req(input$metrics, input$Fact1)
+    req(input$metrics, get_meta_col(), boxtab())
+    
     cat(file=stderr(),'Alpha tests...',"\n")
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
-    anova_data = boxtab()
 
-    form1 = glue::glue("{input$metrics} ~ Depth + {input$Fact1}")
-    anova_res1 <- aov( as.formula(form1), anova_data)
+    form1 = glue::glue("{input$metrics} ~ Depth + {get_meta_col()}")
+    anova_res1 <- aov( as.formula(form1), boxtab())
 
-    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{input$Fact1}\")")
+    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{get_meta_col()}\")")
     eval(parse(text=fun))
 
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-
-    fun <- glue::glue("LL$groups1 <- tukey_hsd${input$Fact1}")
+    fun <- glue::glue("LL$groups1 <- tukey_hsd${get_meta_col()}")
     eval(parse(text=fun))
     
+    LL$groups1 <- LL$groups1 %>% as.data.frame() %>% rownames_to_column('comparison')
+
     setProgress(value = 10, detail = 'done')
-    
+
     })
     cat(file=stderr(),'Done...',"\n")
     return(LL)
  })
-  
- alpha_test <- reactive({
-  t <- reacalpha()
-  return(t)
- })
- 
+
+
  output$testalpha <- renderPrint({
   req(input$metrics)
-   tt <- alpha_test()
+   tt <- reacalpha()
    print(tt$form1)
    print(tt$aov1)
  })
+
 
  output$boxstats <- DT::renderDataTable({
    req(reacalpha)
    LL = reacalpha()
    LL$groups1
- }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+ }, filter="top", options = list(pageLength = 5, scrollX = TRUE))
+
 
  output$boxtab_download <- downloadHandler(
    filename = "alpha_boxplot_stats.csv",
