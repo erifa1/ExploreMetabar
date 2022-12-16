@@ -17,25 +17,31 @@
 mod_taxaboxplot_ui <- function(id){
   ns <- NS(id)
   tagList(
-
     fluidPage(
-
-      infoBox("Reminder :",
-              "You can select specific sample in Metadatas/Subset module, and agglomerate to specific rank in ASVtable module",
-              icon = icon("info-circle"), fill=TRUE, width = 10),
-    fluidRow(
-      box(
-        shinyWidgets::pickerInput(
-          ns("boxplot_fact1"),
-          label = "Select factor to test: ",
-          choices = "",
-          multiple = TRUE
-        ),
-        uiOutput(ns('ui_radio_tests')),
-        actionButton(ns("go1"), "Run Test/Correlation", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-      )
+      fluidRow(
+        infoBox("Reminder :",
+                "This module launches Kruskal Wallis on factors for each taxa. Be aware that this is multiple testing and pvalues are not ajusted. For numerical factors, samples with zero abundance are omitted",
+                icon = icon("info-circle"), fill=TRUE, width = 10)
+      ),
+      fluidRow(
+        box(
+          uiOutput(ns('ui_picker')),
+          # shinyWidgets::pickerInput(
+          #   ns("boxplot_fact1"),
+          #   label = "Select factor to test: ",
+          #   choices = "",
+          #   multiple = TRUE,
+          #   options = pickerOptions(
+          #     actionsBox = TRUE,
+          #     liveSearch = TRUE,
+          #     showContent = FALSE
+          #   )
+          # ),
+          uiOutput(ns('ui_radio_tests')),
+          actionButton(ns("go1"), "Run Test/Correlation", icon = icon("play-circle"),
+                       style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+          title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
+        )
     ),
     fluidRow(
       box(
@@ -72,13 +78,47 @@ mod_taxaboxplot_ui <- function(id){
 mod_taxaboxplot_server <- function(input, output, session, r = r){
   ns <- session$ns
 
-  observe({
-    req(r$phyloseq_filtered(), r$var_list())
-    shinyWidgets::updatePickerInput(session, "boxplot_fact1",
-                      choices = r$var_list(),
-                      selected = r$var_list()[2])
-
+  
+  output$ui_picker <- renderUI({
+    req(r$var_list())
+    shinyWidgets::pickerInput(ns("boxplot_fact1"),
+                              label = "Select factor to test: ",
+                              choices = r$var_list(),
+                              selected = r$var_list()[2],
+                              multiple = TRUE,
+                              options = pickerOptions(
+                                actionsBox = TRUE,
+                                liveSearch = TRUE,
+                                showContent = FALSE
+                              ),
+                              choicesOpt = list(
+                                content = unlist(lapply(
+                                  X = r$var_list(),
+                                  FUN = function(x) {
+                                    htmltools::doRenderTags(
+                                      tags$div(
+                                        splitLayout(cellWidths = 200,
+                                                    tags$div(
+                                                      style = htmltools::css(fontWeight = "bold"),
+                                                      x
+                                                    ),
+                                                    tags$div(
+                                                      style = htmltools::css(color = 'grey'),
+                                                      class(r$sdat()[,x])
+                                                    ),
+                                                    tags$div(
+                                                      style = htmltools::css(color = 'grey'),
+                                                      paste0(sum(is.na(r$sdat()[,x])), '/', nrow(r$sdat()), ' NAs')
+                                                    )
+                                        )
+                                      )
+                                    )
+                                  }
+                                ))
+                              )
+    )
   })
+
   
   
   isNumFactor <- reactive({
@@ -143,8 +183,6 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     if(! isNumFactor()){
       box(DT::dataTableOutput(ns("wilcoxDT")),
           title = "Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE)
-      # box(verbatimTextOutput(ns("wilcoxprint")),
-      #     title = "Raw Results of pairwise wilcox test:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE)
     }
   })
 
@@ -162,24 +200,33 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   
   
   get_merged_table <- eventReactive(input$go1, {
-    otable <- otu_table(local_physeq()) %>% t() %>%
-      as.data.frame(stringsAsFactors = FALSE) %>%
-      rownames_to_column('sample.id')
-    metadata <- local_metadata()
-    metadata <- metadata[, get_meta_col(), drop=FALSE] %>% rownames_to_column('sample.id')
-    mtable <- left_join(otable, metadata, by='sample.id')
+    withProgress({
+      otable <- otu_table(local_physeq()) %>% t() %>%
+        as.data.frame(stringsAsFactors = FALSE) %>%
+        rownames_to_column('sample.id')
+      incProgress(amount = 0.5)
+      metadata <- local_metadata()
+      incProgress(amount = 0.1)
+      metadata <- metadata[, get_meta_col(), drop=FALSE] %>% rownames_to_column('sample.id')
+      incProgress(amount = 0.1)
+      mtable <- left_join(otable, metadata, by='sample.id')
+      incProgress(amount = 0.3)
+    }, message = 'Merging table...', min = 0, max = 1)
     return(mtable)
   })
   
   
   get_kruskal_pval_table <- reactive({
     mtable <- get_merged_table()
-    results <- tibble('taxa' = as.character(),
-                      'p.value' = as.numeric())
-    for(taxa in taxa_names(local_physeq())){
-      res = kruskal.test(mtable[,taxa], mtable[,get_meta_col()])
-      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value)
-    }
+    withProgress({
+      results <- tibble('taxa' = as.character(),
+                        'p.value' = as.numeric())
+      for(taxa in taxa_names(local_physeq())){
+        res = kruskal.test(mtable[,taxa], mtable[,get_meta_col()])
+        results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value)
+        incProgress(amount = 1/length(taxa_names(local_physeq())))
+      }
+    }, message = 'Computing kruskal.test...', min = 0, max = 1)
     return(results)
   })
   
@@ -187,19 +234,31 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   get_corr_pval_table <- reactive({
     mtable <- get_merged_table()
     results <- tibble('taxa' = as.character(),
+                      'available.data' = as.numeric(),
                       'p.value' = as.numeric(),
                       'cor.coef' = as.numeric())
-    for(taxa in taxa_names(local_physeq())){
-      res <- stats::cor.test(mtable[,taxa], mtable[,get_meta_col()], method = input$cor_test)
-      results <- results %>% add_row('taxa' = taxa, 'p.value' = res$p.value, cor.coef = res$estimate)
-    }
+    withProgress({
+      for(taxa in taxa_names(local_physeq())){
+        tmp <- mtable[,c(taxa, get_meta_col())]
+        tmp <- na.omit(tmp)
+        tmp <- tmp[tmp[,taxa] > 0,]
+        if(nrow(tmp) > 5){
+          res <- stats::cor.test(tmp[, taxa], tmp[, get_meta_col()], method = input$cor_test)
+          results <- results %>% add_row('taxa' = taxa, 'available.data' = nrow(tmp), 'p.value' = res$p.value, cor.coef = res$estimate)
+        } else {
+          results <- results %>% add_row('taxa' = taxa, 'available.data' = nrow(tmp), 'p.value' = NA, cor.coef = NA)
+        }
+        incProgress(amount = 1/length(taxa_names(local_physeq())))
+      }
+    }, message = 'Computing correlations...', min = 0, max = 1)
+    
     return(results)
   })
 
 
   output$pvalout1 <- DT::renderDataTable({
     req(get_pval_table())
-    get_pval_table() %>% datatable(selection = "single", filter="top") %>%
+    get_pval_table() %>% datatable(selection = "single", filter="top", options = list(scrollX = TRUE)) %>%
       formatStyle(
         'p.value',
         backgroundColor=styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","yellow","red")))
