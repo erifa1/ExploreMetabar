@@ -177,8 +177,15 @@ mod_beta_server <- function(input, output, session, r = r){
           uiOutput(ns('ordiR2_out')),
           verbatimTextOutput(
             ns('formula')
-          )
+          ),
+          uiOutput(ns('ui_ordiR2_btn'))
       )
+    }
+  })
+  
+  output$ui_ordiR2_btn <- renderUI({
+    if(input$param_mode == 'ordiR2step'){
+      shinyWidgets::actionBttn(inputId = ns('ordiR2_btn'), label = 'launch', size = 'sm')
     }
   })
   
@@ -238,14 +245,14 @@ mod_beta_server <- function(input, output, session, r = r){
   
   
   ## ordiR2step fonction
-  get_ordiR2step <- reactive({
+  get_ordiR2step <- eventReactive(input$ordiR2_btn, {
     req(local_metadata(), local_physeq())
     # flog.info('get_ordiR2step() starting...')
     
     spe <- veganifyOTU(local_physeq())
     spe <- vegan::decostand(spe, method = 'hell')
     
-    env <- local_metadata()[, input$constr_picker]
+    env <- local_metadata()[, c(input$constr_picker, 'sample.id')]
     nsample_before <- nrow(env)
     env <- na.omit(env)
     nsample_after <- nrow(env)
@@ -254,7 +261,6 @@ mod_beta_server <- function(input, output, session, r = r){
     if('sample.id' %in% colnames(env)){
       env[,'sample.id'] <- NULL
     }
-
     validate(
       need(nsample_after > 0, message = 'Too much NAs in your env variables. No sample left.')
     )
@@ -301,6 +307,7 @@ mod_beta_server <- function(input, output, session, r = r){
     }
     print(res$sel$anova)
   })
+  
   
   output$formula <- renderPrint({
     get_constr_formula()
@@ -485,26 +492,57 @@ mod_beta_server <- function(input, output, session, r = r){
     if(input$ordination %in% c('RDA', 'CCA')){
       box(
         title = "Anova on RDA/CCA results", width = 12, status = "primary", solidHeader = TRUE,
-        h3("Anova results on model:"),
+        h3("Anova results on model"),
         verbatimTextOutput(ns('anova_res')),
         h3("Anova results on axis"),
-        verbatimTextOutput(ns('anova_axis_res'))
+        verbatimTextOutput(ns('anova_axis_res')),
+        h3("Anova results on terms"),
+        verbatimTextOutput(ns('anova_term_res')),
+        h3('Anova results on contrasts'),
+        verbatimTextOutput(ns('anova_contrasts_res'))
       )
     }
   })
+  
+  
+  
+  
+  get_anova_contrast <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999), by = 'onedf')
+    return(res)
+  })
+  
+  
+  get_anova_term <- eventReactive(input$launch_beta, {
+    res <- anova(ord(), permutations = permute::how(nperm = 999), by = 'term')
+    return(res)
+  })
+  
   
   get_anova_model <- eventReactive(input$launch_beta, {
     res <- anova(ord(), permutations = permute::how(nperm = 999))
     return(res)
   })
   
+  
   output$anova_res <- renderPrint({
     get_anova_model()
   })
   
+  
   get_anova_axis <- eventReactive(input$launch_beta, {
     res <- anova(ord(), permutations = permute::how(nperm = 999), by = "axis")
     return(res)
+  })
+  
+  
+  output$anova_term_res <- renderPrint({
+    get_anova_term()
+  })
+  
+  
+  output$anova_contrasts_res <- renderPrint({
+    get_anova_contrast()
   })
   
   
