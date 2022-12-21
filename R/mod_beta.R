@@ -67,6 +67,8 @@ mod_beta_ui <- function(id){
           uiOutput(ns('ui_beta_factor')),
           uiOutput(ns('ui_taxa_rank')),
           shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
+          uiOutput(ns('ui_axe_x')),
+          uiOutput(ns('ui_axe_y')),
           title = "Plot options", width = 12
         )
       ),
@@ -486,6 +488,7 @@ mod_beta_server <- function(input, output, session, r = r){
                        choices = ch ,
                        inline = T)
   })
+
   
   
   output$ui_anova_box <- renderUI({
@@ -616,15 +619,15 @@ mod_beta_server <- function(input, output, session, r = r){
       if(input$metrics %in% c('bray', 'jaccard')){
         spe <- veganifyOTU(local_physeq())
         spe <- vegan::decostand(spe, method = 'hell')
-        res <- vegan::metaMDS(veganifyOTU(local_physeq()), distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+        res <- vegan::metaMDS(veganifyOTU(local_physeq()), k = 5, distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
-        res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE)
+        res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE, k = 5)
       }
     } else if(input$ordination == 'PCOA'){
       spe <- veganifyOTU(local_physeq())
       spe <- vegan::decostand(spe, method = 'hell')
       if(input$metrics %in% c('bray', 'jaccard')){
-        res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics)
+        res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics, )
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         dist <- physeq_dist()
         res <- vegan::capscale(dist ~ 1, comm = spe)
@@ -661,13 +664,13 @@ mod_beta_server <- function(input, output, session, r = r){
     req(ord(), local_metadata(), get_meta_col())
     flog.info('get_sites_coord() starting...')
     if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites', correlation = TRUE) %>% 
+      nmds_coord <- vegan::scores(ord(), display='sites', correlation = TRUE) %>% 
         as_tibble(rownames="sample.id")
     } else if(input$ordination %in% c('CCA')){
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites', hill = TRUE) %>% 
+      nmds_coord <- vegan::scores(ord(), display='sites', hill = TRUE) %>% 
         as_tibble(rownames="sample.id")
     } else {
-      nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='sites') %>% 
+      nmds_coord <- vegan::scores(ord(), display='sites') %>% 
         as_tibble(rownames="sample.id")
     }
     
@@ -732,17 +735,23 @@ mod_beta_server <- function(input, output, session, r = r){
     return(en)
   })
   
+  
+  output$ui_axe_x <- renderUI({
+    req(ord())
+    shinyWidgets::pickerInput(inputId = ns('axe_x'), choices = get_axis_names(), selected = get_axis_names()[1], width = 20)
+  })
+  
+  output$ui_axe_y <- renderUI({
+    req(ord())
+    shinyWidgets::pickerInput(inputId = ns('axe_y'), choices = get_axis_names(), selected = get_axis_names()[2], width = 20)
+  })
+  
+  
+  
   get_axis_names <- reactive({
     req(ord())
     flog.info('get_axis_names() starting...')
-    flog.debug(input$ordination)
-    if(input$ordination == 'NMDS'){
-      axes <- c('NMDS1', 'NMDS2')
-    } else if(input$ordination == 'PCOA'){
-      axes <- c('MDS1', 'MDS2')
-    } else if(input$ordination %in% c('RDA', 'CCA', 'dbRDA')){
-      axes <- colnames(vegan::scores(ord(), display = 'sites'))
-    }
+    axes <- colnames(vegan::scores(ord(), display = 'sites'))
     flog.info('get_axis_names() end.')
     return(axes)
   })
@@ -760,17 +769,16 @@ mod_beta_server <- function(input, output, session, r = r){
   # 
 
   base_plot <- reactive({
-    req(ord())
+    req(ord(), get_axis_names(), input$axe_x, input$axe_y)
     flog.info('base_plot() starting...')
     p <- ggplot2::ggplot()
-    axes <- get_axis_names()
     if('samples' %in% input$plot_type){
       flog.info('base_plot() plotting samples...')
       sites_coord <- get_sites_coord()
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5)
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5)
       if(!isNumFactor()){
-        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(axes[1]), y=!!sym(axes[2]), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
+        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
     } 
     
@@ -783,7 +791,7 @@ mod_beta_server <- function(input, output, session, r = r){
         taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
       p <- p +
-            geom_point(data = species_coord, aes(x=!!sym(axes[1]), y=!!sym(axes[2]), color=.data[[input$rank_color]], taxa = taxa))
+            geom_point(data = species_coord, aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), color=.data[[input$rank_color]], taxa = taxa))
     } 
     
     if ('env' %in% input$plot_type){
@@ -793,33 +801,33 @@ mod_beta_server <- function(input, output, session, r = r){
           en_coord_cont <- as.data.frame(scr$biplot)
           en_coord_cont <- en_coord_cont[rownames(en_coord_cont) %in% colnames(local_metadata()),]
           if(nrow(en_coord_cont) > 0){
-            p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+            p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
                                   data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
-              geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+              geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
                         fontface = "bold", label = row.names(en_coord_cont))
           }
         }
         if(!is.null(scr$centroids)){
           en_coord_cat <- as.data.frame(scr$centroids)
-          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
                               shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+            geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
                       label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
         }
       } else if(input$ordination %in% c('PCOA', 'NMDS')){
         en <- get_env_fit()
         if(!is.null(en$vectors)){
           en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
-          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(axes[1]), yend = !!sym(axes[2])),
+          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
                                 data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
-            geom_text(data = en_coord_cont, aes(x = !!sym(axes[1]), y = !!sym(axes[2])), colour = "grey30",
+            geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
                       fontface = "bold", label = row.names(en_coord_cont))
         }
         if(!is.null(en$factors)){
           en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
-          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
                               shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-            geom_text(data = en_coord_cat, aes(x = !!sym(axes[1]), y = !!sym(axes[2])),
+            geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
                       label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
         }
       }
