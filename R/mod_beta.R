@@ -83,6 +83,11 @@ mod_beta_ui <- function(id){
         ), style = "height:800px;"
       ),
       fluidRow(
+        box(
+          plotOutput(ns('screeplot')),
+          title = 'Screeplot', width = 12, collapsible = TRUE, collapsed = TRUE)
+      ),
+      fluidRow(
         uiOutput(ns('ui_permanova_box')),
         uiOutput(ns('ui_anova_box'))
       )
@@ -355,6 +360,21 @@ mod_beta_server <- function(input, output, session, r = r){
     }
   })
   
+  get_screeplot <- reactive({
+    req(ord())
+    if(input$ordination == 'NMDS'){
+      ##TODO
+      goeveg::dimcheckMDS()
+    } else{
+      p <- screeplot(ord())
+    }
+    return(p)
+  })
+  
+  
+  output$screeplot <- renderPlot({
+    get_screeplot()
+  })
   
   output$disper_res <- renderUI({
     req(get_meta_col())
@@ -738,12 +758,12 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$ui_axe_x <- renderUI({
     req(ord())
-    shinyWidgets::pickerInput(inputId = ns('axe_x'), choices = get_axis_names(), selected = get_axis_names()[1], width = 20)
+    shinyWidgets::pickerInput(inputId = ns('axe_x'), choices = get_axis_names(), selected = get_axis_names()[1], width = 100)
   })
   
   output$ui_axe_y <- renderUI({
     req(ord())
-    shinyWidgets::pickerInput(inputId = ns('axe_y'), choices = get_axis_names(), selected = get_axis_names()[2], width = 20)
+    shinyWidgets::pickerInput(inputId = ns('axe_y'), choices = get_axis_names(), selected = get_axis_names()[2], width = 100)
   })
   
   
