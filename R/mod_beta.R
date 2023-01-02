@@ -363,8 +363,10 @@ mod_beta_server <- function(input, output, session, r = r){
   get_screeplot <- reactive({
     req(ord())
     if(input$ordination == 'NMDS'){
-      ##TODO
-      goeveg::dimcheckMDS()
+      validate(
+        need(input$metrics %in% c('bray', 'jaccard'), 'Only bray distance supported for NMDS screeplot.')
+      )
+      goeveg::dimcheckMDS(get_species_table(), distance = input$metrics, k=5)
     } else{
       p <- screeplot(ord())
     }
@@ -630,6 +632,13 @@ mod_beta_server <- function(input, output, session, r = r){
     # flog.info('get_env_scaled() end.')
     return(env)
   })
+  
+  get_species_table <- reactive({
+    req(local_physeq())
+    spe <- veganifyOTU(local_physeq())
+    spe <- vegan::decostand(spe, method = 'hell')
+    return(spe)
+  })
 
   
   ord <- eventReactive(input$launch_beta, {
@@ -637,15 +646,12 @@ mod_beta_server <- function(input, output, session, r = r){
     flog.info('ord() starting...')
     if(input$ordination == 'NMDS'){
       if(input$metrics %in% c('bray', 'jaccard')){
-        spe <- veganifyOTU(local_physeq())
-        spe <- vegan::decostand(spe, method = 'hell')
-        res <- vegan::metaMDS(veganifyOTU(local_physeq()), k = 5, distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+        res <- vegan::metaMDS(get_species_table(), k = 5, distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE, k = 5)
       }
     } else if(input$ordination == 'PCOA'){
-      spe <- veganifyOTU(local_physeq())
-      spe <- vegan::decostand(spe, method = 'hell')
+      spe <- get_species_table()
       if(input$metrics %in% c('bray', 'jaccard')){
         res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics, )
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
@@ -654,19 +660,16 @@ mod_beta_server <- function(input, output, session, r = r){
       }
     } else if(input$ordination == 'RDA'){
       env <- get_env_scaled()
-      spe <- veganifyOTU(local_physeq())
-      spe <- vegan::decostand(spe, method = 'hell')
+      spe <- get_species_table()
       res <- vegan::rda(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else if(input$ordination == 'CCA'){
       env <- get_env_scaled()
-      spe <- veganifyOTU(local_physeq())
-      spe <- vegan::decostand(spe, method = 'hell')
+      spe <- get_species_table()
       res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
     } else if(input$ordination == 'dbRDA'){
       env <- get_env_scaled()
       if(input$metrics %in% c('bray', 'jaccard')){
-        spe <- veganifyOTU(local_physeq())
-        spe <- vegan::decostand(spe, method = 'hell')
+        spe <- get_species_table()
         res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics)
       } else if(input$metrics %in% c('unifrac', 'wunifrac')){
         spe <- physeq_dist()
