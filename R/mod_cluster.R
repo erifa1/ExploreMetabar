@@ -194,40 +194,55 @@ mod_cluster_server <- function(input, output, session, r = r){
 
     plot.sample.by.clstr <- eventReactive(input$launch_clust, {
       ct <- compute.cutree()
-      ct %>%
-        group_by(clstr, fact) %>%
-        summarise(count = n()) %>%
-        ggplot(aes(x=(fact), y=count, fill=fact)) +
-        geom_bar(stat="identity") +
-        facet_grid(. ~ clstr) +
-        theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-
+      if(is.numeric(ct$fact)){
+        p <- ct %>% ggplot(aes(x=as.factor(clstr), y=fact, fill=as.factor(clstr))) + 
+          geom_boxplot() + xlab('Cluster number') + ylab(input$clust_fact1)
+      } else{
+        p <- ct %>%
+          group_by(clstr, fact) %>%
+          summarise(count = n()) %>% 
+          ggplot(aes(x=(fact), y=count, fill=fact)) +
+          geom_bar(stat="identity") +
+          facet_grid(. ~ clstr) +
+          theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+      }
+      return(p)
     })
 
     output$sample.by.clstr <- renderPlot({
       plot.sample.by.clstr()
     })
+    
+    
+    get_glom_table <- reactive({
+      req(input$clstr_rank_glom)
+      flog.info('get_glom_table()...')
+      sub.phy <- r$phyloseq_filtered_norm()
+      if(input$clstr_rank_glom != 'ASV'){
+        tmp <- fast_tax_glom(sub.phy, input$clstr_rank_glom)
+        # FGnames <- tax_table(tmp)[,input$clstr_rank_glom]
+        # nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
+        taxa_names(tmp) <- tax_table(tmp)[,input$clstr_rank_glom]
+        sub.phy <- tmp
+      }
+      flog.info('done.')
+      return(sub.phy)
+    })
 
 
     plot.subtree <- reactive({
+      req(compute.k(), compute.clust(), get_glom_table())
       k <- compute.k()
       dend <- compute.clust()
+      
       dend_list <- get_subdendrograms(as.dendrogram(dend), k, order_clusters_as_data = TRUE)
       dd <- dend_list[[as.numeric(input$clust_nb)]]
-      sub.phy <- phyloseq::prune_samples(labels(dd), r$phyloseq_filtered_norm())
+      sub.phy <- get_glom_table()
+      sub.phy <- phyloseq::prune_samples(labels(dd), sub.phy)
 
-      # taxa glom
-      if(input$clstr_rank_glom != 'ASV'){
-        tmp <- fast_tax_glom(sub.phy, input$clstr_rank_glom)
-        FGnames <- tax_table(tmp)[,input$clstr_rank_glom]
-        nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
-        taxa_names(tmp) <- nnames
-        sub.phy <- tmp
-      }
+      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy) > input$clstr_minAb[1], sub.phy)
+      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy) < input$clstr_minAb[2], sub.phy)
 
-
-      sub.phy <- phyloseq::prune_taxa(phyloseq::taxa_sums(sub.phy)>input$clstr_minAb, sub.phy)
-      order.dendrogram(dd) <- as.integer(rank(order.dendrogram(dd)))
 
       otable <- phyloseq::otu_table(sub.phy)
       data.com <- reshape2::melt(otable)
@@ -262,10 +277,11 @@ mod_cluster_server <- function(input, output, session, r = r){
 
 
     compute.indicSpe <- reactive({
+      req(compute.k(), compute.clust(), compute.cutree(), get_glom_table())
       k <- compute.k()
       dend <- compute.clust()
       clstr <- compute.cutree()
-      otable <- t(as.data.frame(otu_table(r$phyloseq_filtered_norm())))
+      otable <- t(as.data.frame(otu_table(get_glom_table())))
       grp <- clstr[rownames(otable),'clstr']
       indval <- indicspecies::multipatt(otable, grp, control = permute::how(nperm = 99), duleg = TRUE)
       summary(indval)
