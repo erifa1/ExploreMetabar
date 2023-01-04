@@ -31,6 +31,7 @@ Imports:
     ggplot2,
     ggpolypath,
     glue,
+    goeveg,
     golem,
     grDevices,
     grid,
