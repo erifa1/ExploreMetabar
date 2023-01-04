@@ -47,7 +47,7 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       menuItem('Heatmap', tabName = 'heatmap', icon = icon('chart-bar')),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
-                      menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree")),
+                      # menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree")),
                       menuItem("Cluster Analysis", tabName = "cluster", icon = icon("sourcetree"))
 
                       # menuItem("PLN network", tabName = "tab_networkpln", icon = icon("project-diagram")),
@@ -79,9 +79,9 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       tabItem(tabName = "tab_asvenn",
                               mod_asvenn_ui("asvenn_ui_1")
                       ),
-                      tabItem(tabName = "source_tracker",
-                              mod_source_tracker_ui("source_tracker_ui_1")
-                      ),
+                      # tabItem(tabName = "source_tracker",
+                      #         mod_source_tracker_ui("source_tracker_ui_1")
+                      # ),
                       tabItem(tabName = "heatmap",
                               mod_heatmap_ui("heatmap_ui_1")
                       ),

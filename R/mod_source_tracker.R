@@ -78,20 +78,20 @@ mod_source_tracker_server <- function(input, output, session, r = r){
   r_values <- reactiveValues(factor_list=NULL)
   
   observe({
-    req(r$phyloseq_filtered())
+    req(r$var_list())
     updateSelectInput(session, "src_fact1",
-                      choices = r$phyloseq_filtered()@sam_data@names)
+                      choices = r$var_list())
   })
   
   output$sources_box <- renderUI({
     req(r$sdat(), input$src_fact1)
-    levels <- na.omit(levels(r$sdat()[,input$src_fact1]))
+    levels <- na.omit(unique(r$sdat()[,input$src_fact1]))
     checkboxGroupButtons(ns('sources_box'), "Choose your sources:", choices=levels, justified = TRUE, checkIcon = list(yes = icon("ok", lib = "glyphicon")))
   })
   
   output$sink_radio <- renderUI({
     req(input$sources_box)
-    levels <- na.omit(levels(r$sdat()[,input$src_fact1]))
+    levels <- na.omit(unique(r$sdat()[,input$src_fact1]))
     ch <- dplyr::setdiff(levels, input$sources_box )
     radioGroupButtons(ns('sink_radio'), "Choose your sink", choices=ch, justified = TRUE, checkIcon = list(yes = icon("ok", lib = "glyphicon")))
   })
@@ -104,7 +104,7 @@ mod_source_tracker_server <- function(input, output, session, r = r){
 
     fun <- glue::glue("lmax <- length( rownames( r$sdat()[r$sdat()${input$src_fact1} == '{input$sink_radio}',] ))")
     eval(parse(text=fun))
-    
+    browser()
     withProgress(message = 'Computing SourceTracker...', min=0, max=lmax+2, value = 0,{
       cat(file=stderr(),'prune_sample...')
 
@@ -143,11 +143,11 @@ mod_source_tracker_server <- function(input, output, session, r = r){
       metadata <- as.data.frame(metadata)
       
       cat(file=stderr(),'train & test',"\n")
-      train <- which(metadata$sourceSink=='source')
-      test <- which(metadata$sourceSink=='sink')
+      train <- which(metadata[,'sourceSink']=='source')
+      test <- which(metadata[,'sourceSink']=='sink')
       
       cat(file=stderr(),'envs',"\n")
-      envs <- metadata[[input$src_fact1]]
+      envs <- metadata[,input$src_fact1]
       
 
       alpha1 <- alpha2 <- 0.001
