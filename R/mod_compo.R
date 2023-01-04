@@ -31,7 +31,7 @@ mod_compo_ui <- function(id){
 
         shinyWidgets::pickerInput(
           ns("Ord1"),
-          label = "Select variable to order/split samples (X axis): ",
+          label = "Select one or more categorial variable to order/split samples (X axis): ",
           choices = "",
           multiple = TRUE
         ),

@@ -404,7 +404,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   glom_taxo <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-    withProgress({
       tmp <- r_values$phyobj_taxglom0
 
       tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
@@ -423,7 +422,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
       flog.info('filter_taxonomy done.')
-    },message = "Update taxonomy, please wait...")
+      showNotification("Filter taxonomy done...", type="message", duration = 1)
   })
 
 

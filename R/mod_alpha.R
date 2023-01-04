@@ -27,7 +27,7 @@ mod_alpha_ui <- function(id){
       box(
         shinyWidgets::pickerInput(
           ns("Fact1"),
-          label = "Select factor to test: ",
+          label = "Select one or more factor to test (when multiple selection, factors are concatenated): ",
           choices = "",
           multiple = TRUE
         ),

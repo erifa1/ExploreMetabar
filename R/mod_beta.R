@@ -44,7 +44,8 @@ mod_beta_ui <- function(id){
               radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
                            choices = '',
                            selected = ''
-              )
+              ),
+              uiOutput(ns('ui_beta_factor'))
             ),
             fluidRow(
               actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
@@ -64,12 +65,11 @@ mod_beta_ui <- function(id){
                                               list("samples", "taxa", "env"),
                                             selected = c("samples")
           ),
-          uiOutput(ns('ui_beta_factor')),
           uiOutput(ns('ui_taxa_rank')),
           shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
           uiOutput(ns('ui_axe_x')),
           uiOutput(ns('ui_axe_y')),
-          title = "Plot options", width = 12
+          title = "Plot options", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
         )
       ),
       fluidRow(
@@ -85,7 +85,7 @@ mod_beta_ui <- function(id){
       fluidRow(
         box(
           plotOutput(ns('screeplot')),
-          title = 'Screeplot', width = 12, collapsible = TRUE, collapsed = TRUE)
+          title = 'Screeplot', width = 12, collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE)
       ),
       fluidRow(
         uiOutput(ns('ui_permanova_box')),
@@ -176,7 +176,7 @@ mod_beta_server <- function(input, output, session, r = r){
   output$ui_constrain <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
-      box(title = 'Model parameters',
+      box(title = 'Model parameters', width=6, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
           htmltools::p('Warning: when integrating environmental variable, samples with missing values are omitted.'),
           radioButtons(inputId = ns('param_mode'),
                        label = 'methode to select parameters',
@@ -400,7 +400,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(r$var_list())
     shinyWidgets::pickerInput(
        ns("beta_factor"),
-       label = "Select factor to color samples and ellipses",
+       label = "Select factor to color samples and ellipses:",
        choices = r$var_list(),
        selected = r$var_list()[2],
        multiple = TRUE,
@@ -441,7 +441,7 @@ mod_beta_server <- function(input, output, session, r = r){
         htmltools::p('The envfit function fits environmental vectors or factors onto an ordination.'),
         shinyWidgets::pickerInput(
           ns("envfit_param"),
-          label = "Select factor to color samples and ellipses",
+          label = "Select one or more factor to use in envfit module:",
           choices = sort(colnames(local_metadata())),
           # selected = colnames(local_metadata())[2],
           multiple = TRUE,
@@ -479,7 +479,7 @@ mod_beta_server <- function(input, output, session, r = r){
           max = 1,
           step = 0.01
         ),
-        title = 'VEGAN envfit', status = 'primary'
+        title = 'VEGAN envfit', width=6, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
       )
     }
   })
@@ -488,11 +488,10 @@ mod_beta_server <- function(input, output, session, r = r){
   output$ui_envfit_box_res <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('NMDS', 'PCOA')){
-      box(
+      box(width=6, status = "primary", solidHeader = TRUE, title = 'envfit results', collapsible = TRUE, collapsed = TRUE,
         verbatimTextOutput(
           ns('envfit_res')
         ),
-        title = 'envfit results'
       )
     }
   })
@@ -839,6 +838,11 @@ mod_beta_server <- function(input, output, session, r = r){
                       label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
         }
       } else if(input$ordination %in% c('PCOA', 'NMDS')){
+        if(is.null(input$envfit_param)){
+          shinyalert::shinyalert(title = "Oops", text="You need to use ENVFIT module to use env type.", type='error')
+          return(NULL)
+        }
+
         en <- get_env_fit()
         if(!is.null(en$vectors)){
           en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
