@@ -284,7 +284,11 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   get_boxplot <- reactive({
     dt <- get_boxplot_data()
-    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box" )
+    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box") %>%
+      plotly::layout(xaxis = list(title = colnames(dt)[2]),
+      yaxis = list(title = colnames(dt)[1]),
+      title = colnames(dt)[1] )
+
     return(fig)
   })
 
