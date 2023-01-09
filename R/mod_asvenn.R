@@ -172,8 +172,6 @@ mod_asvenn_server <- function(input, output, session, r=r){
     req(input$Fact1, r$sdat())
     metadata <- r$sdat()
     level1 <- na.omit(unique(metadata[,input$Fact1]))
-    # checkboxGroupInput(ns("lvls1"), label = "Select up to 5 levels :",
-    #                    choices = level1, inline = TRUE, selected = level1[1:3])
     shinyWidgets::pickerInput(ns("lvls1"), label = "Select up to 5 levels :",
           choices = level1, selected = level1[1:3], multiple = TRUE
       )
