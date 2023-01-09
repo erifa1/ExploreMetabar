@@ -400,7 +400,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(r$var_list())
     shinyWidgets::pickerInput(
        ns("beta_factor"),
-       label = "Select factor to color samples and ellipses:",
+       label = "Select factor(s) to color samples and ellipses (multiple selection allowed for qualitative variables):",
        choices = r$var_list(),
        selected = r$var_list()[2],
        multiple = TRUE,

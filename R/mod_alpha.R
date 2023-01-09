@@ -25,12 +25,7 @@ mod_alpha_ui <- function(id){
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
-        shinyWidgets::pickerInput(
-          ns("Fact1"),
-          label = "Select one or more factor to test (when multiple selection, factors are concatenated): ",
-          choices = "",
-          multiple = TRUE
-        ),
+        uiOutput(ns('ui_alpha_factor')),
         checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
 
         actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = icon("play-circle"),
@@ -141,6 +136,17 @@ mod_alpha_server <- function(input, output, session, r = r){
     shinyWidgets::updatePickerInput(session, "Fact1",
                       choices = r$var_list())
   })
+
+  output$ui_alpha_factor <- renderUI({
+        shinyWidgets::pickerInput(
+          ns("Fact1"),
+          label = "Select one or more factor to test (when multiple selection, qualitative factors are concatenated): ",
+          choices = r$var_list(),
+          selected = r$var_list()[2],
+          multiple = TRUE
+        )
+  })
+
   
   
   alpha1 <- eventReactive(input$launch_alpha, {

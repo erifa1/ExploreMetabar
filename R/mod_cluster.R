@@ -13,7 +13,7 @@ mod_cluster_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(
-        box(
+        box(title = "Parameters:", width = 6, status = "primary", solidHeader = TRUE,
           radioButtons(ns("dist.meth"), "Choose distance method:", inline = TRUE,
                        choices ='',
                        selected = c("bray")
@@ -42,16 +42,16 @@ mod_cluster_ui <- function(id){
         box(
             plotOutput(ns('dendro.plot'), height = "800px"),
             verbatimTextOutput(ns('nb_clstr')),
-            width=12, height = "1000px", title='Dendrogram')
+            width=12, height = "1000px", title='Dendrogram', status = "primary", solidHeader = TRUE)
       ),
       fluidRow(
         box(
           plotOutput(ns('sample.by.clstr')),
-          width=12, title = 'Number of samples by cluster'
+          width=12, title = 'Number of samples by cluster', status = "primary", solidHeader = TRUE
         )
       ),
       fluidRow(
-        box(width = 12, height = "1000px",
+        box(width = 12, title = "Heatmap & Multilevel pattern analysis", status = "primary", solidHeader = TRUE,
           selectInput(
             ns("clust_nb"),
             label = "Select cluster number",
