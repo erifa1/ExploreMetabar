@@ -40,8 +40,8 @@ mod_cluster_ui <- function(id){
       ),
       fluidRow(
         box(
-            plotOutput(ns('dendro.plot'), height = "800px"),
             verbatimTextOutput(ns('nb_clstr')),
+            plotOutput(ns('dendro.plot'), height = "800px"),
             width=12, height = "1000px", title='Dendrogram', status = "primary", solidHeader = TRUE)
       ),
       fluidRow(
@@ -52,6 +52,7 @@ mod_cluster_ui <- function(id){
       ),
       fluidRow(
         box(width = 12, title = "Heatmap & Multilevel pattern analysis", status = "primary", solidHeader = TRUE,
+          h2("Display heatmap of selected cluster"),
           selectInput(
             ns("clust_nb"),
             label = "Select cluster number",
@@ -65,6 +66,7 @@ mod_cluster_ui <- function(id){
             selected = 1,
           ),
           plotOutput(ns('subclstr_plot'), height = "600px"),
+          h2("Determine taxa specific to each cluster"),
           verbatimTextOutput(ns('indicSpe'))
         )
       )
@@ -204,7 +206,8 @@ mod_cluster_server <- function(input, output, session, r = r){
           ggplot(aes(x=(fact), y=count, fill=fact)) +
           geom_bar(stat="identity") +
           facet_grid(. ~ clstr) +
-          theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+          theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
+          xlab("") + ylab("counts")
       }
       return(p)
     })
@@ -216,7 +219,6 @@ mod_cluster_server <- function(input, output, session, r = r){
     
     get_glom_table <- reactive({
       req(input$clstr_rank_glom)
-      flog.info('get_glom_table()...')
       sub.phy <- r$phyloseq_filtered_norm()
       if(input$clstr_rank_glom != 'ASV'){
         tmp <- fast_tax_glom(sub.phy, input$clstr_rank_glom)
@@ -225,7 +227,6 @@ mod_cluster_server <- function(input, output, session, r = r){
         taxa_names(tmp) <- tax_table(tmp)[,input$clstr_rank_glom]
         sub.phy <- tmp
       }
-      flog.info('done.')
       return(sub.phy)
     })
 
