@@ -269,7 +269,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   phyloseq_data <- reactive({
-    flog.info('phyloseq_data() starting...')
     ne <- new.env()
     if (!is.null(input$fileRData)){
       load(input$fileRData$datapath, envir = ne)
@@ -286,7 +285,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
       showNotification("No refseq in object.", type="error", duration = 3)
     }
     r_values$phyobj_tmp <- r_values$phyobj_initial
-    flog.info('phyloseq_data() end.')
     return(r_values$phyobj_initial)
   })
 
@@ -595,16 +593,12 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   output$phy_after <- renderPrint({
-    flog.info('rendering phyloseq_after...')
     print(r_values$phyobj_tmp)
-    flog.info('rendering phyloseq_after done.')
   })
 
   output$phy_norm <- renderPrint({
     req(r_values$phyobj_norm)
-    flog.info('rendering phyloseq_norm...')
     print(r_values$phyobj_norm)
-    flog.info('rendering phyloseq_norm done.')
   })
 
 
