@@ -81,7 +81,7 @@ mod_data_loading_ui <- function(id){
 
       fluidRow(
         box(
-          title = "STEP 2: Select Your Taxonomy Rank and filtering options", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
+          title = "STEP 2: Taxonomy rank and filtering options", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
           selectInput(
             ns("rank_glom"),
             label='Select rank to merge taxonomy table',
@@ -95,12 +95,12 @@ mod_data_loading_ui <- function(id){
         )
       ),
 
-      fluidRow(box(title = "STEP 3: Select your taxa, preview abundances & representative sequences",solidHeader = TRUE, status = "warning", width=12,
+      fluidRow(box(title = "STEP 3: Taxa filtering, preview abundances & representative sequences",solidHeader = TRUE, status = "warning", width=12,
 
         # tabBox(width=12,
 
           # tabPanel("Metadata / Filters",
-            h3(icon("diagnoses"), "Use filters to subset your dataset based on your taxonomy."),
+            h3(icon("diagnoses"), "Use filters to subset your dataset based on taxonomy."),
 
               fluidRow(
                 column(
@@ -125,7 +125,7 @@ mod_data_loading_ui <- function(id){
 
       fluidRow(
         box(
-          title = 'STEP 4: Normalization options', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
+          title = 'STEP 4: Abundance normalization', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
           radioButtons(
             ns("norm_method"),
             label = "Normalization : ",
@@ -141,7 +141,7 @@ mod_data_loading_ui <- function(id){
           # actionButton(ns('norm'), "Normalize", class='butt2')
         ),
         box(
-          title = 'Phyloseq final object', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
+          title = 'Final phyloseq object', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
           verbatimTextOutput(ns("phy_after"))
         ),
         box(

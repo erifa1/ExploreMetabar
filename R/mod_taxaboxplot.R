@@ -20,7 +20,7 @@ mod_taxaboxplot_ui <- function(id){
     fluidPage(
       fluidRow(
         infoBox("Reminder :",
-                "This module launches Kruskal Wallis on factors for each taxa. Be aware that this is multiple testing and pvalues are not ajusted. For numerical factors, samples with zero abundance are omitted",
+                "This module launches Kruskal Wallis on factors for each taxa. Be aware that this is multiple testing, p.values are adjusted with FDR method. For numerical factors, samples with zero abundance are omitted",
                 icon = icon("info-circle"), fill=TRUE, width = 10)
       ),
       fluidRow(
@@ -194,7 +194,9 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       res <- get_kruskal_pval_table()
     }
     t_table <- as.data.frame(tax_table(r$phyloseq_filtered_norm())) %>% rownames_to_column()
-    res <- left_join(res, t_table, by = c('taxa' = 'rowname'))
+    res <- left_join(res, t_table, by = c('taxa' = 'rowname')) %>% 
+    mutate(p.adj = p.adjust(p.value, method = "fdr"), .after = p.value) %>%
+    arrange(p.value)
     return(res)
   })
   
@@ -261,7 +263,12 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     get_pval_table() %>% datatable(selection = "single", filter="top", options = list(scrollX = TRUE)) %>%
       formatStyle(
         'p.value',
-        backgroundColor=styleInterval(c(0,0.01,0.05,1), c("white","greenyellow", "lightgreen","yellow","red")))
+        backgroundColor=styleInterval(c(0,0.01,0.05,0.1,1), 
+        c("white", "greenyellow", "lightgreen","yellow","orange","red") )) %>%
+      formatStyle(
+        'p.adj',
+        backgroundColor=styleInterval(c(0,0.01,0.05,0.1,1), 
+        c("white", "greenyellow", "lightgreen","yellow","orange","red") ))
   })
 
   ordertable1 <- reactive({

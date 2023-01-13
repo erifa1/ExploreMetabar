@@ -13,7 +13,7 @@ mod_cluster_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(
-        box(title = "Parameters:", width = 6, status = "primary", solidHeader = TRUE,
+        box(title = "Settings:", width = 6, status = "warning", solidHeader = TRUE,
           radioButtons(ns("dist.meth"), "Choose distance method:", inline = TRUE,
                        choices ='',
                        selected = c("bray")
