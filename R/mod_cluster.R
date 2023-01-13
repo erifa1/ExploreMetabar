@@ -26,11 +26,11 @@ mod_cluster_ui <- function(id){
                        choices =c("silhouette", "pearson"),
                        selected = c("silhouette")
           ),
-          shinyWidgets::materialSwitch(inputId = ns("leaflabels"), label = "Leaf label"),
-          shinyWidgets::materialSwitch(inputId = ns("branchcolor"), label = "Branch color cluster or metadata"),
+          shinyWidgets::materialSwitch(inputId = ns("leaflabels"), label = "Leaf label", status = "info", value = TRUE),
+          shinyWidgets::materialSwitch(inputId = ns("branchcolor"), label = "Branch color based on cluster or metadata", status = "info"),
           selectInput(
             ns("clust_fact1"),
-            label = "Select metadata column to replace lables",
+            label = "Select metadata column to replace labels:",
             choices = ''
           ),
           actionButton(ns("launch_clust"), "Run Clustering", icon = icon("play-circle"),
