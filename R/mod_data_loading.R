@@ -274,8 +274,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
       load(input$fileRData$datapath, envir = ne)
     }
     else{
-      # load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
-      load(system.file("data_test", "phy_test_numeric.rdata", package="ExploreMetabar"), envir = ne)
+      load(system.file("data_test", "robjects_600.Rdata", package="ExploreMetabar"), envir = ne)
+      #load(system.file("data_test", "phy_test_numeric.rdata", package="ExploreMetabar"), envir = ne)
     }
     classes1 = sapply(ne, class)
     obj = classes1[classes1 == "phyloseq"]
