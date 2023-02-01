@@ -845,7 +845,7 @@ mod_beta_server <- function(input, output, session, r = r){
 
         en <- get_env_fit()
         if(!is.null(en$vectors)){
-          en_coord_cont <- as.data.frame(vegan::scores(en, "vectors")) * vegan::ordiArrowMul(en)
+          en_coord_cont <- as.data.frame(vegan::scores(en, "vectors"))
           p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
                                 data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
             geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
