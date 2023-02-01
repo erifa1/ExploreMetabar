@@ -257,20 +257,23 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     ttable1 <- as.data.frame(phyloseq::tax_table(local_physeq())) %>%
               rownames_to_column()
 
-    sseq1 <- as.data.frame(phyloseq::refseq(local_physeq())) %>%
-              rownames_to_column()
-
-    if(nrow(sseq1) != 0){
-      sseq1 <- rename(sseq1, sequence = 2)
-    }
-
     resDESeq <- as.data.frame(res) %>%
       rownames_to_column() %>%
       mutate(absLFC = abs(log2FoldChange)) %>%
       # filter(padj<=input$pval) %>%
-      left_join(ttable1, by="rowname") %>%
-      left_join(sseq1, by="rowname")
-
+      left_join(ttable1, by="rowname")
+    
+    
+    if(!is.null(refseq(table, errorIfNULL=FALSE))){
+      sseq1 <- as.data.frame(phyloseq::refseq(local_physeq())) %>%
+        rownames_to_column()
+      
+      if(nrow(sseq1) != 0){
+        sseq1 <- rename(sseq1, sequence = 2)
+      }
+      
+      resDESeq <- resDESeq %>% left_join(sseq1, by="rowname")
+    }
     as.data.frame(resDESeq)
   }, filter="top", options = list(scrollX = TRUE))
 
