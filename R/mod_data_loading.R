@@ -290,7 +290,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v2.0.0\n')
+    cat('Running ExploreMetabar v2.0.1\n')
     phyloseq_data()
   })
 
@@ -298,6 +298,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(r_values$phyobj_initial)
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
+    sdat[sdat == ""] <- NA
+
     if( !"sample.id" %in% colnames(sdat) ){
       sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
     }

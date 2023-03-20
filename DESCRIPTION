@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 2.0.0
+Version: 2.0.1
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
@@ -83,4 +83,4 @@ Remotes:
     github::mikelove/DESeq2
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.2
+RoxygenNote: 7.2.3
