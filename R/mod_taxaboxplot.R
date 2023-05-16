@@ -195,8 +195,8 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     }
     t_table <- as.data.frame(tax_table(r$phyloseq_filtered_norm())) %>% rownames_to_column()
     res <- left_join(res, t_table, by = c('taxa' = 'rowname')) %>% 
-    mutate(p.adj = p.adjust(p.value, method = "fdr"), .after = p.value) %>%
-    arrange(p.value)
+      mutate(p.adj = p.adjust(p.value, method = "fdr"), .after = p.value) %>% 
+      arrange(p.value)
     return(res)
   })
   
@@ -283,6 +283,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
 
   output$boxplot1 <- renderPlotly({
     if(is.null(input$pvalout1_row_last_clicked)){return(NULL)}
+    
     
     if(isNumFactor()){
       mtable <- get_merged_table()
