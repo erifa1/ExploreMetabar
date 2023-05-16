@@ -288,14 +288,14 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     if(isNumFactor()){
       mtable <- get_merged_table()
       ptype <- 'scatter'
-      select1  <- get_corr_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
+      select1  <- get_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
       p <- ggplotly(ggplot2::ggplot(data = mtable, aes_string(x = formulaic::add.backtick(select1), y = get_meta_col())) + 
                  geom_point() + 
                  geom_smooth(method = 'lm', se = T, na.rm = T, show.legend = T))
                    
     } else{
       mtable <- ordertable1()
-      select1  <- get_kruskal_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
+      select1  <- get_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
       p <- plot_ly(mtable, x = as.formula(glue("~ {get_meta_col()}")), y = as.formula(paste0("~", formulaic::add.backtick(select1))),
                    color = as.formula(glue("~{get_meta_col()}")), type = 'box')
     }
