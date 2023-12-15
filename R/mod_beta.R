@@ -805,6 +805,13 @@ mod_beta_server <- function(input, output, session, r = r){
       }
     } 
     
+    if(input$ordination == "PCOA"){
+      eig1 <- eigenvals(ord())
+      percent1 <- eig1/sum(eig1)*100
+      p <- p + xlab(glue::glue("{input$axe_x} ({round(percent1[input$axe_x], 2)} %)")) + 
+          ylab(glue::glue("{input$axe_y} ({round(percent1[input$axe_y], 2)} %)"))
+    }
+
     if ('taxa' %in% input$plot_type){
       flog.info('base_plot() plotting taxa...')
       species_coord <- get_species_coord()
