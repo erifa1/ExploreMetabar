@@ -617,6 +617,11 @@ mod_beta_server <- function(input, output, session, r = r){
   physeq_dist <- eventReactive(input$launch_beta, {
     req(input$metrics, local_physeq())
     flog.info('physeq_dist() starting...')
+      validate(
+        need(!input$metrics %in% c("unifrac", "wunifrac") & !is.null(local_physeq()@phy_tree), 
+          message = 'Unifrac and wunifrac available if phylogenetic tree available.')
+      )
+
     res <- phyloseq::distance(local_physeq(), method = input$metrics)
     flog.info('physeq_dist() end.')
     return(res)
