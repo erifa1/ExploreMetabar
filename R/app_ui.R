@@ -48,8 +48,8 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
                       # menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree")),
-                      menuItem("Cluster Analysis", tabName = "cluster", icon = icon("sourcetree"))
-
+                      menuItem("Cluster Analysis", tabName = "cluster", icon = icon("sourcetree")),
+                      menuItem("MixOmics - SPLS-DA", tabName = "tab_mixomics", icon = icon("sourcetree"))
                       # menuItem("PLN network", tabName = "tab_networkpln", icon = icon("project-diagram")),
                       # menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )
@@ -87,6 +87,9 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       ),
                       tabItem(tabName = "cluster",
                               mod_cluster_ui("cluster_ui_1")
+                      ),
+                      tabItem(taName = "tab_mixomics",
+                              mod_mixomics_ui("mixomics_1")
                       )
                       # tabItem(tabName = "tab_networkpln",
                       #         mod_networkpln_ui("networkpln_ui_1")
