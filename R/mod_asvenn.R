@@ -195,7 +195,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
   })
 
 
-  addResourcePath('tmp', '/tmp')
+  # addResourcePath('tmp', '/tmp')
   resVenn <- eventReactive(input$go1, {
     req(r$phyloseq_filtered(), input$lvls1)
     flog.info('compute Venn diagram...')
@@ -231,14 +231,15 @@ mod_asvenn_server <- function(input, output, session, r=r){
       names(TF) = input$lvls1
 
       outfile <- tempfile(fileext='.svg')
-      venn.res <- nVennR::plotVenn(TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile)
+      pal <- r$factor_colors()[[input$Fact1]]
+      pal <- pal[names(pal) %in% names(TF)]
+
+      venn.res <- nVennR::plotVenn(TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile, setColors = pal)
 
       res$svg.obj <- list(src = normalizePath(outfile), width = "100%", height = "100%")
       v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
-      res$TF <- TF
-      # browser()
       return(res)
     }
   })
@@ -252,8 +253,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
         # grid.draw
         # grDevices::replayPlot(resVenn()$venn.plot2)
-        venn::venn(resVenn()$TF, zcol = rainbow(7), ilcs = 1.5, sncs = 2,
-                          ggplot = FALSE)
+        pal <- r$factor_colors()[[input$Fact1]]
+        pal <- pal[names(pal) %in% names(resVenn()$TF)]
+        venn::venn(resVenn()$TF, zcolor = pal, ilcs = 1.5, sncs = 2,
+                          ggplot = TRUE)
   })
 
 
@@ -285,7 +288,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   get_boxplot <- reactive({
     dt <- get_boxplot_data()
-    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box") %>%
+    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box",color = ~dt[,2], colors = r$factor_colors()[[input$Fact1]]) %>%
       plotly::layout(xaxis = list(title = colnames(dt)[2]),
       yaxis = list(title = colnames(dt)[1]),
       title = colnames(dt)[1] )
