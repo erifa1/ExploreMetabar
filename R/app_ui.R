@@ -88,7 +88,7 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       tabItem(tabName = "cluster",
                               mod_cluster_ui("cluster_ui_1")
                       ),
-                      tabItem(taName = "tab_mixomics",
+                      tabItem(tabName = "tab_mixomics",
                               mod_mixomics_ui("mixomics_1")
                       )
                       # tabItem(tabName = "tab_networkpln",
