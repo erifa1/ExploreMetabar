@@ -11,3 +11,6 @@ dev
 ExploreMetabar.Rproj
 *krona*
 Dockerfile*
+*.svg
+*.csv
+*.pdf
