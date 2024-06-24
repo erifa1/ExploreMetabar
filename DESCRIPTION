@@ -33,6 +33,7 @@ Imports:
     glue,
     goeveg,
     golem,
+    gplots,
     grDevices,
     grid,
     gtools,
@@ -42,10 +43,13 @@ Imports:
     metacoder,
     metagenomeSeq,
     microbiome,
-    nVennR,
+    mixOmics,
+    paletteer,
     PCAmixdata,
     permute,
+    pheatmap,
     phyloseq,
+    plotfunctions,
     plotly,
     purrr,
     qdapTools,
@@ -63,7 +67,8 @@ Imports:
     utils,
     vegan,
     venn,
-    VennDiagram
+    VennDiagram,
+    xlsx
 Suggests:
     knitr,
     pkgload,
@@ -80,7 +85,8 @@ Remotes:
     bioc::3.10/rhdf5,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
-    github::mikelove/DESeq2
+    github::mikelove/DESeq2,
+    github::vqf/nVennR
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1

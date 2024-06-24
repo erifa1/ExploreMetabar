@@ -843,7 +843,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   
   # for variable colors
   output$var_color <- renderUI({
-    req(r$factor_list())
+    req(r$var_list())
     shinyWidgets::pickerInput(ns("list_var_color"),
                               label = "Variables whose associated colors are exported in xlsx file",
                               choices = r$var_list(),
