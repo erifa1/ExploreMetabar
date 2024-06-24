@@ -310,11 +310,16 @@ mod_data_loading_server <- function(input, output, session, r=r){
   subset_samples <- reactive({
     req(r_values$phyobj_initial, res_filter$filtered)
     filt_sdata <- res_filter$filtered()
+    physeq0 <- r_values$phyobj_initial
 
     flog.info('subset samples() starting...')
-    flog.info(paste0('initial number of samples before ', phyloseq::nsamples(r_values$phyobj_initial)))
-
-    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),r_values$phyobj_initial)
+    flog.info(paste0('initial number of samples before ', phyloseq::nsamples(physeq0)))
+    if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
+      print("No match")
+      shinyalert(title = "Oops", text="Sample names do not match with names in metadata. Check the phyloseq object.", type='error')
+      return()
+    }
+    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),physeq0)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
     flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
