@@ -7,6 +7,9 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+#' @importFrom DT dataTableOutput renderDataTable
+#' 
+#' 
 #' @import phyloseq
 #' @import ggplot2
 #' @import shinycustomloader
@@ -24,7 +27,7 @@ mod_heatmap_ui <- function(id){
       fluidRow(
         box(title = "Settings", width = 6, status = "warning", solidHeader = TRUE,
             selectInput(
-              ns("Rank"),
+              ns("rank"),
               label = "Rank to agglomerate",
               choices = ""
             ),
@@ -34,7 +37,7 @@ mod_heatmap_ui <- function(id){
               choices = list(
                 "Raw" = 0 ,
                 "TSS (total-sum normalization)" = 1,
-                "CLR (center log-ration)" = 2,
+                "CLR (centered log-ratio)" = 2,
                 "VST (variance stabilizing transformation)" = 3,
                 "hellinger" = 4,
                 "log10" = 5),
@@ -86,13 +89,7 @@ mod_heatmap_ui <- function(id){
         uiOutput(ns("ui_box_heatmap"))
       ),
       fluidRow(
-        box(title = "Selected features", width = 12, status = "primary", solidHeader = TRUE,
-            downloadButton(ns("table_download"), label = "Download table"),
-            shinycustomloader::withLoader(
-              DT::dataTableOutput(ns("feat")),
-              type = "html", loader = "loader2"
-            )
-        )
+        uiOutput(ns("ui_selected_features"))
       ),
     ),
   )
@@ -102,19 +99,30 @@ mod_heatmap_ui <- function(id){
 #' heatmap Server Function
 #'
 #' @noRd
+#' @import phyloseq
+#' @importFrom pheatmap pheatmap
+#' @importFrom DESeq2 varianceStabilizingTransformation
+#' @import vegan
+#' @importFrom indicspecies multipatt
+#' @import shinyalert
+#' @importFrom grDevices svg
 mod_heatmap_server <- function(input, output, session, r){
   ns <- session$ns
   
   observe({
     req(r$phyloseq_filtered(), r$phyloseq_filtered_norm())
+    num <- sapply(r$sdat()[, names(r$sdat())], is.numeric)
+    samp_lab <- names(r$sdat())[!num]
     updateSelectInput(session, "sample_label",
-                      choices = names(sample_data(r$phyloseq_filtered())))
+                      choices = samp_lab)
     updateSelectInput(session, "fact_annot",
                       choices = r$var_list())
     ranks <- phyloseq::rank_names(r$phyloseq_filtered())
-    updateSelectInput(session, "Rank",
-                      choices = ranks,
-                      selected = ranks[length(ranks)])
+    if(r$rank_glom() == "ASV"){
+      ranks <- c(ranks, "ASV")
+    }
+    updateSelectInput(session, "rank",
+                      choices = ranks)
     color_choices <- RColorBrewer::brewer.pal.info
     updateSelectInput(session, "color_map",
                       choices = rownames(color_choices[color_choices$category != "qual" & color_choices$colorblind == TRUE , ]),
@@ -122,10 +130,15 @@ mod_heatmap_server <- function(input, output, session, r){
   })
   
   observe({
-    req(r$phyloseq_filtered(), input$Rank)
+    req(r$phyloseq_filtered(), r$phyloseq_filtered_norm(), input$rank)
     ranks <- phyloseq::rank_names(r$phyloseq_filtered())
-    updateSelectInput(session, "taxa_annot",
-                      choices = ranks[1:which(ranks == input$Rank)])
+    if(input$rank == "ASV"){
+      updateSelectInput(session, "taxa_annot",
+                        choices = ranks)
+    }else{
+      updateSelectInput(session, "taxa_annot",
+                        choices = ranks[1:which(ranks == input$rank)])
+    }
   })
   
   output$ui_box_heatmap <- renderUI({
@@ -140,12 +153,17 @@ mod_heatmap_server <- function(input, output, session, r){
   
   output$ui_sample_clustering <- renderUI({
     req(input$clust_samp)
+    if(is.null(phyloseq::phy_tree(r$phyloseq_filtered(), errorIfNULL = FALSE))){
+      choice = list("euclidean", "bray", "jaccard")
+    }else{
+      choice = list("euclidean", "bray", "jaccard", "unifrac", "wunifrac", "dpcoa")
+    }
     box(title = "Sample clustering", width = 6, status = "warning", solidHeader = TRUE,
         selectInput(
-          ns("dist"),
+          ns("dist_method"),
           label = "Distance method",
-          choices = c("euclidean", "bray", "jaccard", "dpcoa", "unifrac", "wunifrac"),
-          selected = "euclidean"
+          choices = choice,
+          selected = "bray"
         ),
         selectInput(
           ns("clust_method"),
@@ -162,40 +180,57 @@ mod_heatmap_server <- function(input, output, session, r){
         radioButtons(ns("selection_method"),
                      label = "Selection method",
                      inline = TRUE,
-                     choices = c("indicspecies", "DESeq2"),
-                     selected = "indicspecies"),
-        selectInput(ns("test_fact"),
-                    label = "Factor to test",
-                    choices = names(sample_data(r$phyloseq_filtered())),
-                    selected = "Lot"
-        ),
-        fluidRow(
-        column(width = 6, uiOutput(ns("ui_test_cond1"))),
-        column(width = 6, uiOutput(ns("ui_test_cond2")))
-        ),
-        numericInput(ns("pval"),
-                     label = "p-value threshold",
-                     min = 0, max = 1,
-                     value = 0.05
-        )
+                     choices = c("indicspecies", "abundance"),
+                     selected = "indicspecies")
+        ,
+        uiOutput(ns("ui_test_fact")),
+        uiOutput(ns("ui_pval_indicspecies")),
+        uiOutput(ns("ui_type_features"))
     )
   })
   
-  output$ui_test_cond1 <- renderUI({
-    if(input$selection_method == "DESeq2"){
-      selectInput(ns("cond1"),
-                  label = "Condition 1 to compare",
-                  choices = unique(sample_data(r$phyloseq_filtered())[, input$test_fact]))
+  output$ui_test_fact <- renderUI({
+    req(input$selection_method)
+    if(input$selection_method == "indicspecies"){
+        selectInput(ns("test_fact"),
+                    label = "Factor to test",
+                    choices = r$factor_list()
+        )
     }
   })
   
-  output$ui_test_cond2 <- renderUI({
-    if(input$selection_method == "DESeq2"){
-      choi <- data.frame(unique(sample_data(r$phyloseq_filtered())[, input$test_fact]))
-      choi <- choi[choi != input$cond1]
-      selectInput(ns("cond2"),
-                  label = "Condition 2 to compare",
-                  choices = choi)
+  output$ui_pval_indicspecies <- renderUI({
+    req(input$selection_method)
+    if(input$selection_method == "indicspecies"){
+      numericInput(ns("pval"),
+                   label = "p-value threshold",
+                   min = 0, max = 1,
+                   value = 0.05
+      )
+    }
+  })
+  
+  output$ui_type_features <- renderUI({
+    req(input$selection_method)
+    if(input$selection_method == "abundance"){
+      fluidRow(
+        column(width = 8,
+               radioButtons(ns("type_features"),
+                   label = paste0("Display features"),
+                   inline = FALSE,
+                   choices = list(
+                     "the most abundant" = "top",
+                     "the least abundant" = "bottom"),
+                   selected = "top")
+               ),
+        column(width = 4,
+               numericInput(ns("nb_feat"),
+                            label = "Number of features",
+                            min = 0, max = dim(otu_table(agglom_data()))[1],
+                            value = dim(otu_table(agglom_data()))[1]
+               ))
+      )
+      
     }
   })
   
@@ -209,17 +244,21 @@ mod_heatmap_server <- function(input, output, session, r){
   
   # agglomerate taxa at chosen taxonomic rank
   agglom_data <- reactive({
-    req(r$phyloseq_filtered(), input$Rank)
-    data_glom <- phyloseq::tax_glom(r$phyloseq_filtered(), input$Rank)
-    taxa_names(data_glom) <- tax_table(data_glom)[, input$Rank]
-    tax_table(data_glom) <- tax_table(data_glom)[, 1:match(input$Rank, rank_names(data_glom))]
+    req(r$phyloseq_filtered(), input$rank)
+    if(input$rank != "ASV"){
+      data_glom <- phyloseq::tax_glom(r$phyloseq_filtered(), input$rank)
+      taxa_names(data_glom) <- tax_table(data_glom)[, input$rank]
+      tax_table(data_glom) <- tax_table(data_glom)[, 1:match(input$rank, rank_names(data_glom))]
+    }else{
+      data_glom <- r$phyloseq_filtered()
+    }
     return(data_glom)
   })
   
-  # agglomerate taxa at chosen taxonomic rank then normalize data with the chosen method
+  # normalize data with the chosen method
   agglom_normalized_data <- reactive({
-    req(r$phyloseq_filtered(), input$Rank, input$norm)
-    FGdata <- agglom_data()
+    req(r$phyloseq_filtered(), input$norm)
+    FGdata <- selected_data()
     
     if(input$norm == 0){
       FNGdata <- FGdata
@@ -264,39 +303,39 @@ mod_heatmap_server <- function(input, output, session, r){
     return(FNGdata)
   })
   
+  observeEvent(input$test_fact, {
+    req(r$phyloseq_filtered, r$phyloseq_filtered_norm(), input$test_fact, input$select_features)
+    if(anyNA(sample_data(r$phyloseq_filtered())[, input$test_fact])){
+      shinyalert::shinyalert(title = "Oops", text = paste0("The factor ", input$test_fact, " has missing values. Features selection with indicspecies will not work. Please remove missing values."), type = "error")
+    }
+  })
+  
   # use indicspecies package to select features
   indic_species_results <- reactive({
     req(agglom_data(), input$select_features, input$test_fact)
-    return(indicspecies::multipatt(t(otu_table(agglom_data())), t(sample_data(agglom_data())[, input$test_fact]), control = permute::how(nperm = 999), duleg = TRUE))
-  })
-  
-  # use DESeq2 package to select features
-  deseq2_results <- reactive({
-    req(agglom_data(), input$selection_method, input$test_fact, input$cond1, input$cond2)
-    fun <- glue("deseq <- phyloseq_to_deseq2(agglom_data(), ~ {input$test_fact})")
-    # fun <- glue("deseq <- phyloseq_to_deseq2(r$phyloseq_filtered(), ~ {input$test_fact})")
-    eval(parse(text = fun))
-    gm_mean <- function(x, na.rm = TRUE){
-      exp(sum(log(x[x > 0]), na.rm = na.rm) / length(x))
-    }
-    geoMeans <- apply(counts(deseq), 1, gm_mean)
-    deseq <- DESeq2::estimateSizeFactors(deseq, geoMeans = geoMeans)
-    deseq <- DESeq2::DESeq(deseq, test = "Wald", fitType = "parametric")
-    res <-  DESeq2::results(deseq, cooksCutoff = FALSE, contrast = c(input$test_fact, input$cond1 , input$cond2))
-    return(res)
+    result <- indicspecies::multipatt(t(otu_table(agglom_data())), t(sample_data(agglom_data())[, input$test_fact]), control = permute::how(nperm = 999), duleg = TRUE)
+    return(result)
   })
   
   selected_data <- reactive({
-    req(agglom_normalized_data())
+    req(agglom_data())
     if(input$select_features == FALSE){
-      return(agglom_normalized_data())
+      selected_data <- agglom_data()
     }else if(input$selection_method == "indicspecies"){
       slct <- indic_species_results()$sign
       slct <- slct[slct$p.value <= input$pval, ]
-      return(phyloseq::prune_taxa(rownames(slct), agglom_normalized_data()))
+      if(dim(slct)[1] == 0){
+        shinyalert::shinyalert(title = "Oops", text = paste0("No taxa have been selected by indicspecies. Taxonomic rank chosen to agglomerate taxa may be too high.\n"), type = "error")
+      }
+      selected_data <- phyloseq::prune_taxa(rownames(slct), agglom_data())
     }else{
-      return(phyloseq::prune_taxa(rownames(deseq2_results()[deseq2_results()$pvalue <= input$pval, ]), agglom_normalized_data()))
+      sum_taxa <- phyloseq::taxa_sums(agglom_data())
+      decreasing_order <- ifelse(input$type_features == "top", TRUE, FALSE)
+      sort_taxa <- sum_taxa[order(sum_taxa, decreasing = decreasing_order)]
+      sort_taxa <- head(sort_taxa, n = input$nb_feat)
+      selected_data <- phyloseq::prune_taxa(names(sort_taxa), agglom_data())
     }
+    return(selected_data)
   })
 
   
@@ -325,19 +364,40 @@ mod_heatmap_server <- function(input, output, session, r){
   # factor annotation colors
   modality_colors <- reactive({
     req(input$fact_annot, selected_data())
-    get_cat_colors(type = "fact", list_fact = input$fact_annot, phy_object = selected_data())
+    colors <- get_cat_colors(type = "fact", list_fact = input$fact_annot, phy_object = selected_data())
+    return(colors)
   })
 
   annot_fact_colors <- reactive({
-    req(input$fact_annot, r$factor_colors(), modality_colors())
+    req(input$fact_annot, r$factor_colors(), modality_colors(), agglom_normalized_data())
     if(length(input$fact_annot) == 0){
       annot <- NA
     }else{
-      annot_colors <- r$factor_colors()[input$fact_annot]
-      annot <- lapply(1:length(input$fact_annot), FUN = function(i){
-        annot_colors[[i]][lapply(modality_colors()[[i]], FUN = as.character)[[1]]]
-      })
-      names(annot) <- input$fact_annot
+      annot <- list()
+      var_nb_na <- list()
+      for(i in 1:length(input$fact_annot)){
+        colors <- r$factor_colors()[input$fact_annot[i]]
+        modality <- lapply(modality_colors()[[i]], FUN = as.character)[[1]]
+        if(is.numeric(r$sdat()[, input$fact_annot[i]])){
+          result_colors <- paletteer::paletteer_c(colors[[1]], n = 30)
+          if(NA %in% modality){
+            var_values <- sample_data(agglom_normalized_data())[, input$fact_annot[i]]
+            var_nb_na[[input$fact_annot[i]]] <- sum(is.na(var_values))
+          }
+        }else{
+          result_colors <- colors[[1]][modality[!is.na(modality)]]
+          if(NA %in% modality){
+            result_colors["NA"] <- "#000000"
+          }
+        }
+        annot[[input$fact_annot[i]]] <- result_colors
+      }
+      if(length(var_nb_na) > 0){
+        nb_na <- paste(sapply(1:length(var_nb_na), FUN = function(i){
+          paste0(names(var_nb_na)[i], " (", var_nb_na[[i]][1], " NA)")
+        }), collapse = "\n")
+        shinyalert::shinyalert(title = "NA values in heatmap annotation", text = paste0("The following numeric variables have NA values which will be displayed in blank on heatmap annotation.\n", nb_na), type = "warning")
+      }
     }
     return(annot)
   })
@@ -356,14 +416,30 @@ mod_heatmap_server <- function(input, output, session, r){
   })
   
   heatmap <- eventReactive(input$launch_heatmap, {
-    req(selected_data(), input$Rank)
-    t_table <- tax_table(selected_data())
-    samp_table <- sample_data(selected_data())
+    req(selected_data(), input$rank, agglom_normalized_data())
+    t_table <- tax_table(agglom_normalized_data())
+    samp_table <- sample_data(agglom_normalized_data())
+    
+    if(input$rank != "ASV"){
+      row_labels <- as.expression(lapply(
+        stringr::str_replace(gsub("[a-z]__", "", t_table[, input$rank]), "_", " "),
+        function(x) bquote(italic(.(x)))))
+    }else{
+      row_labels <- NULL
+    }
     
     if(length(input$fact_annot) == 0){
       annot_col <- NA
     }else{
+      num <- sapply(r$sdat()[, input$fact_annot], is.numeric)
       annot_col <- data.frame(samp_table[, input$fact_annot])
+      for(i in length(input$fact_annot)){
+        if(!is.numeric(r$sdat()[, input$fact_annot[i]])){
+          ann <- sapply(annot_col[, input$fact_annot[i]], FUN = as.character)
+          ann <- data.frame(replace(ann, list = which(is.na(ann)), "NA"))
+          annot_col[input$fact_annot[i]] <- ann
+        }
+      }
     }
     
     if(length(input$taxa_annot) == 0){
@@ -375,19 +451,19 @@ mod_heatmap_server <- function(input, output, session, r){
     if(input$clust_samp == FALSE){
       clust_sample <- FALSE
     }else{
-      dist_samp <- phyloseq::distance(selected_data(), method = input$dist, type = "sample")
-      clust_sample <- hclust(dist_samp, method = input$clust_method)
+      no_empty_samples <- colnames(otu_table(selected_data())[, colSums(otu_table(selected_data())) > 0])
+      select_data <- phyloseq::prune_samples(no_empty_samples, selected_data())
+      dist_samp <- phyloseq::distance(select_data, method = input$dist_method, type = "sample")
+      clust_sample <- stats::hclust(dist_samp, method = input$clust_method)
     }
     
-    heatmap <- pheatmap::pheatmap(otu_table(selected_data()),
+    heatmap <- pheatmap::pheatmap(otu_table(agglom_normalized_data()),
                        color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 9, name = input$color_map)))(100),
                        cluster_cols = clust_sample,
                        cluster_rows = input$clust_taxa,
                        show_rownames = input$print_taxa,
                        show_colnames = input$print_sample,
-                       labels_row = as.expression(lapply(
-                         stringr::str_replace(gsub("[a-z]__", "", t_table[, input$Rank]), "_", " "),
-                         function(x) bquote(italic(.(x))))),
+                       labels_row = row_labels,
                        labels_col = sapply(samp_table[, input$sample_label], FUN = as.character),
                        angle_col = 90,
                        annotation_col = annot_col,
@@ -395,27 +471,39 @@ mod_heatmap_server <- function(input, output, session, r){
                        annotation_names_col = TRUE,
                        annotation_names_row = TRUE,
                        annotation_colors = annot_colors(),
+                       border_color = "grey60",
                        display_numbers = input$print_nb,
                        number_format = "%.2f"
     )
     return(heatmap)
   })
   
-  selection_features_results <- reactive({
+  selection_features_results <- eventReactive(input$launch_heatmap, {
     req(input$select_features, input$selection_method)
     if(input$selection_method == "indicspecies"){
       result <- indic_species_results()$sign
-    }else if(input$selection_method == "DESeq2"){
-      result <- data.frame(deseq2_results())
+      t_table <- as.data.frame(phyloseq::tax_table(agglom_data())) %>%
+        rownames_to_column()
+      res <- result %>%
+        rownames_to_column() %>%
+        left_join(t_table, by = "rowname")
+      return(res)
     }
-    t_table <- as.data.frame(phyloseq::tax_table(agglom_data())) %>%
-      rownames_to_column()
-    res <- result %>%
-      rownames_to_column() %>%
-      left_join(t_table, by = "rowname")
-    return(res)
   })
   
+  output$ui_selected_features <- renderUI({
+    req(input$selection_method)
+    if(input$selection_method == "indicspecies"){
+      box(title = "Selected features", width = 12, status = "primary", collapsible = TRUE, collapsed = FALSE, solidHeader = TRUE,
+          downloadButton(ns("table_download"), label = "Download table"),
+          shinycustomloader::withLoader(
+            DT::dataTableOutput(ns("feat")),
+            type = "html", loader = "loader2"
+          )
+      )
+    }
+  })
+ 
   output$feat <- DT::renderDataTable({
     req(selection_features_results())
     selection_features_results()
@@ -424,6 +512,7 @@ mod_heatmap_server <- function(input, output, session, r){
   observe({
     output$heatmap_t <- renderPlot({
       withProgress(message = 'Computing heatmap...',{
+        req(heatmap(), plot_height(), plot_width())
         heatmap()
       })
     }, height = plot_height(), width = plot_width())
@@ -433,7 +522,7 @@ mod_heatmap_server <- function(input, output, session, r){
     filename = "heatmap.svg",
     content = function(file){
       req(heatmap())
-      svg(filename = file)
+      grDevices::svg(filename = file, width = plot_width()/96, height = plot_height()/96)
       print(heatmap())
       dev.off()
     }
@@ -447,6 +536,7 @@ mod_heatmap_server <- function(input, output, session, r){
     }
   )
 }
+
 
 ## To be copied in the UI
 # mod_heatmap_ui("heatmap_ui_1")
