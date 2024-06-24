@@ -42,6 +42,10 @@ mod_data_loading_ui <- function(id){
           verbatimTextOutput(ns("phy_prev"))
         )
       ),
+      
+      fluidRow(
+        uiOutput(ns('ui_combine_columns'))
+      ),
 
       fluidRow(box(title = "STEP 1: Metadata table",solidHeader = TRUE, status = "warning", width=12,
 
@@ -133,7 +137,7 @@ mod_data_loading_ui <- function(id){
             choices = list(
               "Raw" = 0 ,
               "TSS (total-sum normalization)" = 1,
-              "CLR (center log-ration)" = 2,
+              "CLR (centered log-ratio)" = 2,
               "VST (variance stabilizing transformation)" = 3
             ), selected = 1
           ),
@@ -162,6 +166,23 @@ mod_data_loading_ui <- function(id){
           downloadButton(outputId = ns("filt_rdata_download"), label = "Download filtered Phyloseq object"),
           downloadButton(outputId = ns("filt_rdata_norm_download"), label = "Download filtered and normalized Phyloseq object"),
           downloadButton(outputId = ns("filt_refseq_download"), label = "Download filtered FASTA sequences")
+        )
+      ),
+      fluidRow(
+        box(title = "Color selection", width = 12, status = "warning", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+            infoBox("",
+                    HTML(paste("Accepted formats for color assignation.")),
+                    HTML(paste("When the variable is a <b>factor</b>, modalities must be written in the first column of the Excel file and colors associated in hexadecimal code form in the second column.<br/> When the variable is <b>numeric</b>, a palette must be chosen with the form package::palette written in the Excel file (only packages ggthemes and viridis are accepted).")),
+                    icon = icon("info-circle"), fill = FALSE, width = 12
+            ),
+            uiOutput(ns("var_color")),
+            downloadButton(ns("var_color_download"), label = "Download xlsx file"),
+            fileInput(ns("file_var_color"), label = "var-color file", placeholder = "var_colors.xlsx"),
+            verbatimTextOutput(ns("fact_color_file_log")),
+            uiOutput(ns("taxa_color")),
+            downloadButton(ns("taxa_color_download"), label = "Download xlsx file"),
+            fileInput(ns("file_taxa_color"), label = "taxa-color file", placeholder = "taxa_colors.xlsx"),
+            verbatimTextOutput(ns("taxa_color_file_log"))
         )
       )
     )
@@ -299,12 +320,28 @@ mod_data_loading_server <- function(input, output, session, r=r){
     phyobj <- r_values$phyobj_initial
     sdat <- do.call(cbind.data.frame, phyobj@sam_data)
     sdat[sdat == ""] <- NA
-
+    
     if( !"sample.id" %in% colnames(sdat) ){
       sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
     }
+    sdat <- sdat %>% select(where(~ n_distinct(.) > 1))
+    
+    for(i in seq(1, 6, 2)){
+      if(!is.null(input[[paste("combin", i+1, sep = "_")]])){
+        sdat <- combine_columns_sdat(metadata = sdat, list_columns = c(input[[paste("combin", i, sep = "_")]], input[[paste("combin", i+1, sep = "_")]]))
+      }
+    }
     return(sdat)
   })
+  
+  combine_columns_sdat <- function(metadata, list_columns){
+    if(!all(sapply(metadata[, list_columns], is.numeric))){
+      meta_col <- paste0(list_columns, collapse = '_')
+      metadata <- tidyr::unite(metadata, !!meta_col, list_columns, na.rm = TRUE, remove = FALSE)
+      metadata[, meta_col] <- as.factor(metadata[, meta_col])
+    }
+    return(metadata)
+  }
 
 
   subset_samples <- reactive({
@@ -313,7 +350,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     physeq0 <- r_values$phyobj_initial
 
     flog.info('subset samples() starting...')
-    flog.info(paste0('initial number of samples before ', phyloseq::nsamples(physeq0)))
+    flog.info(paste0('number of samples before ', phyloseq::nsamples(physeq0)))
     if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
       print("No match")
       shinyalert(title = "Oops", text="Sample names do not match with names in metadata. Check the phyloseq object.", type='error')
@@ -322,7 +359,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
     physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),physeq0)
     physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
 
-    flog.info(paste0('initial number of samples after',phyloseq::nsamples(physeq)))
+    flog.info(paste0('number of samples after',phyloseq::nsamples(physeq)))
+    rownames(filt_sdata) <- filt_sdata  %>% pull('sample.id')
+    sample_data(physeq) <- filt_sdata
     r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
 
   })
@@ -524,7 +563,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
       flog.info('subset_taxa fun done.')
       # phy_obj
 
-    },message = "Subset taxonomy, please wait...")
+    }, message = "Subset taxonomy, please wait...")
   })
 
 
@@ -723,8 +762,330 @@ mod_data_loading_server <- function(input, output, session, r=r){
     }
     return(var_list)
   })
-
-
+  
+  # combine variables of sample_data
+  choice_combine_var <- reactive({
+    sdat <- sample_data(r_values$phyobj_initial)
+    sdat <- do.call(cbind.data.frame, sdat)
+    sdat <- select(sdat, where(~ n_distinct(.) > 1))
+    choices <- colnames(sdat)
+    choices <- choices[choices != 'sample.id']
+    return(choices)
+  })
+ 
+  output$ui_combine_columns <- renderUI({
+    box(title = "Combine columns", width = 12, status = "warning", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+        column(width = 6,
+               shinyWidgets::pickerInput(
+                 ns("combin_1"),
+                 label = "Variable to combine",
+                 choices = choice_combine_var(),
+                 selected = NULL,
+                 multiple = TRUE,
+                 options = pickerOptions(maxOptions = 1)
+               )),
+        lapply(2:8, FUN = function(i){
+          column(width = 6, uiOutput(ns(paste0("ui_combin_", i))))
+        })
+    )
+  })
+  
+  output$ui_combin_2 <- renderUI({
+    choice <- choice_combine_var()
+    shinyWidgets::pickerInput(
+      ns("combin_2"),
+      label = "Variable to combine",
+      choices = choice[choice != input$combin_1],
+      selected = NULL,
+      multiple = TRUE,
+      options = pickerOptions(maxOptions = 1)
+    )
+  })
+  
+  get_ui_combin <- function(i){
+    choice <- choice_combine_var()
+    if(i%%2 == 0){
+      prec <- i - 2
+      choice <- choice[choice != input[[paste0("combin_", i - 1)]]]
+    }else{
+      prec <- i - 1
+    }
+    output[[paste0("ui_combin_", i)]] <- renderUI({
+      if(!is.null(input[[paste0("combin_", prec)]])){
+        shinyWidgets::pickerInput(
+          ns(paste0("combin_", i)),
+          label = "Variable to combine",
+          choices = choice,
+          selected = NULL,
+          multiple = TRUE,
+          options = pickerOptions(maxOptions = 1)
+        )
+      }
+    })
+  }
+  
+  observe({
+    lapply(3:6, FUN = function(i){
+      if(is.null(input[[paste0("combin_", i)]])){
+        get_ui_combin(i)
+      }
+    })
+  })
+  
+  
+  # for numeric variable colors
+  palette_numeric_var <- reactive({
+    pal <- paletteer::palettes_c_names
+    pal <- pal[pal$package %in% c("viridis", "ggthemes"), ]
+    return(pal)
+  })
+  
+  
+  # for variable colors
+  output$var_color <- renderUI({
+    req(r$factor_list())
+    shinyWidgets::pickerInput(ns("list_var_color"),
+                              label = "Variables whose associated colors are exported in xlsx file",
+                              choices = r$var_list(),
+                              selected = r$var_list()[1],
+                              multiple = TRUE,
+                              options = pickerOptions(
+                                actionsBox = TRUE,
+                                liveSearch = TRUE,
+                                showContent = FALSE
+                              ),
+                              choicesOpt = list(
+                                content = unlist(lapply(
+                                  X = r$var_list(),
+                                  FUN = function(x){
+                                    htmltools::doRenderTags(
+                                      tags$div(
+                                        splitLayout(cellWidths = 200,
+                                                    tags$div(
+                                                      style = htmltools::css(fontWeight = "bold"),
+                                                      x
+                                                    ),
+                                                    tags$div(
+                                                      style = htmltools::css(color = 'grey'),
+                                                      class(r$sdat()[, x])
+                                                    )
+                                        )
+                                      )
+                                    )
+                                  }
+                                ))
+                              )
+    )
+  })
+  
+  r$factor_list <- reactive({
+    req(r$sdat(), r$var_list())
+    num <- sapply(r$sdat()[, r$var_list()], is.numeric)
+    fact <- r$var_list()[!num]
+    return(fact)
+  })
+  
+  modality <- reactive({
+    req(r$phyloseq_filtered(), r$factor_list())
+    mod <- get_cat_colors(type = "fact", list_fact = r$factor_list(), phy_object = r$phyloseq_filtered())
+    return(mod)
+  })
+  
+  palette_choices <- reactive({
+    pal <- paletteer::palettes_d_names
+    pal <- pal[pal$type == "qualitative", ]
+    pal <- pal[pal$package %in% c("ggsci", "ggthemes", "jcolors", "pals", "Polychrome", "RColorBrewer"), ]
+    pal <- pal[pal$package != "ggthemes" | ! pal$palette %in% c("fivethirtyeight", "Seattle_Grays", "Classic_Gray_5", "excel_Grayscale", "stata_mono", "stata_economist"), ]
+    pal <- pal[pal$package != "Polychrome" | ! pal$palette %in% c("glasbey", "kelly"), ]
+    pal <- pal[pal$package != "pals" | pal$palette != "kelly", ] # remove palettes with white or grey
+    return(pal)
+  })
+  
+  modality_colors <- reactive({
+    req(r$var_list(), r$factor_list(), modality())
+    colors <- get_modality_colors(type = "fact", list_fact = r$factor_list(), modality = modality(), palettes = palette_choices())
+    num <- dplyr::setdiff(r$var_list(), r$factor_list())
+    if(length(num) > 0){
+      available_pal <- palette_numeric_var()
+      pal <- lapply(1:length(num), FUN = function(i){
+        paste(available_pal$package[i], available_pal$palette[i], sep = "::")
+      })
+      names(pal) <- num
+      colors <- c(colors, pal)
+    }
+    return(colors)
+  })
+  
+  modality_file <- reactive({
+    req(r$var_list(), input$file_var_color)
+    num <- sapply(r$sdat()[, r$var_list()], is.numeric)
+    palettes <- palette_numeric_var()
+    pal <- sapply(1:dim(palettes)[1], FUN = function(i){
+      paste(palettes$package[i], palettes$palette[i], sep = "::")
+    })
+    colors <- get_modality_file(path_file = input$file_var_color$datapath, type = "fact", list_fact = r$var_list(), num_fact = num, num_palettes = pal, phy_obj = r$phyloseq_filtered())
+    return(colors)
+  })
+  
+  complete_modality_file <- reactive({
+    req(modality_file(), missing_fact_colors())
+    color <- get_complete_color_file(mod_file = modality_file(), missing_colors = missing_fact_colors())
+    return(color)
+  })
+  
+  missing_fact_colors <- reactive({
+    req(modality_colors(), modality_file())
+    fact_loaded <- names(modality_file())
+    missing_fact <- lapply(1:length(fact_loaded), FUN = function(i){
+      miss_fact <- dplyr::setdiff(names(modality_colors()[[fact_loaded[i]]]), names(modality_file()[[fact_loaded[i]]]))
+      if(length(miss_fact) == 0){
+        miss_fact <- c("No color is missing.")
+      }
+      return(miss_fact)
+    })
+    names(missing_fact) <- fact_loaded
+    return(missing_fact)
+  })
+  
+  output$fact_color_file_log <- renderPrint({
+    if(length(modality_file()) > 0){
+    cat(names(modality_file()), "have been loaded.\n", sep = " ")
+    cat("Warning ! If some modalities are missing, colors associated to these modalities will be randomly chosen.\n")
+    cat("Missing factor-color values for each factor loaded :\n")
+    missing_fact_colors()
+    }else{
+      cat("No colors have been loaded.")
+    }
+  })
+  
+  output$var_color_download <- downloadHandler(
+    filename = "var_colors.xlsx",
+    content = function(file){
+      if(length(input$list_var_color) < 50){
+        download_color <- r$factor_colors()[input$list_var_color]
+        num <- sapply(r$sdat()[, input$list_var_color], is.numeric)
+        for(i in 1:length(input$list_var_color)){
+          xlsx::write.xlsx(data.frame(download_color[[i]]), file = file, sheetName = input$list_var_color[i], col.names = FALSE, row.names = !num[i] , append = TRUE)
+        }
+      }else{
+        showNotification("Too much variables to export.", type = "warning", duration = 10)
+      }
+    }
+  )
+  
+  r$factor_colors <- reactive({
+    req(modality_colors())
+    if(is.null(input$file_var_color)){
+      factors <- modality_colors()
+    }else{
+      factors <- c(complete_modality_file(), modality_colors()[setdiff(r$var_list(), names(complete_modality_file()))])
+    }
+    return(factors)
+  })
+  
+  
+  # for taxa colors
+  output$taxa_color <- renderUI({
+    req(rank_list())
+    shinyWidgets::pickerInput(ns("list_taxa_color"),
+                              label = "Taxonomic ranks whose associated colors are exported in xlsx file",
+                              choices = rank_list(),
+                              selected = rank_list()[1],
+                              multiple = TRUE,
+                              options = pickerOptions(
+                                actionsBox = TRUE,
+                                liveSearch = TRUE,
+                                showContent = FALSE
+                              )
+    )
+  })
+  
+  rank_list <- reactive({
+    phyloseq::rank_names(r$phyloseq_filtered())
+  })
+  
+  taxa_modality <- reactive({
+    req(rank_list(), r$var_list())
+    mod <- get_cat_colors(type = "taxa", list_fact = rank_list(), phy_object = r$phyloseq_filtered())
+    return(mod)
+  })
+  
+  observe({
+    req(input$file_taxa_color)
+    taxa_modality_file()
+    })
+  
+  taxa_modality_colors <- reactive({
+    req(rank_list(), taxa_modality())
+    colors <- get_modality_colors(type = "taxa", list_fact = rank_list(), modality = taxa_modality(), palettes = palette_choices())
+    return(colors)
+  })
+  
+  taxa_modality_file <- reactive({
+    req(rank_list(), input$file_taxa_color)
+    colors <- get_modality_file(path_file = input$file_taxa_color$datapath, type = "taxa", list_fact = rank_list(), phy_obj = r$phyloseq_filtered())
+    return(colors)
+  })
+  
+  missing_taxa_colors <- reactive({
+    req(taxa_modality_colors(), taxa_modality_file())
+    rank_loaded <- names(taxa_modality_file())
+    missing_taxa <- lapply(1:length(rank_loaded), FUN = function(i){
+      miss_taxa <- dplyr::setdiff(names(taxa_modality_colors()[[rank_loaded[i]]]), names(taxa_modality_file()[[rank_loaded[i]]]))
+      return(miss_taxa)
+    })
+    names(missing_taxa) <- rank_loaded
+    return(missing_taxa)
+  })
+  
+  complete_taxa_file <- reactive({
+    req(taxa_modality_file(), missing_taxa_colors())
+    color <- get_complete_color_file(mod_file = taxa_modality_file(), missing_colors = missing_taxa_colors())
+    return(color)
+  })
+  
+  nb_missing_taxa_colors <- reactive({
+    req(taxa_modality_colors(), taxa_modality_file())
+    rank_loaded <- names(taxa_modality_file())
+    missing_taxa <- sapply(1:length(rank_loaded), FUN = function(i){
+      miss_taxa <- dplyr::setdiff(names(taxa_modality_colors()[[rank_loaded[i]]]), names(taxa_modality_file()[[rank_loaded[i]]]))
+      return(length(miss_taxa))
+    })
+    names(missing_taxa) <- rank_loaded
+    return(missing_taxa)
+  })
+  
+  output$taxa_color_file_log <- renderPrint({
+    if(length(taxa_modality_file()) > 0){
+      cat(names(taxa_modality_file()), "have been loaded.\n", sep = " ")
+      cat("Warning ! If some taxa are missing, colors associated to these taxa will be randomly chosen.\n")
+      cat("Number of missing taxa-color values for each rank loaded :\n")
+      nb_missing_taxa_colors()
+    }else{
+      cat("No colors have been loaded.")
+    }
+  })
+  
+  output$taxa_color_download <- downloadHandler(
+    filename = "taxa_colors.xlsx",
+    content = function(file){
+      download_color <- taxa_modality_colors()[input$list_taxa_color]
+      for(i in 1:length(input$list_taxa_color)){
+        xlsx::write.xlsx(data.frame(download_color[[i]]), file = file, sheetName = input$list_taxa_color[i], col.names = FALSE, append = TRUE)
+      }
+    }
+  )
+  
+  r$taxa_colors <- reactive({
+    req(taxa_modality_colors())
+    if(is.null(input$file_taxa_color)){
+      colors <- taxa_modality_colors()
+    }else{
+      colors <- c(complete_taxa_file(), taxa_modality_colors()[dplyr::setdiff(rank_list(), names(complete_taxa_file()))])
+    }
+    return(colors)
+  })
+  
 }
 
 ## To be copied in the UI
