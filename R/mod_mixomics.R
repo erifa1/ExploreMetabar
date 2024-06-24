@@ -7,7 +7,6 @@
 #' @noRd 
 #'
 #' @importFrom shiny NS tagList 
-#' @import mixOmics
 mod_mixomics_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -19,11 +18,12 @@ mod_mixomics_ui <- function(id){
               label = "Factor",
               choices = ""
             ),
-            tags$h5("Optimised sPLS-DA can take time."),
             radioButtons(ns("spls_da_type"),
                          label = "sPLS-DA type",
                          inline = TRUE,
-                         choices = c("initial", "optimised"),
+                         choices = list(
+                           "initial" = "initial",
+                           "optimised (can take a long time)" = "optimised"),
                          selected = "initial"),
             uiOutput(ns("ui_nb_comp")),
             uiOutput(ns("ui_nb_feat")),
@@ -35,6 +35,10 @@ mod_mixomics_ui <- function(id){
         uiOutput(ns("ui_comp_axis")),
         uiOutput(ns("ui_perform_plots")),
         box(id = ns("plot_indiv_box"), title = "Plot of individuals", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+            fluidRow(
+              column(width = 2, checkboxInput(ns("plot_indiv_labels"), label = "Display sample labels", value = FALSE)),
+              column(width = 2, checkboxInput(ns("plot_indiv_ellipses"), label = "Display ellipses", value = TRUE))
+            ),
             downloadButton(ns("spls_da_indiv_download"), label = "Download plot"),
             shinycustomloader::withLoader(
               plotOutput(ns('spls_da_indiv'), width = "1000px", height = "1000px"),
@@ -63,6 +67,10 @@ mod_mixomics_ui <- function(id){
                          value = 0,
                          step = 0.1
             ),
+            fluidRow(
+              column(width = 2, checkboxInput(ns("biplot_labels"), label = "Display sample labels", value = FALSE)),
+              column(width = 2, checkboxInput(ns("biplot_arrows"), label = "Display arrows", value = TRUE))
+            ),
             downloadButton(ns("spls_da_biplot_download"), label = "Download plot"),
             shinycustomloader::withLoader(
               plotOutput(ns('spls_da_biplot'), width = "1000px", height = "1000px"),
@@ -70,8 +78,9 @@ mod_mixomics_ui <- function(id){
             )
         ),
         uiOutput(ns("ui_spls_da_loadings")),
-        box(title = "Selected features", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+        box(title = "Features contribution", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
             uiOutput(ns("ui_comp_select_var")),
+            downloadButton(ns("select_var_download"), label = "Download table"),
             shinycustomloader::withLoader(
               DT::dataTableOutput(ns("spls_da_select_var")),
               type = "html", loader = "loader4"
@@ -80,9 +89,12 @@ mod_mixomics_ui <- function(id){
         box(title = "CIM", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
             downloadButton(ns("spls_da_cim_download"), label = "Download plot"),
             shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_cim')),
+              plotOutput(ns('spls_da_cim'), width = "1000px", height = "1000px"),
               type = "html", loader = "loader4"
             )
+        ),
+        box(title = "Download all sPLS-DA results", width = 6, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+            downloadButton(ns("download_all"), label = "Download zip")
         )
       )
     )
@@ -95,13 +107,14 @@ mod_mixomics_ui <- function(id){
 #'
 #' @noRd 
 #' @import mixOmics
+#' 
 mod_mixomics_server <- function(input, output, session, r){
     ns <- session$ns
 
     observe({
       req(r$phyloseq_filtered())
       updateSelectInput(session, "factor_spls_da",
-                        choices = r$var_list())
+                        choices = r$factor_list())
     })
     
     output$ui_nb_comp <- renderUI({
@@ -121,9 +134,9 @@ mod_mixomics_server <- function(input, output, session, r){
         lapply(1:input$nb_comp, FUN = function(i){
         numericInput(ns(paste("nb_feat", i, sep = "_")),
                    label = paste("Number of features for component", i),
-                   value = dim(x())[2],
+                   value = phyloseq::ntaxa(r$phyloseq_filtered()),
                    min = 1,
-                   max = dim(x())[2])
+                   max = phyloseq::ntaxa(r$phyloseq_filtered()))
         })
       }
     })
@@ -151,22 +164,23 @@ mod_mixomics_server <- function(input, output, session, r){
       }
     })
 
-    output$ui_perform_plots <- renderUI({
-      req(input$spls_da_type)
-      if(input$spls_da_type == "optimised"){
-        box(title = "sPLS-DA performance evaluation plots", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_ncomp')),
-              type = "html", loader = "loader4"
-            ),
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_keepX')),
-              type = "html", loader = "loader4"
-            )
-        )
-      }
+    observeEvent(input$launch_spls_da, {
+      output$ui_perform_plots <- renderUI({
+        req(input$spls_da_type)
+        if(input$spls_da_type == "optimised"){
+          box(title = "sPLS-DA performance evaluation plots", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+              shinycustomloader::withLoader(
+                plotOutput(ns('spls_da_ncomp')),
+                type = "html", loader = "loader4"
+              ),
+              shinycustomloader::withLoader(
+                plotOutput(ns('spls_da_keepX')),
+                type = "html", loader = "loader4"
+              )
+          )
+        }
+      })
     })
-    
     
     output$ui_comp_axis <- renderUI({
       req(final_ncomp())
@@ -215,55 +229,79 @@ mod_mixomics_server <- function(input, output, session, r){
       )
     })
     
-    x <- reactive({
-      req(r$phyloseq_filtered())
-      return(t(otu_table(r$phyloseq_filtered())))
+    x <- eventReactive(input$launch_spls_da, {
+      req(r$phyloseq_filtered(), input$factor_spls_da)
+      otu <- t(otu_table(r$phyloseq_filtered()))
+      fact <- data.frame(sample_data(r$phyloseq_filtered())[, input$factor_spls_da])[, input$factor_spls_da]
+      otu <- otu[!is.na(fact)]
+      return(otu)
     })
     
-    y <- eventReactive(input$launch_spls_da,{
-      fact <- data.frame(sample_data(r$phyloseq_filtered())[, input$factor_spls_da])[, input$factor_spls_da]
-      return(fact)
+    y <- reactive({
+      req(r$phyloseq_filtered(), input$factor_spls_da)
+      if(r$tabs$tabselected == "tab_mixomics"){
+        fact <- data.frame(sample_data(r$phyloseq_filtered())[, input$factor_spls_da])[, input$factor_spls_da]
+        fact <- fact[!is.na(fact)]
+        levels(fact) <- sort(unique(fact))
+        return(fact)
+      }
+    })
+    
+    observe({
+      req(r$tabs$tabselected, y())
+      if(r$tabs$tabselected == "tab_mixomics"){
+        if(1 %in% table(y())){
+          levels_pb <- paste(names(which(table(y()) == 1)), collapse = ", ")
+          shinyalert::shinyalert(title = "Oops", text = paste0("The following levels of the factor ", input$factor_spls_da, " have a single associated sample.\n", levels_pb), type = "error")
+        }
+      }
     })
     
     spls_da <- eventReactive(input$launch_spls_da, {
-      req(x(), y(), input$spls_da_type)
-      if(input$spls_da_type == "initial"){
-        list_keepX <- sapply(1:input$nb_comp, FUN = function(i){
-          input[[paste("nb_feat", i, sep = "_")]]
-        })
-        return(mixOmics::splsda(X = x(), Y = y(), ncomp = input$nb_comp, keepX = list_keepX))
-      }
+      withProgress({
+        req(x(), y(), input$spls_da_type)
+        if(input$spls_da_type == "initial"){
+          list_keepX <- sapply(1:input$nb_comp, FUN = function(i){
+            input[[paste("nb_feat", i, sep = "_")]]
+          })
+          return(mixOmics::splsda(X = x(), Y = y(), ncomp = input$nb_comp, keepX = list_keepX))
+        }
+      }, message = "Computing sPLS-DA...")
     })
     
     # undergo performance evaluation in order to tune the number of components to use
     perform_spls_da <- eventReactive(input$launch_spls_da, {
-      req(req(x(), y()))
-      if(input$spls_da_type == "optimised"){
-      spls_da_init <- mixOmics::splsda(X = x(), Y = y(), ncomp = 10)
-      mixOmics::perf(spls_da_init, validation = "Mfold", 
-                     folds = 5, nrepeat = 10, # use repeated cross-validation
-                     progressBar = FALSE, auc = TRUE) # include AUC values
-      }
+      withProgress({
+        req(req(x(), y()))
+        if(input$spls_da_type == "optimised"){
+          spls_da_init <- mixOmics::splsda(X = x(), Y = y(), ncomp = 10)
+          mixOmics::perf(spls_da_init, validation = "Mfold", 
+                         folds = 10, nrepeat = 10, # use repeated cross-validation
+                         progressBar = FALSE, auc = TRUE)
+        }
+      }, message = "Tuning sPLS-DA, please wait...")
     })
     
-    tune_spls_da <- reactive({
-      req(x(), y(), perform_spls_da(), input$tuning_distance, input$tuning_measure)
-      if(input$spls_da_type == "optimised"){
-        ncomp <- perform_spls_da()$choice.ncomp[input$tuning_measure, input$tuning_distance]
-        list_keepX <- c(1:10,  seq(20, 300, 10))
-        tune <- tune.splsda(X = x(), Y = y(),
-                    ncomp = ifelse(ncomp == 1, 2, ncomp), # calculate for first components
-                    validation = 'Mfold',
-                    folds = 5, nrepeat = 10, # use repeated cross-validation
-                    dist =  input$tuning_distance,
-                    measure =  input$tuning_measure,
-                    test.keepX = list_keepX,
-                    cpus = 2) # allow for parallelisation to decrease runtime
-        return(tune)
-      }
+    tune_spls_da <- eventReactive(input$launch_spls_da, {
+      withProgress({
+        req(x(), y(), perform_spls_da(), input$tuning_distance, input$tuning_measure)
+        if(input$spls_da_type == "optimised"){
+          ncomp <- perform_spls_da()$choice.ncomp[input$tuning_measure, input$tuning_distance]
+          list_keepX <- c(1:10,  seq(20, 300, 10))
+          tune <- tune.splsda(X = x(), Y = y(),
+                              ncomp = ifelse(ncomp == 1, 2, ncomp), # calculate for first components
+                              validation = 'Mfold',
+                              folds = 5, nrepeat = 10, # use repeated cross-validation
+                              dist =  input$tuning_distance,
+                              measure =  input$tuning_measure,
+                              test.keepX = list_keepX,
+                              cpus = 2) # allow for parallelisation to decrease runtime
+          return(tune)
+        }
+      }, message = "Computing optimised sPLS-DA, please wait...")
     })
     
-    spls_da_optimal <- reactive({
+    spls_da_optimal <- eventReactive(input$launch_spls_da, {
       req(x(), y(), tune_spls_da())
       spls_da_opt <- mixOmics::splsda(X = x(), Y = y(),
                                       ncomp = final_ncomp(),
@@ -272,7 +310,7 @@ mod_mixomics_server <- function(input, output, session, r){
       return(spls_da_opt)
     })
     
-    final_ncomp <- reactive({
+    final_ncomp <- eventReactive(input$launch_spls_da, {
       req(input$spls_da_type)
       if(input$spls_da_type == "initial"){
         ncomp <- input$nb_comp
@@ -282,7 +320,7 @@ mod_mixomics_server <- function(input, output, session, r){
       return(ncomp)
     })
     
-    final_keepX <- reactive({
+    final_keepX <- eventReactive(input$launch_spls_da, {
       req(input$spls_da_type)
       if(input$spls_da_type == "initial"){
         list_keepX <- sapply(1:input$nb_comp, FUN = function(i){
@@ -294,7 +332,7 @@ mod_mixomics_server <- function(input, output, session, r){
       return(list_keepX)
     })
     
-    final_spls_da <- reactive({
+    final_spls_da <- eventReactive(input$launch_spls_da, {
       if(input$spls_da_type == "initial"){
         spls_da <- spls_da()
       }else if(input$spls_da_type == "optimised"){
@@ -310,19 +348,16 @@ mod_mixomics_server <- function(input, output, session, r){
       return(df_color)
     })
     
-    # modality <- reactive({
-    #   req(input$factor_spls_da)
-    #   modal <- get_cat_colors("fact", input$factor_spls_da, r$phyloseq_filtered())
-    #   return(modal)
-    # })
+    observeEvent(input$launch_spls_da, {
+      output$spls_da_ncomp <- renderPlot(
+        get_spls_da_ncomp()
+      )
+      
+      output$spls_da_keepX <- renderPlot(
+        get_spls_da_keepX()
+      )
+    })
     
-    output$spls_da_ncomp <- renderPlot(
-      get_spls_da_ncomp()
-    )
-    
-    output$spls_da_keepX <- renderPlot(
-      get_spls_da_keepX()
-    )
     
     get_spls_da_ncomp <- eventReactive(input$launch_spls_da, {
       req(perform_spls_da())
@@ -337,51 +372,69 @@ mod_mixomics_server <- function(input, output, session, r){
     })
     
     get_spls_da_indiv <- reactive({
-      req(final_spls_da(), y(), list_colors())
-      plot_ind <- mixOmics::plotIndiv(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), group = y(),
-                          ind.names = FALSE, ellipse = TRUE, legend = TRUE,
-                          col.per.group = list_colors()
-      )
-      return(plot_ind)
+      withProgress({
+        req(final_spls_da(), y(), list_colors())
+        plot_ind <- mixOmics::plotIndiv(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), group = y(),
+                                        ind.names = input$plot_indiv_labels, ellipse = input$plot_indiv_ellipses, legend = TRUE,
+                                        legend.title = input$factor_spls_da, col.per.group = list_colors()
+        )
+        return(plot_ind)
+      }, message = "Plot of individuals loading, please wait...")
     })
     
     get_spls_da_var <- reactive({
-      req(final_spls_da(), input$spls_da_var_corr)
-      plot_var <- mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2),
-                                    cutoff = input$spls_da_var_corr)
-      return(plot_var)
+      withProgress({
+        req(final_spls_da(), input$spls_da_var_corr)
+        plot_var <- mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2),
+                                      cutoff = input$spls_da_var_corr)
+        return(plot_var)
+      }, message = "Plot of variables loading, please wait...")
     })
     
     get_spls_da_biplot <- reactive({
-      req(final_spls_da(), input$spls_da_biplot_corr, list_colors())
-      plot_biplot <- biplot(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2),
-                            cutoff = input$spls_da_biplot_corr, legend.title = "Legend",
-                            col.per.group = list_colors())
-      return(plot_biplot)
+      withProgress({
+        req(final_spls_da(), input$spls_da_biplot_corr, list_colors())
+        if(input$biplot_arrows){
+          var_arrow <- "black"
+        }else{
+          var_arrow <- NULL
+        }
+        plot_biplot <- biplot(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2),
+                              var.arrow.col = var_arrow, var.names.col = "black", ind.names = input$biplot_labels,
+                              cutoff = input$spls_da_biplot_corr, legend.title = input$factor_spls_da,
+                              col.per.group = list_colors())
+        return(plot_biplot)
+      }, message = "Biplot loading, please wait...")
     })
     
     get_spls_da_cim <- reactive({
-      req(final_spls_da())
-      legend_cim <- list(legend = levels(y()), col = list_colors(), title = input$factor_spls_da, cex = 0.7)
-      plot_cim <- mixOmics::cim(final_spls_da())
-      color <- r$factor_colors()[[input$factor_spls_da]][r$sdat()[plot_cim$row.names, input$factor_spls_da]]
-      plot_cim <- mixOmics::cim(final_spls_da(), row.sideColors = color, legend = legend_cim)
-      return(plot_cim)
+      withProgress({
+        req(final_spls_da())
+        legend_cim <- list(legend = levels(y()), col = list_colors(), title = input$factor_spls_da, cex = 0.7)
+        plot_cim <- mixOmics::cim(final_spls_da())
+        color <- r$factor_colors()[[input$factor_spls_da]][r$sdat()[plot_cim$row.names, input$factor_spls_da]]
+        plot_cim <- mixOmics::cim(final_spls_da(), row.sideColors = color, legend = legend_cim)
+        return(plot_cim)
+      }, message = "CIM loading, please wait...")
+      
     })
     
     get_select_var <- reactive({
-      req(final_spls_da(), input$comp_select_var)
-      select_var_tab <- mixOmics::selectVar(final_spls_da(), comp = input$comp_select_var)
-      return(select_var_tab)
+      withProgress({
+        req(final_spls_da(), input$comp_select_var)
+        select_var_tab <- mixOmics::selectVar(final_spls_da(), comp = input$comp_select_var)
+        t_table <- as.data.frame(phyloseq::tax_table(r$phyloseq_filtered())) %>%
+          rownames_to_column()
+        tab_result <- select_var_tab$value %>%
+          rownames_to_column() %>%
+          left_join(t_table, by = "rowname")
+        return(tab_result)
+      }, message = "Features contribution loading, please wait...")
     })
     
     output$spls_da_select_var <- DT::renderDataTable({
       req(get_select_var())
-      t_table <- as.data.frame(phyloseq::tax_table(r$phyloseq_filtered())) %>%
-        rownames_to_column()
-      tab_result <- get_select_var()$value %>%
-        rownames_to_column() %>%
-        left_join(t_table, by = "rowname")
+      get_select_var()
     }, filter = "top", options = list(scrollX = TRUE))
     
     output$spls_da_indiv <- renderPlot(
@@ -400,15 +453,18 @@ mod_mixomics_server <- function(input, output, session, r){
       get_spls_da_cim()
     )
     
-    observe({
+    observeEvent(input$launch_spls_da, {
       req(final_ncomp())
       lapply(1:final_ncomp(), FUN = function(i){
         output[[paste("spls_da_loadings", i, sep = "_")]] <- renderPlot(
-          mixOmics::plotLoadings(final_spls_da(), comp = i, contrib = 'max', method = 'mean',
+          withProgress({
+            mixOmics::plotLoadings(final_spls_da(), comp = i, contrib = 'max', method = 'mean',
                                  ndisplay = input[[paste("nb_feat_load", i, sep = "_")]], # nb of features to display
                                  legend.color = list_colors(),
-                                 size.name = 0.8,
-                                 show.ties = FALSE)
+                                 size.name = 0.6,
+                                 show.ties = FALSE,
+                                 layout = c(1, 2))
+          }, message = paste0("Contribution on comp", i, " loading, please wait..."))
         )
       })
     })
@@ -416,7 +472,7 @@ mod_mixomics_server <- function(input, output, session, r){
     output$spls_da_indiv_download <- downloadHandler(
       filename = "splsda_indiv.svg",
       content = function(file){
-        svg(filename = file)
+        grDevices::svg(filename = file, width = 10, height = 10)
         print(get_spls_da_indiv()$graph)
         dev.off()
       }
@@ -425,7 +481,7 @@ mod_mixomics_server <- function(input, output, session, r){
     output$spls_da_var_download <- downloadHandler(
       filename = "splsda_var.svg",
       content = function(file){
-        svg(filename = file)
+        grDevices::svg(filename = file, width = 10, height = 10)
         invisible(mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), cutoff = input$spls_da_var_corr))
         dev.off()
       }
@@ -435,18 +491,35 @@ mod_mixomics_server <- function(input, output, session, r){
       filename = "splsda_biplot.svg",
       content = function(file){
         req(get_spls_da_biplot())
-        svg(filename = file)
+        grDevices::svg(filename = file, width = 10, height = 10)
         print(get_spls_da_biplot())
         dev.off()
       }
     )
     
     output$spls_da_loadings_download <- downloadHandler(
-      filename = "splsda_loadings.svg",
+      filename = "splsda_loadings.zip",
       content = function(file){
-        svg(filename = file)
-        invisible(mixOmics::plotLoadings(final_spls_da()))
-        dev.off()
+        file_list <- c()
+        for(i in 1:final_ncomp()){
+          grDevices::svg(filename = paste0('splsda_loadings_comp', i, '.svg'), width = 10, height = 10)
+          mixOmics::plotLoadings(final_spls_da(), comp = i, contrib = 'max', method = 'mean',
+                                 ndisplay = input[[paste("nb_feat_load", i, sep = "_")]],
+                                 legend.color = list_colors(),
+                                 size.name = 0.6,
+                                 show.ties = FALSE)
+          dev.off()
+          file_list <- c(file_list, paste0('splsda_loadings_comp', i, '.svg'))
+        }
+        zip::zip(zipfile = file, files = file_list)
+      }
+    )
+    
+    output$select_var_download <- downloadHandler(
+      filename = "features_contribution.csv",
+      content = function(file){
+        req(get_select_var())
+        write.table(get_select_var(), file, sep = ",", row.names = FALSE)
       }
     )
     
@@ -454,9 +527,61 @@ mod_mixomics_server <- function(input, output, session, r){
       filename = "splsda_cim.svg",
       content = function(file){
         req(get_spls_da_cim())
-        svg(filename = file)
-        invisible(mixOmics::cim(final_spls_da()))
+        legend_cim <- list(legend = levels(y()), col = list_colors(), title = input$factor_spls_da, cex = 0.7)
+        plot_cim <- mixOmics::cim(final_spls_da())
+        color <- r$factor_colors()[[input$factor_spls_da]][r$sdat()[plot_cim$row.names, input$factor_spls_da]]
+        grDevices::svg(filename = file, width = 10, height = 10)
+        invisible(mixOmics::cim(final_spls_da(), row.sideColors = color, legend = legend_cim))
         dev.off()
+      }
+    )
+    
+    output$download_all <- downloadHandler(
+      filename = paste0('splsda_results_comp', input$comp_axis_1,'_comp', input$comp_axis_2,'.zip'),
+      content = function(file){
+        plot_indiv <- ggplot2::ggsave('splsda_indiv.svg', plot = get_spls_da_indiv()$graph, device = 'svg', width = 10, height = 10)
+        
+        grDevices::svg(filename = 'splsda_var.svg', width = 10, height = 10)
+        invisible(mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), cutoff = input$spls_da_var_corr))
+        dev.off()
+        
+        biplot <- ggplot2::ggsave('splsda_biplot.svg', plot = get_spls_da_biplot(), device = 'svg', width = 10, height = 10)
+        
+        file_list <- c(plot_indiv, 'splsda_var.svg', biplot)
+        
+        t_table <- as.data.frame(phyloseq::tax_table(r$phyloseq_filtered())) %>%
+            rownames_to_column()
+        
+        for(i in c(input$comp_axis_1, input$comp_axis_2)){
+          grDevices::svg(filename = paste0('splsda_loadings_comp', i, '.svg'), width = 10, height = 10)
+          mixOmics::plotLoadings(final_spls_da(), comp = i, contrib = 'max', method = 'mean',
+                                 ndisplay = input[[paste("nb_feat_load", i, sep = "_")]],
+                                 legend.color = list_colors(),
+                                 size.name = 0.6,
+                                 show.ties = FALSE)
+          dev.off()
+          file_list <- c(file_list, paste0('splsda_loadings_comp', i, '.svg'))
+          
+          
+          select_var_tab <- mixOmics::selectVar(final_spls_da(), comp = i)
+          tab_result <- select_var_tab$value %>%
+            rownames_to_column() %>%
+            left_join(t_table, by = "rowname")
+          write.table(tab_result, paste0('splsda_features_contrib_comp', i, '.csv'), sep = ",", row.names = FALSE)
+          file_list <- c(file_list, paste0('splsda_features_contrib_comp', i, '.csv'))
+        }
+        
+        legend_cim <- list(legend = levels(y()), col = list_colors(), title = input$factor_spls_da, cex = 0.7)
+        plot_cim <- mixOmics::cim(final_spls_da())
+        color <- r$factor_colors()[[input$factor_spls_da]][r$sdat()[plot_cim$row.names, input$factor_spls_da]]
+        
+        grDevices::svg(filename = 'splsda_cim.svg', width = 10, height = 10)
+        invisible(mixOmics::cim(final_spls_da(), row.sideColors = color, legend = legend_cim))
+        dev.off()
+        
+        file_list <- c(file_list, 'splsda_cim.svg')
+        
+        zip::zip(zipfile = file, files = file_list)
       }
     )
 }
