@@ -16,7 +16,7 @@ app_ui <- function() {
     # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(
-                      title = "Explore Metabar 2.0.2",
+                      title = "Explore Metabar 2.1.0",
 
                       tags$li(class="dropdown",tags$a("Hosted by", img(src = SK8img,
                       title = "SK8", height = "20px"), headerText = "Source code",href="https://sk8.inrae.fr/", target="_blank")),
