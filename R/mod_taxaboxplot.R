@@ -297,7 +297,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       mtable <- ordertable1()
       select1  <- get_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
       p <- plot_ly(mtable, x = as.formula(glue("~ {get_meta_col()}")), y = as.formula(paste0("~", formulaic::add.backtick(select1))),
-                   color = as.formula(glue("~{get_meta_col()}")), type = 'box', colors=r$factor_colors()[[input$boxplot_fact1]])
+                   color = as.formula(glue("~{get_meta_col()}")), type = 'box')
     }
     
     return(p)

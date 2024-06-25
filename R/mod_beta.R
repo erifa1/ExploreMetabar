@@ -66,7 +66,7 @@ mod_beta_ui <- function(id){
                                             selected = c("samples")
           ),
           uiOutput(ns('ui_taxa_rank')),
-          #shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
+          shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
           uiOutput(ns('ui_axe_x')),
           uiOutput(ns('ui_axe_y')),
           title = "Plot options", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
@@ -642,6 +642,7 @@ mod_beta_server <- function(input, output, session, r = r){
     req(local_physeq())
     spe <- veganifyOTU(local_physeq())
     spe <- vegan::decostand(spe, method = 'hell')
+    return(spe)
   })
 
   
@@ -803,9 +804,9 @@ mod_beta_server <- function(input, output, session, r = r){
       flog.info('base_plot() plotting samples...')
       sites_coord <- get_sites_coord()
       p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5) + scale_fill_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_fill()
+            geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5)
       if(!isNumFactor()){
-        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col()))) + scale_color_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_color()
+        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col())))
       }
     } 
     
@@ -825,7 +826,7 @@ mod_beta_server <- function(input, output, session, r = r){
         taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
       p <- p +
-            geom_point(data = species_coord, aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), color=.data[[input$rank_color]], taxa = taxa)) + scale_color_manual(values=r$taxa_colors()[[input$rank_color]])
+            geom_point(data = species_coord, aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), color=.data[[input$rank_color]], taxa = taxa))
     } 
     
     if ('env' %in% input$plot_type){
@@ -887,27 +888,27 @@ mod_beta_server <- function(input, output, session, r = r){
   })
 
   output$ui_plot <- renderUI({
-    # if(input$ggplot_switch){
-    #   flog.info('plotly ui...')
-    #   plotly::plotlyOutput(ns("beta_plotly"), height = "730px")
-    # } else{
+    if(input$ggplot_switch){
+      flog.info('plotly ui...')
+      plotly::plotlyOutput(ns("beta_plotly"), height = "730px")
+    } else{
       plotOutput(ns('beta_ggplot'), height = "730px")
-    # }
+    }
   })
 
   
   observe({
     req(base_plot())
-    # if(input$ggplot_switch){
-    #   flog.info('plotly render...')
-    #   output$beta_plotly <- plotly::renderPlotly({
-    #     base_plot()
-    #   })
-    # } else {
+    if(input$ggplot_switch){
+      flog.info('plotly render...')
+      output$beta_plotly <- plotly::renderPlotly({
+        base_plot()
+      })
+    } else {
       output$beta_ggplot <- renderPlot({
         base_plot()
       })
-    # }
+    }
   })
   
 
@@ -1031,7 +1032,7 @@ mod_beta_server <- function(input, output, session, r = r){
   output$dispersionPlot <- renderPlotly({
    df1 <- dfdisper()
    plot_ly(df1, x = ~group, y = ~distances,
-           color = ~group, type = 'box', colors = r$factor_colors()[[input$beta_factor]]) %>%
+           color = ~group, type = 'box') %>%
      layout(title="", yaxis = list(title = "Distance to centroid"), xaxis = list(title = 'Group'), barmode = 'stack') %>%
     config(toImageButtonOptions = list(format = "svg"))
  })

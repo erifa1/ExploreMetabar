@@ -293,9 +293,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       # tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
       # tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
       # tax_table(tmp) <- NULL #problem with taxonomy table conversion
-      flog.info('metaGseq...')
       MGdata <- phyloseq_to_metagenomeSeq(local_physeq())
-      flog.info("phyloseq to metaGseq")
+
       # featuresToKeep = which(rowSums(MGdata@assayData$counts) > 0)
       # samplesToKeep = which(pData(MGdata)[,input$diff_factor] == input$Cond1 | pData(MGdata)[,input$diff_factor] == input$Cond2)
       # print(samplesToKeep)
@@ -584,7 +583,6 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       mergeList()$TABf
       }, filter="top", options = list(scrollX = TRUE))
 
-    
     output$merge_download <- downloadHandler(
       filename = "aggregate_table.csv",
       content = function(file) {
@@ -605,7 +603,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
 
 
     reacbarplot1 <- reactive({
-      req(mergeList(), input$Nmeth, input$minAb, input$Nfeat, r$factor_color())
+      req(mergeList(), input$Nmeth, input$minAb, input$Nfeat)
       TABf <- mergeList()$TABf
       ttax <- mergeList()$ttax
       # Barplot
@@ -626,8 +624,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         p <- ggplot2::ggplot(data = TABbar, aes(x = reorder(tax, -abs(DESeqLFC)), y = DESeqLFC, fill = Condition ) ) +
                 geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
                 coord_flip() + theme_bw() +
-                scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5)) + scale_fill_manual(values = r$factor_color()[[input$diff_factor]])
-                
+                scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5))
         p <- plotly::ggplotly(p)
 
       }else{

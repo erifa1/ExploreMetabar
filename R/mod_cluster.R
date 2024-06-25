@@ -167,8 +167,7 @@ mod_cluster_server <- function(input, output, session, r = r){
     plot.dendro <- eventReactive(input$launch_clust,{
       dd <- as.dendrogram(compute.clust())
       # browser()
-      # colours <- colourvalues::colour_values(r$sdat()[labels(dd),input$clust_fact1], palette="viridis")
-      colours <- r$factor_colors()[[input$clust_fact1]][r$sdat()[labels(dd),input$clust_fact1]]
+      colours <- colourvalues::colour_values(r$sdat()[labels(dd),input$clust_fact1], palette="viridis")
       dd <- dendextend::color_labels(dd, col=colours)
       if(input$branchcolor){
         dd <- dendextend::color_branches(dd, col=colours)
@@ -208,7 +207,7 @@ mod_cluster_server <- function(input, output, session, r = r){
           geom_bar(stat="identity") +
           facet_grid(. ~ clstr) +
           theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
-          xlab("") + ylab("counts") + scale_fill_manual(values=r$factor_colors()[[input$clust_fact1]])
+          xlab("") + ylab("counts")
       }
       return(p)
     })
