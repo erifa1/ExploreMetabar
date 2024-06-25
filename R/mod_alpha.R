@@ -52,7 +52,7 @@ mod_alpha_ui <- function(id){
                             "InvSimpson"),
                      selected = c("Shannon")
         ),
-        plotly::plotlyOutput(ns("plot2")),
+        plotly::plotlyOutput(ns("boxplot")),
         width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
       ),
       uiOutput(ns('anovaBox'))
@@ -261,7 +261,7 @@ mod_alpha_server <- function(input, output, session, r = r){
                      color = as.formula(glue("~{get_meta_col()}")), type = 'scatter')
       } else{
         p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
-                     color = as.formula(glue("~{get_meta_col()}")), type = 'box')
+                     color = as.formula(glue("~{get_meta_col()}")), type = 'box', colors = r$factor_colors()[[input$Fact1]])
       }
       p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
         config(toImageButtonOptions = list(format = "svg"))
@@ -269,7 +269,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   })
   
   
-  output$plot2 <- renderPlotly({
+  output$boxplot <- renderPlotly({
     get_box_plot()
   })
   
