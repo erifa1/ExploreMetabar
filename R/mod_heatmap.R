@@ -511,8 +511,8 @@ mod_heatmap_server <- function(input, output, session, r){
   
   observe({
     output$heatmap_t <- renderPlot({
+      req(heatmap(), plot_height(), plot_width())
       withProgress(message = 'Computing heatmap...',{
-        req(heatmap(), plot_height(), plot_width())
         heatmap()
       })
     }, height = plot_height(), width = plot_width())
