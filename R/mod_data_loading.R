@@ -947,15 +947,20 @@ mod_data_loading_server <- function(input, output, session, r=r){
     return(missing_fact)
   })
   
-  output$fact_color_file_log <- renderPrint({
-    if(length(modality_file()) > 0){
-    cat(names(modality_file()), "have been loaded.\n", sep = " ")
-    cat("Warning ! If some modalities are missing, colors associated to these modalities will be randomly chosen.\n")
-    cat("Missing factor-color values for each factor loaded :\n")
-    missing_fact_colors()
-    }else{
-      cat("No colors have been loaded.")
-    }
+  observe({
+    req(modality_file())
+    length_modality_file <- length(modality_file())
+    names_modality_file <- names(modality_file())
+    output$fact_color_file_log <- renderPrint({
+      if(length_modality_file > 0){
+        cat(names(modality_file()), "have been loaded.\n", sep = " ")
+        cat("Warning ! If some modalities are missing, colors associated to these modalities will be randomly chosen.\n")
+        cat("Missing factor-color values for each factor loaded :\n")
+        missing_fact_colors()
+      }else{
+        cat("No colors have been loaded.")
+      }
+    })
   })
   
   output$var_color_download <- downloadHandler(

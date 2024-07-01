@@ -52,6 +52,7 @@ Imports:
     plotly,
     purrr,
     qdapTools,
+    readxl,
     reshape2,
     rhdf5,
     shiny,
@@ -67,7 +68,8 @@ Imports:
     vegan,
     venn,
     VennDiagram,
-    xlsx
+    xlsx,
+    zip
 Suggests:
     knitr,
     pkgload,
