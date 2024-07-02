@@ -62,6 +62,7 @@ Imports:
     shinydashboard,
     shinyWidgets,
     stats,
+    svglite,
     tibble,
     tidyr,
     utils,
