@@ -294,7 +294,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   get_boxplot <- reactive({
     dt <- get_boxplot_data()
-    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box",color = ~dt[,2], colors = r$factor_colors()[[input$Fact1]]) %>%
+    fig <- plotly::plot_ly(x =~dt[,2], y=~dt[,1], type = "box",color = ~dt[,2], colors = getPal()) %>%
       plotly::layout(xaxis = list(title = colnames(dt)[2]),
       yaxis = list(title = colnames(dt)[1]),
       title = colnames(dt)[1] )
