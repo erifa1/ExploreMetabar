@@ -229,14 +229,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
       TF <- sapply(TFdata, row.names, simplify = FALSE)
       names(TF) = input$lvls1
-
-      outfile <- tempfile(fileext='.svg')
-      pal <- r$factor_colors()[[input$Fact1]]
-      pal <- pal[names(pal) %in% names(TF)]
-
-      venn.res <- nVennR::plotVenn(TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile, setColors = pal)
-
-      res$svg.obj <- list(src = normalizePath(outfile), width = "100%", height = "100%")
+      res$TF <- TF
       v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
@@ -244,22 +237,35 @@ mod_asvenn_server <- function(input, output, session, r=r){
     }
   })
 
-
+  getVenn1 <- reactive({
+    req(resVenn)
+    outfile <- tempfile(fileext='.svg')
+    nVennR::plotVenn(resVenn()$TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile, setColors = getPal())
+    list(src = normalizePath(outfile), width = "100%", height = "100%")
+  })
+  
+  
   output$venn1 <- renderImage(
-    resVenn()$svg.obj
+    getVenn1()
   , deleteFile=TRUE)
 
   output$venn2 <- renderPlot({
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
-        # grid.draw
-        # grDevices::replayPlot(resVenn()$venn.plot2)
-        pal <- r$factor_colors()[[input$Fact1]]
-        pal <- pal[names(pal) %in% names(resVenn()$TF)]
-        venn::venn(resVenn()$TF, zcolor = pal, ilcs = 1.5, sncs = 2,
+        venn::venn(resVenn()$TF, zcolor = getPal(), ilcs = 1.5, sncs = 2,
                           ggplot = TRUE)
   })
 
 
+  getPal <- reactive({
+    req(input$Fact1, resVenn())
+    pal <- r$factor_colors()[[input$Fact1]]
+    pal <- pal[names(pal) %in% names(resVenn()$TF)]
+    if (is.null(pal)){
+      pal <- RColorBrewer::brewer.pal(n= length(names(resVenn()$TF)), name = 'Set1')
+    }
+    return(pal)
+  })
+  
   output$tabvenn1 <-DT::renderDataTable({
     resVenn()$v.table
   }, filter="top", selection = "single", options = list(scrollX = TRUE))
