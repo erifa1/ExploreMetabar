@@ -116,6 +116,7 @@ veganifyOTU <- function(physeq){
 #' @import grid
 #' @import gtools
 #' @import goeveg
+#' @import ggnewscale
 
 #'
 #' @noRd
