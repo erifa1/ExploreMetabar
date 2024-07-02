@@ -417,65 +417,67 @@ mod_heatmap_server <- function(input, output, session, r){
   
   heatmap <- eventReactive(input$launch_heatmap, {
     req(selected_data(), input$rank, agglom_normalized_data())
-    t_table <- tax_table(agglom_normalized_data())
-    samp_table <- sample_data(agglom_normalized_data())
-    
-    if(input$rank != "ASV"){
-      row_labels <- as.expression(lapply(
-        stringr::str_replace(gsub("[a-z]__", "", t_table[, input$rank]), "_", " "),
-        function(x) bquote(italic(.(x)))))
-    }else{
-      row_labels <- NULL
-    }
-    
-    if(length(input$fact_annot) == 0){
-      annot_col <- NA
-    }else{
-      num <- sapply(r$sdat()[, input$fact_annot], is.numeric)
-      annot_col <- data.frame(samp_table[, input$fact_annot])
-      for(i in length(input$fact_annot)){
-        if(!is.numeric(r$sdat()[, input$fact_annot[i]])){
-          ann <- sapply(annot_col[, input$fact_annot[i]], FUN = as.character)
-          ann <- data.frame(replace(ann, list = which(is.na(ann)), "NA"))
-          annot_col[input$fact_annot[i]] <- ann
+    withProgress(message = 'Computing heatmap...',{
+      t_table <- tax_table(agglom_normalized_data())
+      samp_table <- sample_data(agglom_normalized_data())
+      
+      if(input$rank != "ASV"){
+        row_labels <- as.expression(lapply(
+          stringr::str_replace(gsub("[a-z]__", "", t_table[, input$rank]), "_", " "),
+          function(x) bquote(italic(.(x)))))
+      }else{
+        row_labels <- NULL
+      }
+      
+      if(length(input$fact_annot) == 0){
+        annot_col <- NA
+      }else{
+        num <- sapply(r$sdat()[, input$fact_annot], is.numeric)
+        annot_col <- data.frame(samp_table[, input$fact_annot])
+        for(i in length(input$fact_annot)){
+          if(!is.numeric(r$sdat()[, input$fact_annot[i]])){
+            ann <- sapply(annot_col[, input$fact_annot[i]], FUN = as.character)
+            ann <- data.frame(replace(ann, list = which(is.na(ann)), "NA"))
+            annot_col[input$fact_annot[i]] <- ann
+          }
         }
       }
-    }
-    
-    if(length(input$taxa_annot) == 0){
-      annot_row <- NA
-    }else{
-      annot_row <- data.frame(t_table[, input$taxa_annot])
-    }
-    
-    if(input$clust_samp == FALSE){
-      clust_sample <- FALSE
-    }else{
-      no_empty_samples <- colnames(otu_table(selected_data())[, colSums(otu_table(selected_data())) > 0])
-      select_data <- phyloseq::prune_samples(no_empty_samples, selected_data())
-      dist_samp <- phyloseq::distance(select_data, method = input$dist_method, type = "sample")
-      clust_sample <- stats::hclust(dist_samp, method = input$clust_method)
-    }
-    
-    heatmap <- pheatmap::pheatmap(otu_table(agglom_normalized_data()),
-                       color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 9, name = input$color_map)))(100),
-                       cluster_cols = clust_sample,
-                       cluster_rows = input$clust_taxa,
-                       show_rownames = input$print_taxa,
-                       show_colnames = input$print_sample,
-                       labels_row = row_labels,
-                       labels_col = sapply(samp_table[, input$sample_label], FUN = as.character),
-                       angle_col = 90,
-                       annotation_col = annot_col,
-                       annotation_row = annot_row,
-                       annotation_names_col = TRUE,
-                       annotation_names_row = TRUE,
-                       annotation_colors = annot_colors(),
-                       border_color = "grey60",
-                       display_numbers = input$print_nb,
-                       number_format = "%.2f"
-    )
-    return(heatmap)
+      
+      if(length(input$taxa_annot) == 0){
+        annot_row <- NA
+      }else{
+        annot_row <- data.frame(t_table[, input$taxa_annot])
+      }
+      
+      if(input$clust_samp == FALSE){
+        clust_sample <- FALSE
+      }else{
+        no_empty_samples <- colnames(otu_table(selected_data())[, colSums(otu_table(selected_data())) > 0])
+        select_data <- phyloseq::prune_samples(no_empty_samples, selected_data())
+        dist_samp <- phyloseq::distance(select_data, method = input$dist_method, type = "sample")
+        clust_sample <- stats::hclust(dist_samp, method = input$clust_method)
+      }
+      
+      heatmap <- pheatmap::pheatmap(otu_table(agglom_normalized_data()),
+                                    color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 9, name = input$color_map)))(100),
+                                    cluster_cols = clust_sample,
+                                    cluster_rows = input$clust_taxa,
+                                    show_rownames = input$print_taxa,
+                                    show_colnames = input$print_sample,
+                                    labels_row = row_labels,
+                                    labels_col = sapply(samp_table[, input$sample_label], FUN = as.character),
+                                    angle_col = 90,
+                                    annotation_col = annot_col,
+                                    annotation_row = annot_row,
+                                    annotation_names_col = TRUE,
+                                    annotation_names_row = TRUE,
+                                    annotation_colors = annot_colors(),
+                                    border_color = "grey60",
+                                    display_numbers = input$print_nb,
+                                    number_format = "%.2f"
+      )
+      return(heatmap)
+    })
   })
   
   selection_features_results <- eventReactive(input$launch_heatmap, {
