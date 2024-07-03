@@ -144,10 +144,7 @@ mod_heatmap_server <- function(input, output, session, r){
   output$ui_box_heatmap <- renderUI({
     box(title = "Heatmap", width = 12, status = "primary", solidHeader = TRUE, height = plot_height() + 100,
         downloadButton(ns("heatmap_download"), label = "Download plot"),
-        shinycustomloader::withLoader(
-          plotOutput(ns('heatmap_t')),
-          type = "html", loader = "loader1"
-        )
+        plotOutput(ns('heatmap_t'))
     )
   })
   
