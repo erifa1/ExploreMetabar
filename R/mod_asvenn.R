@@ -357,8 +357,6 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
     cat(file=stderr(),'done.', "\n")
     return('tmp/krona.html')
-
-    cat(file=stderr(),"DONE.", "\n")
   })
 
   krona_reactive <- eventReactive(input$launch_krona, {

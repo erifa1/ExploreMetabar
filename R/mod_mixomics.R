@@ -542,7 +542,7 @@ mod_mixomics_server <- function(input, output, session, r){
       filename = paste0('splsda_results_comp', input$comp_axis_1,'_comp', input$comp_axis_2,'.zip'),
       content = function(file){
         plot_indiv <- ggplot2::ggsave('/tmp/splsda_indiv.svg', plot = get_spls_da_indiv()$graph, device = 'svg', width = 10, height = 10)
-        
+
         grDevices::svg(filename = '/tmp/splsda_var.svg', width = 10, height = 10)
         invisible(mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), cutoff = input$spls_da_var_corr))
         dev.off()
@@ -583,7 +583,7 @@ mod_mixomics_server <- function(input, output, session, r){
         
         file_list <- c(file_list, '/tmp/splsda_cim.svg')
         
-        zip::zip(zipfile = file, files = file_list)
+        zip::zipr(zipfile = file, files = file_list)
       }
     )
 }
