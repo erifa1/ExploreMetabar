@@ -26,17 +26,6 @@ mod_taxaboxplot_ui <- function(id){
       fluidRow(
         box(
           uiOutput(ns('ui_picker')),
-          # shinyWidgets::pickerInput(
-          #   ns("boxplot_fact1"),
-          #   label = "Select factor to test: ",
-          #   choices = "",
-          #   multiple = TRUE,
-          #   options = pickerOptions(
-          #     actionsBox = TRUE,
-          #     liveSearch = TRUE,
-          #     showContent = FALSE
-          #   )
-          # ),
           uiOutput(ns('ui_radio_tests')),
           actionButton(ns("go1"), "Run Test/Correlation", icon = icon("play-circle"),
                        style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
@@ -85,7 +74,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
                               label = "Select factor to test: ",
                               choices = r$var_list(),
                               selected = r$var_list()[2],
-                              multiple = TRUE,
+                              multiple = FALSE,
                               options = pickerOptions(
                                 actionsBox = TRUE,
                                 liveSearch = TRUE,

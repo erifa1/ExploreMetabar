@@ -25,7 +25,6 @@ mod_data_loading_ui <- function(id){
         icon = icon("info-circle"), fill=TRUE, width = 6
       )),
 
-
       fluidRow(
         box(
           title = "Input phyloseq object", status = "warning", solidHeader = TRUE,
