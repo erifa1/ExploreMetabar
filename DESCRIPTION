@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 2.0.2
+Version: 2.1.0
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
@@ -12,8 +12,6 @@ BugReports: https://forgemia.inra.fr/umrf/ExploreMetabar/issues
 Imports:
     agricolae,
     base64enc,
-    Biobase,
-    Biostrings,
     broom,
     bslib,
     cluster,
@@ -21,7 +19,6 @@ Imports:
     config,
     datamods,
     dendextend,
-    DESeq2,
     dplyr,
     DT,
     forcats,
@@ -30,6 +27,7 @@ Imports:
     futile.logger,
     ggplot2,
     ggpolypath,
+    ggnewscale,
     glue,
     goeveg,
     golem,
@@ -40,21 +38,16 @@ Imports:
     htmltools,
     htmlwidgets,
     indicspecies,
-    metacoder,
-    metagenomeSeq,
-    microbiome,
     paletteer,
     PCAmixdata,
     permute,
     pheatmap,
-    phyloseq,
     plotfunctions,
     plotly,
     purrr,
     qdapTools,
     readxl,
     reshape2,
-    rhdf5,
     shiny,
     shinyalert,
     shinyBS,
@@ -81,6 +74,7 @@ VignetteBuilder:
     knitr
 Remotes:
     bioc::3.10/Biobase,
+    bioc::3.10/Biostrings,
     bioc::3.10/metagenomeSeq,
     bioc::3.10/microbiome,
     bioc::3.10/phyloseq,
