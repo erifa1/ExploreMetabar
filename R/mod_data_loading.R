@@ -432,11 +432,10 @@ mod_data_loading_server <- function(input, output, session, r=r){
           tmp <- fast_tax_glom(tmp, input$rank_glom)
         }else{
           tmp <- tax_glom(tmp, input$rank_glom)
-
         }
         FGnames <- tax_table(tmp)[,input$rank_glom]
-        nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
-        taxa_names(tmp) <- nnames
+        # nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
+        taxa_names(tmp) <- FGnames
       }
     showNotification("Taxonomy agglomeration done...", type="message", duration = 1)
     }, message = 'Processing, please wait.')
