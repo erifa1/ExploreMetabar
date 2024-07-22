@@ -343,22 +343,26 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         psobj <- phyloseq::transform_sample_counts(local_physeq(), normf)
         
         incProgress(amount = 0.3, message = 'Zeroing low counts...')
+        flog.info('metacoder - parse_phyloseq')
         obj <- metacoder::parse_phyloseq(psobj, class_regex = "(.*)", class_key = "taxon_name")
+        flog.info('metacoder - zero_low_counts')
         obj$data$otu_table <- metacoder::zero_low_counts(obj, "otu_table", min_count = 1000, use_total = TRUE)
         no_reads <- rowSums(obj$data$otu_table[, obj$data$sample_data$sample_id]) == 0
+        flog.info('metacoder - filter_obs')
         obj <- metacoder::filter_obs(obj, "otu_table", ! no_reads, drop_taxa = TRUE)
         if(nrow(obj$data$otu_table)==0){return(NULL)}
         
         incProgress(amount = 0.3, message = 'Calculating taxon abundance...')
-        
-        obj$data$tax_abund <- calc_taxon_abund(obj, "otu_table",  cols = obj$data$sample_data$sample_id)
+        flog.info('metacoder - calc_taxon_abund')
+        obj$data$tax_abund <- metacoder::calc_taxon_abund(obj, "otu_table",  cols = obj$data$sample_data$sample_id)
         obj$data$tax_abund$total <- rowSums(obj$data$tax_abund[, -1]) # -1 = taxon_id column
-        obj$data$n_samples <- calc_n_samples(obj,data="tax_abund")
+        flog.info('metacoder - calc_n_samples')
+        obj$data$n_samples <- metacoder::calc_n_samples(obj,data="tax_abund")
         
         
         incProgress(amount = 0.4, message = 'Comparing groups...')
-        
-        fun <- paste('obj$data$diff_table <- compare_groups(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id, groups = obj$data$sample_data$', input$diff_factor, ',func = mean_ratio)', sep='')
+        flog.info('metacoder - compare_groups')
+        fun <- paste('obj$data$diff_table <- metacoder::compare_groups(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id, groups = obj$data$sample_data$', input$diff_factor, ',func = mean_ratio)', sep='')
         eval(parse(text=fun))
         
         table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
