@@ -73,13 +73,13 @@ Suggests:
 VignetteBuilder:
     knitr
 Remotes:
-    bioc::3.10/Biobase,
-    bioc::3.10/Biostrings,
-    bioc::3.10/metagenomeSeq,
-    bioc::3.10/microbiome,
-    bioc::3.10/phyloseq,
-    bioc::3.10/rhdf5,
-    bioc::3.10/mixOmics,
+    bioc::3.18/Biobase,
+    bioc::3.18/Biostrings,
+    bioc::3.18/metagenomeSeq,
+    bioc::3.18/microbiome,
+    bioc::3.18/phyloseq,
+    bioc::3.18/rhdf5,
+    bioc::3.18/mixOmics,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
     github::mikelove/DESeq2,
