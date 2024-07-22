@@ -87,8 +87,8 @@ mod_diffanalysis_ui <- function(id){
 #' @rdname mod_diffanalysis
 #' @export
 #' @keywords internal
-#' @importFrom DESeq2 estimateSizeFactors DESeq results counts
-#' @importFrom metacoder parse_phyloseq zero_low_counts filter_obs calc_taxon_abund calc_n_samples compare_groups
+#' @import DESeq2
+#' @import metacoder
 #' @import phyloseq
 #' @import tibble
 #' @import dplyr
@@ -99,7 +99,7 @@ mod_diffanalysis_ui <- function(id){
 #' @import metagenomeSeq
 #' @importFrom Biobase pData
 #' @importFrom VennDiagram venn.diagram
-#' @importFrom ggplot2 ggplot
+#' @import ggplot2
 
 
 mod_diffanalysis_server <- function(input, output, session, r = r){
