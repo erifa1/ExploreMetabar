@@ -16,17 +16,10 @@ app_ui <- function() {
     # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(
-                      title = "Explore Metabar 2.1.0",
+                      title = "Explore Metabar 2.1.1",
 
-                      tags$li(class="dropdown",tags$a("Hosted by", img(src = SK8img,
+                      tags$li(class="dropdown",tags$a("Hosted by  ", img(src = SK8img,
                       title = "SK8", height = "20px"), headerText = "Source code",href="https://sk8.inrae.fr/", target="_blank")),
-
-                      tags$li(class="dropdown",tags$a(img(src = UCAimg,
-                      title = "UCA", height = "20px"), headerText = "Source code",href="https://mesocentre.uca.fr/", target="_blank")),
-
-                      tags$li(class="dropdown",tags$a(img(src = MIGimg,
-                      title = "Migale", height = "20px"), headerText = "Source code",href="https://migale.inrae.fr/", target="_blank")),
-
 
                       tags$li(class="dropdown",tags$a(icon("gitlab"), headerText = "Source code",href="https://forgemia.inra.fr/umrf/exploremetabar", target="_blank")),
                       tags$li(class="dropdown",tags$a(icon("clinic-medical"), headerText = "Issues",href="https://forgemia.inra.fr/umrf/exploremetabar/-/issues", target="_blank")),
