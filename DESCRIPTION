@@ -83,7 +83,8 @@ Remotes:
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
     github::mikelove/DESeq2,
-    github::vqf/nVennR
+    github::vqf/nVennR,
+    github::vmikk/metagMisc
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
