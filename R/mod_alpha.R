@@ -123,7 +123,7 @@ mod_alpha_server <- function(input, output, session, r = r){
   
 
   observeEvent(r$tabs$tabselected, {
-    print(r$tabs$tabselected)
+    flog.info(paste0('tab - ', r$tabs$tabselected))
     if(r$tabs$tabselected!='data_loading' && !isTruthy(r$phyloseq_filtered())){
       print("NO PHYOBJ")
       shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
