@@ -14,6 +14,7 @@
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
 #' @import datamods
+#' @import metagMisc
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -92,9 +93,9 @@ mod_data_loading_ui <- function(id){
             selected = 1,
           ),
           shinyBS::bsButton(inputId = ns('update_taxo0'), label = "Launch glom", block = F, style = 'danger', type='action'),
-          numericRangeInput(ns("minAb"), "Minimum taxa overall raw abundance:", c(1,1), width = NULL, separator = " to "),
-          numericRangeInput(ns("minPrev"), "Minimum taxa prevalence in samples:", c(1,1), width = NULL, separator = " to "),
-          shinyBS::bsButton(inputId = ns('update_taxo'), label = "Update Filters", block = F, style = 'danger', type='action')
+          autonumericInput(ns("minAb"), "Minimum taxa overall raw abundance:", value = 0, width = NULL, decimalPlaces = 6),
+          autonumericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", value = 0, width = NULL, decimalPlaces = 6),
+          shinyBS::bsButton(inputId = ns('update_filters'), label = "Update Filters", block = F, style = 'danger', type='action')
         )
       ),
 
@@ -310,7 +311,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v2.0.1\n')
+    cat('Running ExploreMetabar v2.1.1\n')
     phyloseq_data()
   })
 
@@ -368,12 +369,12 @@ mod_data_loading_server <- function(input, output, session, r=r){
   #update button color when clicked
   observeEvent(input$update_metadata,{
     shinyBS::updateButton(session = session, ns('update_metadata'), block = F, style = 'success')
-    shinyBS::updateButton(session = session, ns('update_taxo'), block = F, style = 'danger')
+    shinyBS::updateButton(session = session, ns('update_filters'), block = F, style = 'danger')
     shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
     shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
   })
-  observeEvent(input$update_taxo,{
-    shinyBS::updateButton(session = session, ns('update_taxo'), block = F, style = 'success')
+  observeEvent(input$update_filters,{
+    shinyBS::updateButton(session = session, ns('update_filters'), block = F, style = 'success')
     shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
     shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
   })
@@ -388,8 +389,8 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   observeEvent(input$launch_all, {
     subset_samples()
-    glom_taxo0()
     glom_taxo()
+    launch_filters()
     subset_taxa()
     normalize()
   })
@@ -406,23 +407,37 @@ mod_data_loading_server <- function(input, output, session, r=r){
     updateSelectInput(session, "rank_glom",
                       choices = c( rank_names(phyloseq_data()), "ASV" ),
                       selected = "ASV")
-  }) #updateSelectInput
+  })
 
 
   observe({
     flog.info('updating minAb numericInput...')
-    updateNumericRangeInput(session, 'minAb',"Minimum taxa overall raw abundance:", value=c(1,max(taxa_sums(r_values$phyobj_tmp))))
-  }) #updateNumericRangeInput
+    updateAutonumericInput(session, 
+                           'minAb',
+                           paste0("Minimum taxa overall percent abundance (max: ", 
+                                  round(max(microbiome::abundances(r_values$phyobj_tmp, transform = 'compositional'))), "):"),
+                           value = 0,
+                           options = list(maximumValue = 1, 
+                                          minimumValue = 0))
+  })
 
 
   observe({
     flog.info('updating minPrev numericInput...')
-    updateNumericRangeInput(session, 'minPrev',"Minimum taxa prevalence in samples:", value=c(1,max(nsamples(r_values$phyobj_tmp))))
-  }) #updateNumericRangeInput
+    updateAutonumericInput(session, 
+                           'minPrev',
+                           paste0("Minimum taxa prevalence in percent of samples (min:", 
+                                  round(min(microbiome::prevalence(r_values$phyobj_tmp)),4), 
+                                  " max:", 
+                                  round(max(microbiome::prevalence(r_values$phyobj_tmp)),4),")"),
+                           value = 0,
+                           options = list(maximumValue = 1, 
+                                          minimumValue = 0))
+  })
 
 
-  glom_taxo0 <- reactive({
-    req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
+  glom_taxo <- reactive({
+    req(input$rank_glom, r_values$phyobj_sub_samples)
     flog.info('filter_taxonomy...')
     tmp <- r_values$phyobj_sub_samples
     withProgress({
@@ -444,17 +459,19 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
 
-  glom_taxo <- reactive({
+  launch_filters <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
       tmp <- r_values$phyobj_taxglom0
+      tmp <- metagMisc::phyloseq_filter_taxa_tot_fraction(tmp, frac = input$minAb)
+      tmp <- metagMisc::phyloseq_filter_prevalence(tmp, prev.trh = input$minPrev)
+      
+      # tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
 
-      tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
+      # tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
 
-      tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
-
-      prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
-      taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
-      tmp <- prune_taxa(taxToKeep1, tmp)
+      # prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
+      # taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
+      # tmp <- prune_taxa(taxToKeep1, tmp)
       if(input$rank_glom != 'ASV'){
         tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
       }
@@ -469,12 +486,12 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
 
   observeEvent(input$update_taxo0, {
-    glom_taxo0()
+    glom_taxo()
   },ignoreInit = TRUE)
 
 
-  observeEvent(input$update_taxo, {
-    glom_taxo()
+  observeEvent(input$update_filters, {
+    launch_filters()
   },ignoreInit = TRUE)
 
 
