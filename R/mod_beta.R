@@ -648,41 +648,49 @@ mod_beta_server <- function(input, output, session, r = r){
   
   ord <- eventReactive(input$launch_beta, {
     req(input$ordination, local_physeq())
+    
     flog.info('ord() starting...')
-    if(input$ordination == 'NMDS'){
-      if(input$metrics %in% c('bray', 'jaccard')){
-        res <- vegan::metaMDS(get_species_table(), k = 5, distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
-      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
-        res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE, k = 5)
-      }
-    } else if(input$ordination == 'PCOA'){
-      spe <- get_species_table()
-      if(input$metrics %in% c('bray', 'jaccard')){
-        res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics, )
-      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
-        dist <- physeq_dist()
-        res <- vegan::capscale(dist ~ 1, comm = spe)
-      }
-    } else if(input$ordination == 'RDA'){
-      env <- get_env_scaled()
-      spe <- get_species_table()
-      res <- vegan::rda(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
-    } else if(input$ordination == 'CCA'){
-      env <- get_env_scaled()
-      spe <- get_species_table()
-      res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
-    } else if(input$ordination == 'dbRDA'){
-      env <- get_env_scaled()
-      if(input$metrics %in% c('bray', 'jaccard')){
+    withProgress(message = 'Computing ordination...', min=0, max=10, value = 0,{
+      setProgress(value = 4, detail = input$ordination)
+      if(input$ordination == 'NMDS'){
+        
+        if(input$metrics %in% c('bray', 'jaccard')){
+          res <- vegan::metaMDS(get_species_table(), k = 5, distance = input$metrics, wascores=TRUE, trace=FALSE, autotransform = FALSE)
+        } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+          res <- vegan::metaMDS(comm = physeq_dist(), wascores=TRUE, trace=FALSE, autotransform = FALSE, k = 5)
+        }
+      } else if(input$ordination == 'PCOA'){
+        
         spe <- get_species_table()
-        res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics)
-      } else if(input$metrics %in% c('unifrac', 'wunifrac')){
-        spe <- physeq_dist()
-        res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics, comm = veganifyOTU(local_physeq()))
+        if(input$metrics %in% c('bray', 'jaccard')){
+          res <- vegan::capscale(spe ~ 1, spe, distance = input$metrics, )
+        } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+          dist <- physeq_dist()
+          res <- vegan::capscale(dist ~ 1, comm = spe)
+        }
+      } else if(input$ordination == 'RDA'){
+        env <- get_env_scaled()
+        spe <- get_species_table()
+        res <- vegan::rda(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
+      } else if(input$ordination == 'CCA'){
+        env <- get_env_scaled()
+        spe <- get_species_table()
+        res <- vegan::cca(as.formula(get_constr_formula()), data = env, na.action = 'na.omit')
+      } else if(input$ordination == 'dbRDA'){
+        env <- get_env_scaled()
+        if(input$metrics %in% c('bray', 'jaccard')){
+          spe <- get_species_table()
+          res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics)
+        } else if(input$metrics %in% c('unifrac', 'wunifrac')){
+          spe <- physeq_dist()
+          res <- vegan::capscale(as.formula(get_constr_formula()), data = env, na.action = 'na.omit', distance = input$metrics, comm = veganifyOTU(local_physeq()))
+        }
+      } else{
+        res <- phyloseq::ordinate(physeq= local_physeq(), distance = physeq_dist(), method= input$ordination)
       }
-    } else{
-      res <- phyloseq::ordinate(physeq= local_physeq(), distance = physeq_dist(), method= input$ordination)
-    }
+      setProgress(value = 10, detail = 'done')
+    })
+    
     flog.info('ord() end.')
     return(res)
   })
@@ -799,79 +807,83 @@ mod_beta_server <- function(input, output, session, r = r){
   base_plot <- reactive({
     req(ord(), get_axis_names(), input$axe_x, input$axe_y)
     flog.info('base_plot() starting...')
-    p <- ggplot2::ggplot()
-    if('samples' %in% input$plot_type){
-      flog.info('base_plot() plotting samples...')
-      sites_coord <- get_sites_coord()
-      p <- p +
-            geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5) + scale_fill_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_fill()
-      if(!isNumFactor()){
-        p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col()))) + scale_color_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_color()
-      }
-    } 
-    
-    if(input$ordination == "PCOA"){
-      eig1 <- eigenvals(ord())
-      percent1 <- eig1/sum(eig1)*100
-      p <- p + xlab(glue::glue("{input$axe_x} ({round(percent1[input$axe_x], 2)} %)")) + 
+    withProgress(message = 'Plotting...', min=0, max=10, value = 0,{
+      p <- ggplot2::ggplot()
+      if('samples' %in% input$plot_type){
+        flog.info('base_plot() plotting samples...')
+        setProgress(value = 4, detail = 'plotting samples')
+        sites_coord <- get_sites_coord()
+        p <- p +
+          geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5) + scale_fill_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_fill()
+        if(!isNumFactor()){
+          p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col()))) + scale_color_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_color()
+        }
+      } 
+      
+      if(input$ordination == "PCOA"){
+        eig1 <- eigenvals(ord())
+        percent1 <- eig1/sum(eig1)*100
+        p <- p + xlab(glue::glue("{input$axe_x} ({round(percent1[input$axe_x], 2)} %)")) + 
           ylab(glue::glue("{input$axe_y} ({round(percent1[input$axe_y], 2)} %)"))
-    }
-
-    if ('taxa' %in% input$plot_type){
-      flog.info('base_plot() plotting taxa...')
-      species_coord <- get_species_coord()
-      if(r$rank_glom() == 'ASV'){
-        taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-      } else{
-        taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
       }
-      p <- p +
-            geom_point(data = species_coord, aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), color=.data[[input$rank_color]], taxa = taxa)) + scale_color_manual(values=r$taxa_colors()[[input$rank_color]])
-    } 
-    
-    if ('env' %in% input$plot_type){
-      if(input$ordination %in% c('RDA', 'CCA', 'dbRDA')){
-        scr <- vegan::scores(ord())
-        if(!is.null(scr$biplot)){
-          en_coord_cont <- as.data.frame(scr$biplot)
-          en_coord_cont <- en_coord_cont[rownames(en_coord_cont) %in% colnames(local_metadata()),]
-          if(nrow(en_coord_cont) > 0){
+      
+      if ('taxa' %in% input$plot_type){
+        flog.info('base_plot() plotting taxa...')
+        species_coord <- get_species_coord()
+        if(r$rank_glom() == 'ASV'){
+          taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
+        } else{
+          taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
+        }
+        p <- p +
+          geom_point(data = species_coord, aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), color=.data[[input$rank_color]], taxa = taxa)) + scale_color_manual(values=r$taxa_colors()[[input$rank_color]])
+      } 
+      
+      if ('env' %in% input$plot_type){
+        if(input$ordination %in% c('RDA', 'CCA', 'dbRDA')){
+          scr <- vegan::scores(ord())
+          if(!is.null(scr$biplot)){
+            en_coord_cont <- as.data.frame(scr$biplot)
+            en_coord_cont <- en_coord_cont[rownames(en_coord_cont) %in% colnames(local_metadata()),]
+            if(nrow(en_coord_cont) > 0){
+              p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
+                                    data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
+                geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
+                          fontface = "bold", label = row.names(en_coord_cont))
+            }
+          }
+          if(!is.null(scr$centroids)){
+            en_coord_cat <- as.data.frame(scr$centroids)
+            p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
+                                shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+              geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
+                        label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+          }
+        } else if(input$ordination %in% c('PCOA', 'NMDS')){
+          if(is.null(input$envfit_param)){
+            shinyalert::shinyalert(title = "Oops", text="You need to use ENVFIT module to use env type.", type='error')
+            return(NULL)
+          }
+          
+          en <- get_env_fit()
+          if(!is.null(en$vectors)){
+            en_coord_cont <- as.data.frame(vegan::scores(en, "vectors"))
             p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
                                   data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
               geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
                         fontface = "bold", label = row.names(en_coord_cont))
           }
-        }
-        if(!is.null(scr$centroids)){
-          en_coord_cat <- as.data.frame(scr$centroids)
-          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
-                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-            geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
-                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
-        }
-      } else if(input$ordination %in% c('PCOA', 'NMDS')){
-        if(is.null(input$envfit_param)){
-          shinyalert::shinyalert(title = "Oops", text="You need to use ENVFIT module to use env type.", type='error')
-          return(NULL)
-        }
-
-        en <- get_env_fit()
-        if(!is.null(en$vectors)){
-          en_coord_cont <- as.data.frame(vegan::scores(en, "vectors"))
-          p <- p + geom_segment(aes(x = 0, y = 0, xend = !!sym(input$axe_x), yend = !!sym(input$axe_y)),
-                                data = en_coord_cont, size =1, alpha = 0.5, colour = "grey30", arrow = grid::arrow()) +
-            geom_text(data = en_coord_cont, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)), colour = "grey30",
-                      fontface = "bold", label = row.names(en_coord_cont))
-        }
-        if(!is.null(en$factors)){
-          en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
-          p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
-                              shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
-            geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
-                      label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+          if(!is.null(en$factors)){
+            en_coord_cat <- as.data.frame(vegan::scores(en, "factors"))
+            p <- p + geom_point(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
+                                shape = "diamond", size = 4, alpha = 0.6, colour = "navy") +
+              geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
+                        label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
+          }
         }
       }
-    }
+    })
+    
     
     # p$layers[[1]] <- NULL
     # 
