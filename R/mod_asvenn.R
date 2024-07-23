@@ -252,7 +252,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
   output$venn2 <- renderPlot({
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
         venn::venn(resVenn()$TF, zcolor = getPal(), ilcs = 1.5, sncs = 2,
-                          ggplot = TRUE)
+                          ggplot = TRUE, ilabels = TRUE)
   })
 
 
