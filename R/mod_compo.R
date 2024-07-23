@@ -47,16 +47,16 @@ mod_compo_ui <- function(id){
 
       box(
         downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
-        plotlyOutput(ns("compo2")),
+        plotlyOutput(ns("compo2"), height = "600px"),
         title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),
       # box(plotlyOutput(ns("compo3")),
       #     title = "VST Normalized abundance:", width = 12, status = "primary", solidHeader = TRUE),
       box(
         downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
-        plotlyOutput(ns("compo1")),
+        plotlyOutput(ns("compo1"), height = "600px"),
         title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE),
       box(verbatimTextOutput(ns("totalsum1")),
-          title = "Total sum per samples:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE)
+          title = "Total sum per samples:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE)
   )
   )
 }
@@ -127,22 +127,21 @@ mod_compo_server <- function(input, output, session, r = r){
   
   
   compo <- eventReactive(input$go1, {
-    cat(file=stderr(),'Creating plots...',"\n")
+    flog.info('compo - Creating plots...')
     req(input$topTax, get_meta_col(), input$RankCompo, local_physeq())
-    # browser()
+
     LL=list()
     Fdata <- local_physeq()
 
     withProgress({
-      if(input$radio1 == 3){  # merge samples
-        cat(file=stderr(),'Merged...',"\n")
+      if(input$radio1 == 3){
+        flog.info('compo - Merged...')
         Fdata <- phyloseq::merge_samples(Fdata, group=get_meta_col(), fun=mean)
         sample_data(Fdata)[[get_meta_col()]] <- sample_names(Fdata)
         split1 = FALSE
-
-      }else{
+      } else{
         if(input$radio1 == 1 | input$radio1 == 3){split1 = FALSE}else{split1 = TRUE}
-        cat(file=stderr(),'Std...',"\n")
+        flog.info('compo - Std...')
       }
       
       LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
