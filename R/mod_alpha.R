@@ -220,19 +220,18 @@ mod_alpha_server <- function(input, output, session, r = r){
 
 
   boxtab <- eventReactive(input$launch_alpha, {
-    req(get_meta_col(), local_physeq(), local_metadata())
+    req(r$sdat(), input$Fact1)
     withProgress(message = 'Boxplot table', min=0, max=10, value = 0,{
     flog.info('boxtab function...')
     LL = alpha1()
     alphatab =  tibble::rownames_to_column(LL$alphatab)
 
-    boxtab <- dplyr::left_join(local_metadata(), alphatab, by = c('sample.id' = "rowname"))
-    
-    if(! is.numeric(boxtab[, get_meta_col()])){
+    boxtab <- dplyr::left_join(r$sdat(), alphatab, by = c('sample.id' = "rowname"))
+
+    if(! is.numeric(boxtab[, input$Fact1])){
       if(input$checkbox1){
         print("ORDER factor")
-        fun = glue::glue( "boxtab${get_meta_col()} = factor( boxtab${get_meta_col()}, levels = gtools::mixedsort(levels(as.factor(boxtab${get_meta_col()}))) ) ")
-
+        fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(as.factor(boxtab${input$Fact1}))) ) ")
         eval(parse(text=fun))
       }
     }
