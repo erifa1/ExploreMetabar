@@ -80,9 +80,9 @@ Remotes:
     bioc::3.18/phyloseq,
     bioc::3.18/rhdf5,
     bioc::3.18/mixOmics,
+    bioc::3.18/DESeq2,
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
-    github::mikelove/DESeq2,
     github::vqf/nVennR,
     github::vmikk/metagMisc
 Encoding: UTF-8
