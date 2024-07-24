@@ -61,9 +61,13 @@ Imports:
     utils,
     vegan,
     venn,
+    nVennR,
     VennDiagram,
     xlsx,
-    zip
+    zip,
+    phyloseq,
+    metagMisc,
+    speedyseq
 Suggests:
     knitr,
     pkgload,
@@ -84,7 +88,8 @@ Remotes:
     github::dreamRs/shinyWidgets,
     github::grunwaldlab/metacoder,
     github::vqf/nVennR,
-    github::vmikk/metagMisc
+    github::vmikk/metagMisc,
+    github::mikemc/speedyseq
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
