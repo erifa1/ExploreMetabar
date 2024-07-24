@@ -13,6 +13,7 @@
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
 #' @import datamods
+#' @import phyloseq
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -252,6 +253,7 @@ merge_table <- function(rank, table){
 #' @import dplyr
 #' @import tibble
 #' @import speedyseq
+#' 
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
@@ -458,6 +460,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   launch_filters <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
+    require('phyloseq')
     tmp <- r_values$phyobj_taxglom0
     tmp <- metagMisc::phyloseq_filter_taxa_tot_fraction(tmp, frac = input$minAb)
     tmp <- metagMisc::phyloseq_filter_prevalence(tmp, prev.trh = input$minPrev)
