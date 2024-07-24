@@ -222,7 +222,7 @@ mod_cluster_server <- function(input, output, session, r = r){
       req(input$clstr_rank_glom)
       sub.phy <- r$phyloseq_filtered_norm()
       if(input$clstr_rank_glom != 'ASV'){
-        tmp <- fast_tax_glom(sub.phy, input$clstr_rank_glom)
+        tmp <- speedyseq::tax_glom(sub.phy, input$clstr_rank_glom)
         # FGnames <- tax_table(tmp)[,input$clstr_rank_glom]
         # nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
         taxa_names(tmp) <- tax_table(tmp)[,input$clstr_rank_glom]

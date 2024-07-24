@@ -243,7 +243,7 @@ mod_heatmap_server <- function(input, output, session, r){
   agglom_data <- reactive({
     req(r$phyloseq_filtered(), input$rank)
     if(input$rank != "ASV"){
-      data_glom <- phyloseq::tax_glom(r$phyloseq_filtered(), input$rank)
+      data_glom <- speedyseq::tax_glom(r$phyloseq_filtered(), input$rank)
       taxa_names(data_glom) <- tax_table(data_glom)[, input$rank]
       tax_table(data_glom) <- tax_table(data_glom)[, 1:match(input$rank, rank_names(data_glom))]
     }else{

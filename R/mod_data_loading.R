@@ -251,6 +251,7 @@ merge_table <- function(rank, table){
 #' @import phyloseq
 #' @import dplyr
 #' @import tibble
+#' @import speedyseq
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
@@ -443,12 +444,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     tmp <- r_values$phyobj_sub_samples
     withProgress({
       if(input$rank_glom != 'ASV'){
-        if(nsamples(tmp)>1000){
-          showNotification("Phylogentic tree removed, too much samples...", type="message", duration = 5)
-          tmp <- fast_tax_glom(tmp, input$rank_glom)
-        }else{
-          tmp <- tax_glom(tmp, input$rank_glom)
-        }
+        tmp <- speedyseq::tax_glom(tmp, input$rank_glom)
         FGnames <- tax_table(tmp)[,input$rank_glom]
         # nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
         taxa_names(tmp) <- FGnames
