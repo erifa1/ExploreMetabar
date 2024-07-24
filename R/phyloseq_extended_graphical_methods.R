@@ -84,7 +84,7 @@ fast_tax_glom <- function(physeq, taxrank = rank_names(physeq)[1], bad_empty = c
     tibble::column_to_rownames(var = "archetype") %>% as.matrix()
   ## create new count table
   otutab <- otu_table(physeq)
-  if (!taxa_are_rows(physeq)) otutab  <- t(otutab)
+  if (!phyloseq::taxa_are_rows(physeq)) otutab  <- t(otutab)
   otutab <- rowsum(otutab, group = tax$group, reorder = TRUE)
   rownames(otutab) <- rownames(new_tax)
   ## create new refseq
@@ -93,7 +93,7 @@ fast_tax_glom <- function(physeq, taxrank = rank_names(physeq)[1], bad_empty = c
   ## return merged phyloseq
   phyloseq(sample_data(physeq),
            tax_table(new_tax),
-           otu_table(otutab, taxa_are_rows = TRUE),
+           otu_table(otutab, phyloseq::taxa_are_rows = TRUE),
            seqs
   )
 }
@@ -123,7 +123,7 @@ ggrare <- function(physeq, step = 10, label = NULL, color = NULL, plot = TRUE, p
   ## - se:    Default TRUE. Logical. Should standard errors be computed.
   ## require vegan
   x <- as(otu_table(physeq), "matrix")
-  if (taxa_are_rows(physeq)) { x <- t(x) }
+  if (phyloseq::taxa_are_rows(physeq)) { x <- t(x) }
 
   ## This script is adapted from vegan `rarecurve` function
   tot <- rowSums(x)
@@ -261,7 +261,7 @@ correct_levels <- function(physeq, DF, map.var) {
 #     ##      corresponding to taxonomic rank 'TaxaRank'. All NA ranks are assigned to 'Unassigned'.
 #   stopifnot(!is.null(tax_table(physeq, FALSE)))
 #   otutab <- otu_table(physeq)
-#   if ( !taxa_are_rows(otutab) ) {otutab = t(otutab)}
+#   if ( !phyloseq::taxa_are_rows(otutab) ) {otutab = t(otutab)}
 #   otutab <- as(otutab, "matrix")
 #   if (raw) {
 #       Abundance <- rowSums(otutab)
@@ -287,7 +287,7 @@ correct_levels <- function(physeq, DF, map.var) {
 # top_taxa <- function(physeq, taxaRank, numberOfTaxa = 9) {
 #   stopifnot(!is.null(tax_table(physeq, FALSE)))
 #   otutab <- otu_table(physeq)
-#   if ( !taxa_are_rows(otutab) ) {otutab = t(otutab)}
+#   if ( !phyloseq::taxa_are_rows(otutab) ) {otutab = t(otutab)}
 #   otutab <- as(otutab, "matrix")
 #   otutab <- apply(otutab, 2, function(x) x / sum(x))
 #   ## Subset to OTUs belonging to taxaSet1 to fasten process
@@ -578,7 +578,7 @@ plot_samples <- function(physeq, ordination, axes=c(1, 2), color = NULL,
 #     stopifnot(!is.null(sample_data(physeq, FALSE)),
 #               !is.null(tax_table(physeq, FALSE)))
 #     otutab <- otu_table(physeq)
-#     if ( !taxa_are_rows(otutab) ) {
+#     if ( !phyloseq::taxa_are_rows(otutab) ) {
 #     otutab = t(otutab)
 #     }
 #     otutab <- as(otutab, "matrix")

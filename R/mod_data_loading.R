@@ -7,14 +7,12 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @importFrom phyloseq sample_data nsamples prune_samples prune_taxa taxa_sums
-#' @importFrom DT dataTableOutput renderDataTable JS
+#' @import DT
 #' @importFrom Biostrings writeXStringSet
 #' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
 #' @import datamods
-#' @import metagMisc
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
@@ -200,7 +198,7 @@ merge_table <- function(rank, table){
     rank1 = rank
   }
   ttable <- FNGdata %>%
-    tax_table() %>%
+    phyloseq::tax_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     dplyr::select(1:rank1) %>%
     tibble::rownames_to_column() %>%
@@ -208,20 +206,20 @@ merge_table <- function(rank, table){
 
 
   otable <- FNGdata %>%
-    otu_table() %>%
+    phyloseq::otu_table() %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     tibble::rownames_to_column()
 
 
   rawtaxasum1 <-  table %>%
-    taxa_sums() %>%
+    phyloseq::taxa_sums() %>%
     as.data.frame %>%
     tibble::rownames_to_column()
   names(rawtaxasum1)[2] <- "RawAbundanceSum"
 
   joinGlom <-
     dplyr::left_join(ttable, rawtaxasum1, by = "rowname") %>%
-    mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
+    dplyr::mutate(RawFreq = RawAbundanceSum / sum(RawAbundanceSum)) %>%
     dplyr::left_join(otable, by = "rowname")
 
   if(rank=="ASV" & !is.null(refseq(table, errorIfNULL=FALSE)) ){
@@ -246,10 +244,13 @@ merge_table <- function(rank, table){
 
 
 
-
 #' data_loading Server Function
 #'
 #' @noRd
+#' @import metagMisc
+#' @import phyloseq
+#' @import dplyr
+#' @import tibble
 mod_data_loading_server <- function(input, output, session, r=r){
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
@@ -461,27 +462,20 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   launch_filters <- reactive({
     req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-      tmp <- r_values$phyobj_taxglom0
-      tmp <- metagMisc::phyloseq_filter_taxa_tot_fraction(tmp, frac = input$minAb)
-      tmp <- metagMisc::phyloseq_filter_prevalence(tmp, prev.trh = input$minPrev)
-      
-      # tmp <- prune_taxa(taxa_sums(tmp) >= input$minAb[1], tmp)
+    tmp <- r_values$phyobj_taxglom0
+    tmp <- metagMisc::phyloseq_filter_taxa_tot_fraction(tmp, frac = input$minAb)
+    tmp <- metagMisc::phyloseq_filter_prevalence(tmp, prev.trh = input$minPrev)
 
-      # tmp <- prune_taxa(taxa_sums(tmp) <= input$minAb[2], tmp)
+    if(input$rank_glom != 'ASV'){
+      tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
+    }
 
-      # prevdf <- apply(X = otu_table(tmp), MARGIN = ifelse(taxa_are_rows(tmp), yes = 1, no = 2), FUN = function(x){sum(x > 0)})
-      # taxToKeep1 <- names(prevdf)[(prevdf >= input$minPrev[1] & prevdf <= input$minPrev[2])]
-      # tmp <- prune_taxa(taxToKeep1, tmp)
-      if(input$rank_glom != 'ASV'){
-        tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
-      }
+    flog.info('glom object')
 
-      flog.info('glom object')
+    r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
 
-      r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
-
-      flog.info('filter_taxonomy done.')
-      showNotification("Filter taxonomy done...", type="message", duration = 1)
+    flog.info('filter_taxonomy done.')
+    showNotification("Filter taxonomy done...", type="message", duration = 1)
   })
 
 
@@ -497,7 +491,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   render_taxonomy_table <- reactive({
     withProgress({
-
       req(r_values$phyobj_tmp, input$rank_glom)
       flog.info('render_taxonomy_table fun')
 
@@ -589,28 +582,28 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   ## Filter taxo
 
-    res_filter_taxo <- datamods::filter_data_server(
-      id = "filtering_taxo",
-      data = reactive({
-        req(render_taxonomy_table())
-        render_taxonomy_table()
-      }),
-      name = reactive("tax_table"),
-      vars = reactive({
-        req(render_taxonomy_table())
-        s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
-        col_names <- colnames(render_taxonomy_table())
-        filt <- dplyr::setdiff(col_names, s_names)
-      return(filt)
-      }),
-      widget_num = "slider",
-      widget_date = "slider",
-      label_na = "Missing"
-    )
+  res_filter_taxo <- datamods::filter_data_server(
+    id = "filtering_taxo",
+    data = reactive({
+      req(render_taxonomy_table())
+      render_taxonomy_table()
+    }),
+    name = reactive("tax_table"),
+    vars = reactive({
+      req(render_taxonomy_table())
+      s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
+      col_names <- colnames(render_taxonomy_table())
+      filt <- dplyr::setdiff(col_names, s_names)
+    return(filt)
+    }),
+    widget_num = "slider",
+    widget_date = "slider",
+    label_na = "Missing"
+  )
 
-    output$table_taxoFILT <- DT::renderDT({
-      res_filter_taxo$filtered()
-    }, options = list(pageLength = 10, scrollX = TRUE))
+  output$table_taxoFILT <- DT::renderDT({
+    res_filter_taxo$filtered()
+  }, options = list(pageLength = 10, scrollX = TRUE))
 
 
 
