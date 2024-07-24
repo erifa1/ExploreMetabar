@@ -93,7 +93,7 @@ fast_tax_glom <- function(physeq, taxrank = rank_names(physeq)[1], bad_empty = c
   ## return merged phyloseq
   phyloseq(sample_data(physeq),
            tax_table(new_tax),
-           otu_table(otutab, phyloseq::taxa_are_rows = TRUE),
+           otu_table(otutab, taxa_are_rows = TRUE),
            seqs
   )
 }
