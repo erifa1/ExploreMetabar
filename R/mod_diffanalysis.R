@@ -240,7 +240,13 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       }
       geoMeans <- apply(counts(deseq), 1, gm_mean)
       deseq <- estimateSizeFactors(deseq, geoMeans = geoMeans)
-      deseq <- DESeq(deseq, test="Wald", fitType="parametric")
+      deseq <- try(DESeq(deseq, test="Wald", fitType="parametric"))
+
+      if(class(deseq) == "try-error"){
+        validate(
+          need(FALSE, "Not enough replicates in these conditions")
+        )
+      }
       if( isNumFactor() ){
         res <- results(deseq, cooksCutoff = FALSE)
       } else {
@@ -310,7 +316,11 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       res1 = NULL
       tryCatch( {res1 = fitFeatureModel(MGdata, mod)} ,
                 error=function(e){e;cat("ERROR :",conditionMessage(e), "\n")})
-
+      if(is.null(res1)){
+        validate(
+          need(FALSE, "Not enough replicates in these conditions")
+        )
+      }
       TAB = MRcoefs(res1) #fdr adjustment
       return(TAB)
       }, message="Performing metagenomeSeq...")
