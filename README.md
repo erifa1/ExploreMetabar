@@ -10,24 +10,19 @@ differential analysis.
 
 ## Online instances
 
-ExploreMetabar is hosted thanks to [SK8 INRAE](https://sk8.inrae.fr/), [UCA mesocentre](https://mesocentre.uca.fr/) and [migale bioinformatics facility](https://migale.inrae.fr/):
-
+ExploreMetabar is hosted thanks to [SK8 INRAE](https://sk8.inrae.fr/):
 
 **[https://explore-metabar.sk8.inrae.fr](https://explore-metabar.sk8.inrae.fr)**
-
-**[https://shiny.mesocentre.uca.fr/app/exploremetabar](https://shiny.mesocentre.uca.fr/app/exploremetabar)**
-
-**[https://shiny.migale.inrae.fr/app/exploremetabar](https://shiny.migale.inrae.fr/app/exploremetabar)**
 
 
 ## Installation
 
-R3.6.3 or upper is required.
+R4.4.1 or upper is required.
 
 
 * **Linux (recommended)**
 
-On ubuntu 18.04 those libraries are needed:
+On ubuntu 20.04 those libraries are needed:
 
 ```bash
 apt-get update && apt-get install -y  git-core libcurl4-openssl-dev libgit2-dev libglpk-dev libgmp-dev libicu-dev libpng-dev libssl-dev libxml2-dev make pandoc pandoc-citeproc zlib1g-dev libtiff-dev libjpeg-dev libbz2-dev libgmp3-dev software-properties-common
