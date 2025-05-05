@@ -248,11 +248,11 @@ mod_asvenn_server <- function(input, output, session, r=r){
   output$venn1 <- renderImage(
     getVenn1()
   , deleteFile=TRUE)
-
+  
   output$venn2 <- renderPlot({
     invisible(flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger"))
-        venn::venn(resVenn()$TF, zcolor = getPal(), ilcs = 1.5, sncs = 2,
-                          ggplot = TRUE, ilabels = TRUE)
+    venn::venn(resVenn()$TF, zcolor = getPal(), ilcs = 1.5, sncs = 2,
+                      ggplot = TRUE, ilabels = 'counts')
   })
 
 
