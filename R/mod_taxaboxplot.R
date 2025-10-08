@@ -73,7 +73,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     shinyWidgets::pickerInput(ns("boxplot_fact1"),
                               label = "Select factor to test: ",
                               choices = r$var_list(),
-                              selected = r$var_list()[2],
+                              selected = r$var_list()[1],
                               multiple = FALSE,
                               options = pickerOptions(
                                 actionsBox = TRUE,
@@ -198,7 +198,9 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       incProgress(amount = 0.5)
       metadata <- local_metadata()
       incProgress(amount = 0.1)
-      metadata <- metadata[, get_meta_col(), drop=FALSE] %>% rownames_to_column('sample.id')
+      if(! any(colnames(metadata) %in% "sample.id")){
+        metadata <- metadata[, get_meta_col(), drop=FALSE] %>% rownames_to_column('sample.id')
+      }
       incProgress(amount = 0.1)
       mtable <- left_join(otable, metadata, by='sample.id')
       incProgress(amount = 0.3)

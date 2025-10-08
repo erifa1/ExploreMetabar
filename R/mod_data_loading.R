@@ -764,9 +764,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(r_values$phyobj_final, r$sdat)
     sdat <- r$sdat()
     var_list <- colnames(sdat)
-    if('sample.id' %in% var_list){
-      var_list <- sort(var_list[! var_list %in% 'sample.id'])
-    }
+    # if('sample.id' %in% var_list){
+    #   var_list <- sort(var_list[! var_list %in% 'sample.id'])
+    # }
     return(var_list)
   })
   
