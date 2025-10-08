@@ -33,17 +33,17 @@ mod_asvenn_ui <- function(id){
       ),
       fluidRow(
         box(
-        # plotOutput(ns("venn1"), height = "800px"),
-
-          imageOutput(ns("venn1"), width = "100%", height = "100%"),
-          title = "Venn Diagram VennR:", width = 12, status = "primary", solidHeader = TRUE,
+          plotOutput(ns("venn2"), height = "800px"),
+          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE,
           collapsible = TRUE, collapsed = FALSE
         )
       ),
       fluidRow(
         box(
-          plotOutput(ns("venn2"), height = "800px"),
-          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE,
+        # plotOutput(ns("venn1"), height = "800px"),
+
+          imageOutput(ns("venn1"), width = "100%", height = "100%"),
+          title = "Venn Diagram VennR:", width = 12, status = "primary", solidHeader = TRUE,
           collapsible = TRUE, collapsed = TRUE
         )
       ),

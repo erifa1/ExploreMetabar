@@ -249,7 +249,7 @@ mod_mixomics_server <- function(input, output, session, r){
       }
     })
     
-    observe({
+    observeEvent(input$launch_spls_da, {
       req(r$tabs$tabselected, y())
       if(r$tabs$tabselected == "tab_mixomics"){
         if(1 %in% table(y())){
