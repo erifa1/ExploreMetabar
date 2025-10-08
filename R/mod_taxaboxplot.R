@@ -20,7 +20,7 @@ mod_taxaboxplot_ui <- function(id){
     fluidPage(
       fluidRow(
         infoBox("Reminder :",
-                "This module launches Kruskal Wallis on factors for each taxa. Be aware that this is multiple testing, p.values are adjusted with FDR method. For numerical factors, samples with zero abundance are omitted",
+                "This module performs a Kruskal–Wallis test on each taxon for all factors. Note that this involves multiple testing; p-values are adjusted using the FDR method. For numerical factors, samples with zero abundance are omitted.",
                 icon = icon("info-circle"), fill=TRUE, width = 10)
       ),
       fluidRow(

@@ -8,6 +8,11 @@ SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), p
 UCAimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'uca2.png'), package='ExploreMetabar'))
 MIGimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'migale2.png'), package='ExploreMetabar'))
 
+description <- read.dcf(system.file("DESCRIPTION", package = "ExploreMetabar"))
+package_name <- description[1, "Package"]
+package_version <- description[1, "Version"]
+
+
 app_ui <- function() {
   tagList(
     # Leave this function for adding external resources
@@ -16,7 +21,7 @@ app_ui <- function() {
     # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(
-                      title = "Explore Metabar 2.1.1",
+                      title = glue::glue("Explore Metabar {package_version}"),
 
                       tags$li(class="dropdown",tags$a("Hosted by  ", img(src = SK8img,
                       title = "SK8", height = "20px"), headerText = "Source code",href="https://sk8.inrae.fr/", target="_blank")),

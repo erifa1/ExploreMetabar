@@ -22,7 +22,7 @@ mod_beta_ui <- function(id){
     fluidPage(
       fluidRow(
         infoBox("",
-                "Use phyloseq object without taxa merging step.",
+                "Use the phyloseq object without performing the taxa merging step.",
                 icon = icon("info-circle"), fill=TRUE, width = 10
         )
       ),

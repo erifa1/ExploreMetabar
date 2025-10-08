@@ -19,7 +19,7 @@ mod_compo_ui <- function(id){
   tagList(
     fluidPage(
       infoBox("",
-              "Use phyloseq object without taxa merging step.",
+              "Use the phyloseq object without performing the taxa merging step.",
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
