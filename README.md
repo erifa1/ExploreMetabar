@@ -60,4 +60,4 @@ sudo docker run -it -p 3838:3838 erifa1/exploremetabar:latest
 
 ## Citation
 
-Etienne RIFA, & Sebastien Theil. (2025). ExploreMetabar: v2.2.0, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317187
+Etienne RIFA, & Sebastien Theil. (2025). ExploreMetabar: v2.2.0, https://forge.inrae.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317187

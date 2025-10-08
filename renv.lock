@@ -531,13 +531,13 @@
     "ExploreMetabar": {
       "Package": "ExploreMetabar",
       "Version": "2.2.0",
-      "Source": "Local",
+      "Source": "GitLab",
       "Title": "ExploreMetabar",
       "Authors@R": "c( person(\"Etienne\", \"Rifa\", , \"etienne.rifa@inrae.fr\", role = c(\"cre\", \"aut\")), person(\"Sebastien\", \"Theil\", , \"sebastien.theil@inrae.fr\", role = \"aut\") )",
       "Description": "Shiny application to explore metabarcoding data (16S, ITS...)",
       "License": "MIT + file LICENSE",
-      "URL": "https://forgemia.inra.fr/umrf/exploremetabar",
-      "BugReports": "https://forgemia.inra.fr/umrf/ExploreMetabar/issues",
+      "URL": "https://forge.inrae.fr/umrf/exploremetabar",
+      "BugReports": "https://forge.inrae.fr/umrf/ExploreMetabar/issues",
       "Imports": [
         "agricolae",
         "base64enc",
@@ -571,6 +571,7 @@
         "PCAmixdata",
         "permute",
         "pheatmap",
+        "phytools",
         "plotfunctions",
         "plotly",
         "purrr",
@@ -604,18 +605,19 @@
         "testthat (>= 2.1.0)"
       ],
       "VignetteBuilder": "knitr",
-      "Remotes": "bioc::3.21/Biobase, bioc::3.21/Biostrings, bioc::3.21/metagenomeSeq, bioc::3.21/microbiome, bioc::3.21/phyloseq, bioc::3.21/rhdf5, bioc::3.21/mixOmics, bioc::3.21/DESeq2, github::dreamRs/shinyWidgets, github::grunwaldlab/metacoder, github::vqf/nVennR, github::vmikk/metagMisc, github::mikemc/speedyseq",
       "Encoding": "UTF-8",
       "LazyData": "true",
       "RoxygenNote": "7.3.2",
-      "RemoteType": "local",
-      "RemoteUrl": "/home/rifa/repository/exploremetabar",
-      "NeedsCompilation": "no",
       "Author": "Etienne Rifa [cre, aut], Sebastien Theil [aut]",
       "Maintainer": "Etienne Rifa <etienne.rifa@inrae.fr>",
-      "Depends": [
-        "R (>= 3.5.0)"
-      ]
+      "RemoteType": "gitlab",
+      "RemoteHost": "https://forge.inrae.fr",
+      "RemoteUsername": "umrf",
+      "RemoteRepo": "exploremetabar",
+      "RemoteSubdir": "",
+      "RemoteRef": "master",
+      "RemoteSha": "9b00490285853870c1d47aa72b08ed587669b7e1",
+      "Remotes": "bioc::3.21/Biobase, bioc::3.21/Biostrings, bioc::3.21/metagenomeSeq, bioc::3.21/microbiome, bioc::3.21/phyloseq, bioc::3.21/rhdf5, bioc::3.21/mixOmics, bioc::3.21/DESeq2, github::dreamRs/shinyWidgets, github::grunwaldlab/metacoder, github::vqf/nVennR, github::vmikk/metagMisc, github::mikemc/speedyseq"
     },
     "Formula": {
       "Package": "Formula",
@@ -6275,21 +6277,21 @@
     },
     "metagMisc": {
       "Package": "metagMisc",
-      "Version": "0.5.0",
+      "Version": "0.6.0.9000",
       "Source": "GitHub",
       "Title": "Miscellaneous functions for metagenomic analysis",
-      "Authors@R": "person(\"Vladimir\", \"Mikryukov\", email = \"vmikryukov@gmail.com\", role = c(\"aut\", \"cre\"))",
+      "Authors@R": "c( person(\"Vladimir\", \"Mikryukov\",  email = \"vmikryukov@gmail.com\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0003-2786-2690\")) )",
       "Description": "metagMisc package contains miscellaneous functions for metagenomic analysis, including data transformations, several parsers (for USERCH UC-format; BLAST, SINA and STAMPA outputs, etc.), taxonomy handlers (SILVA, QIIME, AMPTk), phyloseq-shortcuts (multiple rarefaction, phyloseq splitting and exporting), and DADA2-shortcuts (error rate estimation on the subset of data, export of denoised amplicons in fasta).",
+      "BugReports": "https://github.com/vmikk/metagMisc/issues",
       "Depends": [
-        "R (>= 4.1.0)"
+        "R (>= 4.4.0)"
       ],
       "Imports": [
-        "data.table (>= 1.14.6)",
+        "data.table (>= 1.17.0)",
         "plyr (>= 1.8.0)",
-        "vegan (>= 2.4-0)"
+        "vegan (>= 2.7-0)"
       ],
       "Suggests": [
-        "reshape2 (>= 1.4.2)",
         "ggplot2 (>= 2.2.0)",
         "phyloseq (>= 1.19.0)",
         "breakaway (>= 4.3)",
@@ -6298,8 +6300,9 @@
         "DESeq2 (>= 1.14.0)",
         "entropart (>= 1.4-8)",
         "geiger (>= 2.0.6)",
+        "geodist (>= 0.1.1)",
         "GenomicAlignments (>= 1.36.0)",
-        "iNEXT (>= 2.0.14)",
+        "iNEXT (>= 3.0.0)",
         "Matrix (>= 1.5-0)",
         "metagenomeSeq (>= 1.16.0)",
         "openssl (>= 0.9.6)",
@@ -6307,21 +6310,22 @@
         "PhyloMeasures (>= 2.1)",
         "smacof (>= 1.9-6)",
         "XML (>= 3.98)",
-        "zCompositions (>= 1.1.1)"
+        "zCompositions (>= 1.1.1)",
+        "tinytest"
       ],
       "License": "MIT",
       "Encoding": "UTF-8",
+      "LazyData": "true",
       "ByteCompile": "true",
-      "RoxygenNote": "7.2.3",
+      "RoxygenNote": "7.3.2",
+      "Author": "Vladimir Mikryukov [aut, cre] (ORCID: <https://orcid.org/0000-0003-2786-2690>)",
+      "Maintainer": "Vladimir Mikryukov <vmikryukov@gmail.com>",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteRepo": "metagMisc",
       "RemoteUsername": "vmikk",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "ede37879a2fda4d8b1804271e4d3e161ab43cac4",
-      "NeedsCompilation": "no",
-      "Author": "Vladimir Mikryukov [aut, cre]",
-      "Maintainer": "Vladimir Mikryukov <vmikryukov@gmail.com>"
+      "RemoteRepo": "metagMisc",
+      "RemoteRef": "master",
+      "RemoteSha": "b78033b2c898bffbfb34242908ba0388aa4bada0"
     },
     "metagenomeSeq": {
       "Package": "metagenomeSeq",
@@ -6599,18 +6603,18 @@
     },
     "nVennR": {
       "Package": "nVennR",
-      "Version": "0.2.3",
+      "Version": "0.2.4",
       "Source": "GitHub",
       "Type": "Package",
       "Title": "Create n-Dimensional, Quasi-Proportional Venn Diagrams",
       "Authors@R": "person(\"Victor\", \"Quesada\", email = \"quesadavictor@uniovi.es\", role=c(\"aut\", \"cre\", \"cph\"))",
       "Author": "Victor Quesada [aut, cre, cph]",
       "Maintainer": "Victor Quesada <quesadavictor@uniovi.es>",
-      "Description": "Provides an interface for the \"nVenn\"\" algorithm (Perez-Silva, Araujo-Voces and Quesada (2018),  <doi:10.1093/bioinformatics/bty109>). This algorithm works for any number of sets,  and usually yields pleasing and informative Venn diagrams with proportionality information.  However, representing more than six sets takes a long time and is hard to interpret, unless many of the  regions are empty. If you cannot make sense of the result, you may want to consider 'UpSetR'.",
+      "Description": "Please, be aware that a second version of this package (nVennR2) is also available (<https://github.com/vqf/nVennR2>).  The second version is faster and gives better results in most cases. This first version is intended mainly for fringe cases and users who have incorporated this algorithm into their procedures. Provides an interface for the \"nVenn\"\" algorithm (Perez-Silva, Araujo-Voces and Quesada (2018),  <doi:10.1093/bioinformatics/bty109>). This algorithm works for any number of sets,  and usually yields pleasing and informative Venn diagrams with proportionality information.  However, representing more than six sets takes a long time and is hard to interpret, unless many of the  regions are empty. If you cannot interpret the result, you may want to consider 'UpSetR'.",
       "License": "MIT + file LICENSE",
       "Encoding": "UTF-8",
       "LazyData": "true",
-      "RoxygenNote": "7.1.1",
+      "RoxygenNote": "7.3.2",
       "Depends": [
         "R (>= 2.10)"
       ],
@@ -6629,11 +6633,10 @@
       "VignetteBuilder": "knitr",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteRepo": "nVennR",
       "RemoteUsername": "vqf",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "9821db46b7daa97b39a12f2d2fb26948cf69a03b",
-      "NeedsCompilation": "yes"
+      "RemoteRepo": "nVennR",
+      "RemoteRef": "master",
+      "RemoteSha": "7a3cc4f95e72fce58229b65f20823b112ed4c890"
     },
     "natserv": {
       "Package": "natserv",
@@ -9283,8 +9286,8 @@
     },
     "shinyWidgets": {
       "Package": "shinyWidgets",
-      "Version": "0.9.0",
-      "Source": "Repository",
+      "Version": "0.9.0.9100",
+      "Source": "GitHub",
       "Title": "Custom Inputs Widgets for Shiny",
       "Authors@R": "c( person(\"Victor\", \"Perrier\", email = \"victor.perrier@dreamrs.fr\", role = c(\"aut\", \"cre\", \"cph\")), person(\"Fanny\", \"Meyer\", role = \"aut\"), person(\"David\", \"Granjon\", role = \"aut\"), person(\"Ian\", \"Fellows\", role = \"ctb\", comment = \"Methods for mutating vertical tabs & updateMultiInput\"), person(\"Wil\", \"Davis\", role = \"ctb\", comment = \"numericRangeInput function\"), person(\"Spencer\", \"Matthews\", role = \"ctb\", comment = \"autoNumeric methods\"), person(family = \"JavaScript and CSS libraries authors\", role = c(\"ctb\", \"cph\"), comment = \"All authors are listed in LICENSE.md\") )",
       "Description": "Collection of custom input controls and user interface components for 'Shiny' applications.  Give your applications a unique and colorful style !",
@@ -9294,6 +9297,7 @@
       "Encoding": "UTF-8",
       "LazyData": "true",
       "RoxygenNote": "7.3.2",
+      "Roxygen": "list(markdown = TRUE)",
       "Depends": [
         "R (>= 3.1.0)"
       ],
@@ -9315,10 +9319,14 @@
         "shinydashboard",
         "shinydashboardPlus"
       ],
-      "NeedsCompilation": "no",
       "Author": "Victor Perrier [aut, cre, cph], Fanny Meyer [aut], David Granjon [aut], Ian Fellows [ctb] (Methods for mutating vertical tabs & updateMultiInput), Wil Davis [ctb] (numericRangeInput function), Spencer Matthews [ctb] (autoNumeric methods), JavaScript and CSS libraries authors [ctb, cph] (All authors are listed in LICENSE.md)",
       "Maintainer": "Victor Perrier <victor.perrier@dreamrs.fr>",
-      "Repository": "CRAN"
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "dreamRs",
+      "RemoteRepo": "shinyWidgets",
+      "RemoteRef": "master",
+      "RemoteSha": "2e627bdd7eca0d7dd56db7146e98740270a97455"
     },
     "shinyalert": {
       "Package": "shinyalert",
@@ -9602,6 +9610,7 @@
       "BugReports": "https://github.com/mikemc/speedyseq/issues",
       "License": "AGPL-3 + file LICENSE",
       "Encoding": "UTF-8",
+      "LazyData": "true",
       "Depends": [
         "phyloseq"
       ],
@@ -9635,15 +9644,14 @@
         "withr"
       ],
       "Roxygen": "list(markdown = TRUE)",
+      "Author": "Michael McLaren [aut, cre]",
+      "Maintainer": "Michael McLaren <m.mclaren42@gmail.com>",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteRepo": "speedyseq",
       "RemoteUsername": "mikemc",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "0057652ff7a4244ccef2b786dca58d901ec2fc62",
-      "NeedsCompilation": "no",
-      "Author": "Michael McLaren [aut, cre]",
-      "Maintainer": "Michael McLaren <m.mclaren42@gmail.com>"
+      "RemoteRepo": "speedyseq",
+      "RemoteRef": "main",
+      "RemoteSha": "0057652ff7a4244ccef2b786dca58d901ec2fc62"
     },
     "statmod": {
       "Package": "statmod",
@@ -10436,33 +10444,32 @@
     },
     "vegan": {
       "Package": "vegan",
-      "Version": "2.6-10",
+      "Version": "2.7-1",
       "Source": "Repository",
       "Title": "Community Ecology Package",
-      "Authors@R": "c(person(\"Jari\", \"Oksanen\", role=c(\"aut\",\"cre\"), email=\"jhoksane@gmail.com\"), person(\"Gavin L.\", \"Simpson\", role=\"aut\", email=\"ucfagls@gmail.com\"), person(\"F. Guillaume\", \"Blanchet\", role=\"aut\"), person(\"Roeland\", \"Kindt\", role=\"aut\"), person(\"Pierre\", \"Legendre\", role=\"aut\"), person(\"Peter R.\", \"Minchin\", role=\"aut\"), person(\"R.B.\", \"O'Hara\", role=\"aut\"), person(\"Peter\", \"Solymos\", role=\"aut\"), person(\"M. Henry H.\", \"Stevens\", role=\"aut\"), person(\"Eduard\", \"Szoecs\", role=\"aut\"), person(\"Helene\", \"Wagner\", role=\"aut\"), person(\"Matt\", \"Barbour\", role=\"aut\"), person(\"Michael\", \"Bedward\", role=\"aut\"), person(\"Ben\", \"Bolker\", role=\"aut\"), person(\"Daniel\", \"Borcard\", role=\"aut\"), person(\"Gustavo\", \"Carvalho\", role=\"aut\"), person(\"Michael\", \"Chirico\", role=\"aut\"), person(\"Miquel\", \"De Caceres\", role=\"aut\"), person(\"Sebastien\", \"Durand\", role=\"aut\"), person(\"Heloisa Beatriz Antoniazi\", \"Evangelista\", role=\"aut\"), person(\"Rich\", \"FitzJohn\", role=\"aut\"), person(\"Michael\", \"Friendly\", role=\"aut\"), person(\"Brendan\",\"Furneaux\", role=\"aut\"), person(\"Geoffrey\", \"Hannigan\", role=\"aut\"), person(\"Mark O.\", \"Hill\", role=\"aut\"), person(\"Leo\", \"Lahti\", role=\"aut\"), person(\"Dan\", \"McGlinn\", role=\"aut\"), person(\"Marie-Helene\", \"Ouellette\", role=\"aut\"), person(\"Eduardo\", \"Ribeiro Cunha\", role=\"aut\"), person(\"Tyler\", \"Smith\", role=\"aut\"), person(\"Adrian\", \"Stier\", role=\"aut\"), person(\"Cajo J.F.\", \"Ter Braak\", role=\"aut\"), person(\"James\", \"Weedon\", role=\"aut\"), person(\"Tuomas\", \"Borman\", role=\"aut\"))",
+      "Authors@R": "c(person(\"Jari\", \"Oksanen\", role=c(\"aut\",\"cre\"), email=\"jhoksane@gmail.com\"), person(\"Gavin L.\", \"Simpson\", role=\"aut\", email=\"ucfagls@gmail.com\"), person(\"F. Guillaume\", \"Blanchet\", role=\"aut\"), person(\"Roeland\", \"Kindt\", role=\"aut\"), person(\"Pierre\", \"Legendre\", role=\"aut\"), person(\"Peter R.\", \"Minchin\", role=\"aut\"), person(\"R.B.\", \"O'Hara\", role=\"aut\"), person(\"Peter\", \"Solymos\", role=\"aut\"), person(\"M. Henry H.\", \"Stevens\", role=\"aut\"), person(\"Eduard\", \"Szoecs\", role=\"aut\"), person(\"Helene\", \"Wagner\", role=\"aut\"), person(\"Matt\", \"Barbour\", role=\"aut\"), person(\"Michael\", \"Bedward\", role=\"aut\"), person(\"Ben\", \"Bolker\", role=\"aut\"), person(\"Daniel\", \"Borcard\", role=\"aut\"), person(\"Tuomas\", \"Borman\", role=\"aut\"), person(\"Gustavo\", \"Carvalho\", role=\"aut\"), person(\"Michael\", \"Chirico\", role=\"aut\"), person(\"Miquel\", \"De Caceres\", role=\"aut\"), person(\"Sebastien\", \"Durand\", role=\"aut\"), person(\"Heloisa Beatriz Antoniazi\", \"Evangelista\", role=\"aut\"), person(\"Rich\", \"FitzJohn\", role=\"aut\"), person(\"Michael\", \"Friendly\", role=\"aut\"), person(\"Brendan\",\"Furneaux\", role=\"aut\"), person(\"Geoffrey\", \"Hannigan\", role=\"aut\"), person(\"Mark O.\", \"Hill\", role=\"aut\"), person(\"Leo\", \"Lahti\", role=\"aut\"), person(\"Cameron\", \"Martino\", role=\"aut\"), person(\"Dan\", \"McGlinn\", role=\"aut\"), person(\"Marie-Helene\", \"Ouellette\", role=\"aut\"), person(\"Eduardo\", \"Ribeiro Cunha\", role=\"aut\"), person(\"Tyler\", \"Smith\", role=\"aut\"), person(\"Adrian\", \"Stier\", role=\"aut\"), person(\"Cajo J.F.\", \"Ter Braak\", role=\"aut\"), person(\"James\", \"Weedon\", role=\"aut\"))",
       "Depends": [
         "permute (>= 0.9-0)",
-        "lattice",
         "R (>= 4.1.0)"
       ],
       "Suggests": [
         "parallel",
-        "tcltk",
         "knitr",
         "markdown"
       ],
       "Imports": [
         "MASS",
         "cluster",
+        "lattice",
         "mgcv"
       ],
       "VignetteBuilder": "utils, knitr",
       "Description": "Ordination methods, diversity analysis and other functions for community and vegetation ecologists.",
       "License": "GPL-2",
       "BugReports": "https://github.com/vegandevs/vegan/issues",
-      "URL": "https://github.com/vegandevs/vegan",
+      "URL": "https://vegandevs.github.io/vegan/, https://github.com/vegandevs/vegan",
       "NeedsCompilation": "yes",
-      "Author": "Jari Oksanen [aut, cre], Gavin L. Simpson [aut], F. Guillaume Blanchet [aut], Roeland Kindt [aut], Pierre Legendre [aut], Peter R. Minchin [aut], R.B. O'Hara [aut], Peter Solymos [aut], M. Henry H. Stevens [aut], Eduard Szoecs [aut], Helene Wagner [aut], Matt Barbour [aut], Michael Bedward [aut], Ben Bolker [aut], Daniel Borcard [aut], Gustavo Carvalho [aut], Michael Chirico [aut], Miquel De Caceres [aut], Sebastien Durand [aut], Heloisa Beatriz Antoniazi Evangelista [aut], Rich FitzJohn [aut], Michael Friendly [aut], Brendan Furneaux [aut], Geoffrey Hannigan [aut], Mark O. Hill [aut], Leo Lahti [aut], Dan McGlinn [aut], Marie-Helene Ouellette [aut], Eduardo Ribeiro Cunha [aut], Tyler Smith [aut], Adrian Stier [aut], Cajo J.F. Ter Braak [aut], James Weedon [aut], Tuomas Borman [aut]",
+      "Author": "Jari Oksanen [aut, cre], Gavin L. Simpson [aut], F. Guillaume Blanchet [aut], Roeland Kindt [aut], Pierre Legendre [aut], Peter R. Minchin [aut], R.B. O'Hara [aut], Peter Solymos [aut], M. Henry H. Stevens [aut], Eduard Szoecs [aut], Helene Wagner [aut], Matt Barbour [aut], Michael Bedward [aut], Ben Bolker [aut], Daniel Borcard [aut], Tuomas Borman [aut], Gustavo Carvalho [aut], Michael Chirico [aut], Miquel De Caceres [aut], Sebastien Durand [aut], Heloisa Beatriz Antoniazi Evangelista [aut], Rich FitzJohn [aut], Michael Friendly [aut], Brendan Furneaux [aut], Geoffrey Hannigan [aut], Mark O. Hill [aut], Leo Lahti [aut], Cameron Martino [aut], Dan McGlinn [aut], Marie-Helene Ouellette [aut], Eduardo Ribeiro Cunha [aut], Tyler Smith [aut], Adrian Stier [aut], Cajo J.F. Ter Braak [aut], James Weedon [aut]",
       "Maintainer": "Jari Oksanen <jhoksane@gmail.com>",
       "Repository": "CRAN"
     },
