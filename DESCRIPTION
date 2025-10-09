@@ -25,6 +25,7 @@ Imports:
     formula.tools,
     formulaic,
     futile.logger,
+    geodist,
     ggplot2,
     ggpolypath,
     ggnewscale,
@@ -76,19 +77,19 @@ Suggests:
 VignetteBuilder:
     knitr
 Remotes:
-    bioc::3.21/Biobase,
-    bioc::3.21/Biostrings,
-    bioc::3.21/metagenomeSeq,
-    bioc::3.21/microbiome,
-    bioc::3.21/phyloseq,
-    bioc::3.21/rhdf5,
-    bioc::3.21/mixOmics,
-    bioc::3.21/DESeq2,
-    github::dreamRs/shinyWidgets,
-    github::grunwaldlab/metacoder,
-    github::vqf/nVennR,
-    github::vmikk/metagMisc,
-    github::mikemc/speedyseq
+    bioc::3.20/rhdf5,
+    bioc::3.20/Biobase,
+    bioc::3.20/Biostrings,
+    bioc::3.20/phyloseq,
+    HCBravoLab/metagenomeSeq,
+    microbiome/microbiome,
+    mixOmicsTeam/mixOmics,
+    mikelove/DESeq2,
+    dreamRs/shinyWidgets,
+    grunwaldlab/metacoder,
+    vqf/nVennR,
+    vmikk/metagMisc,
+    mikemc/speedyseq
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
