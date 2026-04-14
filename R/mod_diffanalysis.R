@@ -271,7 +271,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       left_join(ttable1, by="rowname")
     
     
-    if(!is.null(refseq(table, errorIfNULL=FALSE))){
+    if(!is.null(refseq(local_physeq(), errorIfNULL=FALSE))){
       sseq1 <- as.data.frame(phyloseq::refseq(local_physeq())) %>%
         rownames_to_column()
       
@@ -660,7 +660,6 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         p <- plotly::ggplotly(p)
 
       }else{
-        print("No ASV to plot")
         showNotification("No ASV to plot... (all features show summethods <=2 ? too high mean relative abundance filters ?)", type="error", duration = 10)
       }
       return(p)

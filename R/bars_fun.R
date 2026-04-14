@@ -80,10 +80,8 @@ if( all(Ord1 != sample_variables(data))){
   dat <- cbind.data.frame(sdata, dat)
 
   flog.info('  Melting table...')
-  print(Ord1)
   fun <- glue::glue('meltdat <- reshape2::melt(dat, id.vars=1:ncol(sdata)) %>% filter(!is.na({Ord1}))')
   eval(parse(text = fun))
-  print(dim(meltdat))
   tt <- levels(meltdat$variable)
   meltdat$variable <- factor(meltdat$variable, levels= c("Other", tt[tt!="Other"]))
 

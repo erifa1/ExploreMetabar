@@ -315,7 +315,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
 
   output$phy_prev <- renderPrint({
     cat(file=stderr(), 'rendering phy_prev', "\n")
-    cat('Running ExploreMetabar v2.1.1\n')
+    cat(paste0('Running ExploreMetabar v', as.character(utils::packageVersion("ExploreMetabar")), '\n'))
     phyloseq_data()
   })
 
@@ -356,7 +356,6 @@ mod_data_loading_server <- function(input, output, session, r=r){
     flog.info('subset samples() starting...')
     flog.info(paste0('number of samples before ', phyloseq::nsamples(physeq0)))
     if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
-      print("No match")
       shinyalert(title = "Oops", text="Sample names do not match with names in metadata. Check the phyloseq object.", type='error')
       return()
     }
@@ -677,7 +676,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     filename = "filt_asv_table.csv",
     content = function(file) {
       req(r_values$phyobj_final)
-      write.table(merge_table(input$rank_glom, r_values$phyobj_initial), file, sep="\t", row.names=FALSE)
+      write.table(merge_table(input$rank_glom, r_values$phyobj_final), file, sep="\t", row.names=FALSE)
     }
   )
 

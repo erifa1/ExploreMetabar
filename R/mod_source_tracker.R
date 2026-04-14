@@ -104,7 +104,6 @@ mod_source_tracker_server <- function(input, output, session, r = r){
 
     fun <- glue::glue("lmax <- length( rownames( r$sdat()[r$sdat()${input$src_fact1} == '{input$sink_radio}',] ))")
     eval(parse(text=fun))
-    browser()
     withProgress(message = 'Computing SourceTracker...', min=0, max=lmax+2, value = 0,{
       cat(file=stderr(),'prune_sample...')
 

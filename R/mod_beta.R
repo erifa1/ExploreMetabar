@@ -399,9 +399,10 @@ mod_beta_server <- function(input, output, session, r = r){
   
   output$ui_beta_factor <- renderUI({
     req(r$var_list())
+    box(
     shinyWidgets::pickerInput(
        ns("beta_factor"),
-       label = "Select factor(s) to color samples and ellipses (multiple selection allowed for qualitative variables):",
+       label = "Select factor(s) to color samples and ellipses:",
        choices = r$var_list(),
        selected = r$var_list()[2],
        multiple = FALSE,
@@ -431,7 +432,42 @@ mod_beta_server <- function(input, output, session, r = r){
            }
          ))
        )
-     )
+     ),
+    shinyWidgets::pickerInput(
+      ns("beta_shape"),
+      label = "Select factor(s) to shape samples:",
+      choices = r$var_list(),
+      selected = NULL,
+      multiple = TRUE,
+      options = pickerOptions(
+        actionsBox = TRUE,
+        liveSearch = TRUE,
+        showContent = FALSE,
+        maxOptions = 1
+      ),
+      choicesOpt = list(
+        content = unlist(lapply(
+          X = r$var_list(),
+          FUN = function(x) {
+            htmltools::doRenderTags(
+              tags$div(
+                splitLayout(cellWidths = 200,
+                            tags$div(
+                              style = htmltools::css(fontWeight = "bold"),
+                              x
+                            ),
+                            tags$div(
+                              style = htmltools::css(color = 'grey'),
+                              class(r$sdat()[,x])
+                            )
+                )
+              )
+            )
+          }
+        ))
+      )
+    )
+    )
   })
 
   
@@ -712,7 +748,7 @@ mod_beta_server <- function(input, output, session, r = r){
     
     nmds_coord <- nmds_coord %>% 
                     inner_join(., local_metadata() %>% 
-                                 select(sample.id, !!get_meta_col()), by="sample.id")
+                                 dplyr::select(all_of(c('sample.id', get_meta_col(), input$beta_shape))), by="sample.id")
     flog.info('get_sites_coord() end.')
     return(nmds_coord)
   })
@@ -814,7 +850,13 @@ mod_beta_server <- function(input, output, session, r = r){
         setProgress(value = 4, detail = 'plotting samples')
         sites_coord <- get_sites_coord()
         p <- p +
-          geom_point(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id)), shape=23, size = 5) + scale_fill_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_fill()
+          geom_point(
+            data = sites_coord, 
+            mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), fill=.data[[get_meta_col()]], text = paste('sample.id:',sites_coord$sample.id), shape = .data[[input$beta_shape]]),
+            size = 5
+          ) + 
+          scale_fill_manual(values = r$factor_colors()[[input$beta_factor]]) + 
+          ggnewscale::new_scale_fill()
         if(!isNumFactor()){
           p <- p + stat_ellipse(data = sites_coord, mapping = aes(x=!!sym(input$axe_x), y=!!sym(input$axe_y), group = !!sym(get_meta_col()), color = !!sym(get_meta_col()))) + scale_color_manual(values = r$factor_colors()[[input$beta_factor]]) + ggnewscale::new_scale_color()
         }

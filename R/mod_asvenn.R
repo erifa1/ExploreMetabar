@@ -195,7 +195,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
   })
 
 
-  # addResourcePath('tmp', '/tmp')
+  krona_dir <- file.path(tempdir(), "krona")
+  dir.create(krona_dir, showWarnings = FALSE, recursive = TRUE)
+  addResourcePath("krona_tmp", krona_dir)
+
   resVenn <- eventReactive(input$go1, {
     req(r$phyloseq_filtered(), input$lvls1)
     flog.info('compute Venn diagram...')
@@ -348,15 +351,16 @@ mod_asvenn_server <- function(input, output, session, r=r){
     phy_obj@sam_data$sample.id <- rownames(sample_data(phy_obj))
     cat(file=stderr(),"plot_krona...")
     fun <- glue::glue("sample_data(phy_obj)${input$Fact1}")
+    krona_output <- file.path(krona_dir, "krona")
     if(input$krona_glom==1){
-      plot_krona(phy_obj, '/tmp/krona', variable = input$Fact1, trim=T)
+      plot_krona(phy_obj, krona_output, variable = input$Fact1, trim=T)
     }
     else{
-      plot_krona(phy_obj, '/tmp/krona', variable = 'sample.id', trim=T)
+      plot_krona(phy_obj, krona_output, variable = 'sample.id', trim=T)
     }
 
     cat(file=stderr(),'done.', "\n")
-    return('tmp/krona.html')
+    return('krona_tmp/krona.html')
   })
 
   krona_reactive <- eventReactive(input$launch_krona, {

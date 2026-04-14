@@ -16,7 +16,7 @@ app_ui <- function() {
     # List the first level UI elements here
     dashboardPage(skin = "red",
                   dashboardHeader(
-                      title = "Explore Metabar 2.1.1",
+                      title = paste("Explore Metabar", as.character(utils::packageVersion("ExploreMetabar"))),
 
                       tags$li(class="dropdown",tags$a("Hosted by  ", img(src = SK8img,
                       title = "SK8", height = "20px"), headerText = "Source code",href="https://sk8.inrae.fr/", target="_blank")),
@@ -40,11 +40,8 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       menuItem('Heatmap', tabName = 'heatmap', icon = icon('chart-bar')),
                       menuItem("Differential Analysis", tabName = "tab_diff", icon = icon("microscope")),
                       menuItem("ASVenn", tabName = "tab_asvenn", icon = icon("microscope")),
-                      # menuItem("SourceTracker", tabName = "source_tracker", icon = icon("sourcetree")),
                       menuItem("Cluster Analysis", tabName = "cluster", icon = icon("sourcetree")),
                       menuItem("MixOmics - SPLS-DA", tabName = "tab_mixomics", icon = icon("sourcetree"))
-                      # menuItem("PLN network", tabName = "tab_networkpln", icon = icon("project-diagram")),
-                      # menuItem("DiffExplore", tabName = "tab_diffexplore", icon = icon("leaf"))
                     )
                   ),
 
@@ -72,9 +69,6 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       tabItem(tabName = "tab_asvenn",
                               mod_asvenn_ui("asvenn_ui_1")
                       ),
-                      # tabItem(tabName = "source_tracker",
-                      #         mod_source_tracker_ui("source_tracker_ui_1")
-                      # ),
                       tabItem(tabName = "heatmap",
                               mod_heatmap_ui("heatmap_ui_1")
                       ),
@@ -84,12 +78,6 @@ https://twitter.com/intent/tweet?text=ExploreMetabar%3A%20a%20shiny%20applicatio
                       tabItem(tabName = "tab_mixomics",
                               mod_mixomics_ui("mixomics_1")
                       )
-                      # tabItem(tabName = "tab_networkpln",
-                      #         mod_networkpln_ui("networkpln_ui_1")
-                      # ),
-                      # tabItem(tabName = "tab_diffexplore",
-                      #         mod_diffexplore_ui("diffexplore_ui_1")
-                      # )
                     )
                   )
 

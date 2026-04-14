@@ -125,7 +125,6 @@ mod_alpha_server <- function(input, output, session, r = r){
   observeEvent(r$tabs$tabselected, {
     flog.info(paste0('tab - ', r$tabs$tabselected))
     if(r$tabs$tabselected!='data_loading' && !isTruthy(r$phyloseq_filtered())){
-      print("NO PHYOBJ")
       shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
     }
   })
@@ -196,8 +195,8 @@ mod_alpha_server <- function(input, output, session, r = r){
           )
         )
     }
-    return(alpha.table)
     setProgress(value = 10, detail = 'done')
+    return(alpha.table)
     })
   })
 
@@ -230,15 +229,13 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     if(! is.numeric(boxtab[, input$Fact1])){
       if(input$checkbox1){
-        print("ORDER factor")
         fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(as.factor(boxtab${input$Fact1}))) ) ")
         eval(parse(text=fun))
       }
     }
 
     if( !any(names(boxtab)=="sample.id") ) {
-      print("change rowname to sample.id")
-      dplyr::rename(boxtab, sample.id = rowname)
+      boxtab <- dplyr::rename(boxtab, sample.id = rowname)
     }
 
     boxtab$Depth <- sample_sums(local_physeq())

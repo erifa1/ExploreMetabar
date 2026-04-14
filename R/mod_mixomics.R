@@ -541,47 +541,48 @@ mod_mixomics_server <- function(input, output, session, r){
     output$download_all <- downloadHandler(
       filename = paste0('splsda_results_comp', input$comp_axis_1,'_comp', input$comp_axis_2,'.zip'),
       content = function(file){
-        plot_indiv <- ggplot2::ggsave('/tmp/splsda_indiv.svg', plot = get_spls_da_indiv()$graph, device = 'svg', width = 10, height = 10)
+        tmpdir <- tempdir()
+        plot_indiv <- ggplot2::ggsave(file.path(tmpdir, 'splsda_indiv.svg'), plot = get_spls_da_indiv()$graph, device = 'svg', width = 10, height = 10)
 
-        grDevices::svg(filename = '/tmp/splsda_var.svg', width = 10, height = 10)
+        grDevices::svg(filename = file.path(tmpdir, 'splsda_var.svg'), width = 10, height = 10)
         invisible(mixOmics::plotVar(final_spls_da(), comp = c(input$comp_axis_1, input$comp_axis_2), cutoff = input$spls_da_var_corr))
         dev.off()
         
-        biplot <- ggplot2::ggsave('/tmp/splsda_biplot.svg', plot = get_spls_da_biplot(), device = 'svg', width = 10, height = 10)
+        biplot <- ggplot2::ggsave(file.path(tmpdir, 'splsda_biplot.svg'), plot = get_spls_da_biplot(), device = 'svg', width = 10, height = 10)
         
-        file_list <- c(plot_indiv, '/tmp/splsda_var.svg', biplot)
+        file_list <- c(plot_indiv, file.path(tmpdir, 'splsda_var.svg'), biplot)
         
         t_table <- as.data.frame(phyloseq::tax_table(r$phyloseq_filtered())) %>%
             rownames_to_column()
         
         for(i in c(input$comp_axis_1, input$comp_axis_2)){
-          grDevices::svg(filename = paste0('/tmp/splsda_loadings_comp', i, '.svg'), width = 10, height = 10)
+          grDevices::svg(filename = file.path(tmpdir, paste0('splsda_loadings_comp', i, '.svg')), width = 10, height = 10)
           mixOmics::plotLoadings(final_spls_da(), comp = i, contrib = 'max', method = 'mean',
                                  ndisplay = input[[paste("nb_feat_load", i, sep = "_")]],
                                  legend.color = list_colors(),
                                  size.name = 0.6,
                                  show.ties = FALSE)
           dev.off()
-          file_list <- c(file_list, paste0('/tmp/splsda_loadings_comp', i, '.svg'))
+          file_list <- c(file_list, file.path(tmpdir, paste0('splsda_loadings_comp', i, '.svg')))
           
           
           select_var_tab <- mixOmics::selectVar(final_spls_da(), comp = i)
           tab_result <- select_var_tab$value %>%
             rownames_to_column() %>%
             left_join(t_table, by = "rowname")
-          write.table(tab_result, paste0('/tmp/splsda_features_contrib_comp', i, '.csv'), sep = ",", row.names = FALSE)
-          file_list <- c(file_list, paste0('/tmp/splsda_features_contrib_comp', i, '.csv'))
+          write.table(tab_result, file.path(tmpdir, paste0('splsda_features_contrib_comp', i, '.csv')), sep = ",", row.names = FALSE)
+          file_list <- c(file_list, file.path(tmpdir, paste0('splsda_features_contrib_comp', i, '.csv')))
         }
         
         legend_cim <- list(legend = levels(y()), col = list_colors(), title = input$factor_spls_da, cex = 0.7)
         plot_cim <- mixOmics::cim(final_spls_da())
         color <- r$factor_colors()[[input$factor_spls_da]][r$sdat()[plot_cim$row.names, input$factor_spls_da]]
         
-        grDevices::svg(filename = '/tmp/splsda_cim.svg', width = 10, height = 10)
+        grDevices::svg(filename = file.path(tmpdir, 'splsda_cim.svg'), width = 10, height = 10)
         invisible(mixOmics::cim(final_spls_da(), row.sideColors = color, legend = legend_cim))
         dev.off()
         
-        file_list <- c(file_list, '/tmp/splsda_cim.svg')
+        file_list <- c(file_list, file.path(tmpdir, 'splsda_cim.svg'))
         
         zip::zipr(zipfile = file, files = file_list)
       }
