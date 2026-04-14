@@ -1,7 +1,7 @@
 
 # ExploreMetabar
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5245195.svg)](https://doi.org/10.5281/zenodo.5245195)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14610142.svg)](https://doi.org/10.5281/zenodo.4317187)
 
 
 ExploreMetabar is a shiny application used to explore metabarcoding data
@@ -17,7 +17,7 @@ ExploreMetabar is hosted thanks to [SK8 INRAE](https://sk8.inrae.fr/):
 
 ## Installation
 
-R4.4.1 or upper is required.
+R4.4.3 or upper is required.
 
 
 * **Linux (recommended)**
@@ -36,8 +36,10 @@ You can install the development version of ExploreMetabar from this
 repository with:
 
 ``` r
-install.packages("devtools")
-devtools::install_git("https://forgemia.inra.fr/umrf/exploremetabar")
+install.packages("renv")
+options(renv.config.gitlab.host = "https://forge.inrae.fr")
+
+renv::install("gitlab::umrf/exploremetabar@master")
 ```
 
 ### To run Shiny app
@@ -47,7 +49,7 @@ library(ExploreMetabar)
 ExploreMetabar::run_app()
 ```
 
-## Docker
+## Docker (old versions)
 
 To install ExploreMetabar via docker environment:
 
@@ -58,4 +60,4 @@ sudo docker run -it -p 3838:3838 erifa1/exploremetabar:latest
 
 ## Citation
 
-Etienne RIFA, & Sebastien Theil. (2020). ExploreMetabar: v1.0.1, https://forgemia.inra.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.5245195
+Etienne RIFA, & Sebastien Theil. (2025). ExploreMetabar: v2.2.0, https://forge.inrae.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317187

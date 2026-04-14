@@ -22,7 +22,7 @@ mod_beta_ui <- function(id){
     fluidPage(
       fluidRow(
         infoBox("",
-                "Use phyloseq object without taxa merging step.",
+                "Use the phyloseq object without performing the taxa merging step.",
                 icon = icon("info-circle"), fill=TRUE, width = 10
         )
       ),
@@ -404,7 +404,7 @@ mod_beta_server <- function(input, output, session, r = r){
        ns("beta_factor"),
        label = "Select factor(s) to color samples and ellipses:",
        choices = r$var_list(),
-       selected = r$var_list()[2],
+       selected = r$var_list()[1],
        multiple = FALSE,
        options = pickerOptions(
          actionsBox = TRUE,

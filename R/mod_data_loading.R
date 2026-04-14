@@ -20,7 +20,7 @@ mod_data_loading_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(infoBox("",
-        HTML(paste("You must validate each step (filtering, normalization) by clicking each button, even if you did not make any modification.")),
+        HTML(paste("You must validate each step (filtering, normalization) by clicking the corresponding button, even if no modification was made.")),
         HTML(paste("Otherwise you just need to click 'Launch all' button, then you can use others modules.")),
         icon = icon("info-circle"), fill=TRUE, width = 6
       )),
@@ -266,9 +266,20 @@ mod_data_loading_server <- function(input, output, session, r=r){
     data = reactive({
       req(sdat_initial())
       if(is.null(updated_data())){
-        sdat_initial()
+        d1 <- sdat_initial()
+        if( any(sapply(d1, is.factor))){
+          d1$sample.id <- as.factor(sample_names(phyloseq_data()))
+          d1
+        }else{
+          # add dummy factor
+          showNotification("Dummy factor added to display metadata.", type="warning", duration = 5)
+          d1$sample.id <- as.factor(sample_names(phyloseq_data()))
+          d1$dummy_fact <- as.factor(rep(LETTERS, each = 2, length.out = nrow(d1)))
+          d1
+        }
       }else{
-      req(updated_data())
+
+        req(updated_data())
         updated_data()
       }
     }),
@@ -763,9 +774,9 @@ mod_data_loading_server <- function(input, output, session, r=r){
     req(r_values$phyobj_final, r$sdat)
     sdat <- r$sdat()
     var_list <- colnames(sdat)
-    if('sample.id' %in% var_list){
-      var_list <- sort(var_list[! var_list %in% 'sample.id'])
-    }
+    # if('sample.id' %in% var_list){
+    #   var_list <- sort(var_list[! var_list %in% 'sample.id'])
+    # }
     return(var_list)
   })
   

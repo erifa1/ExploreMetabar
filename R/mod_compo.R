@@ -19,7 +19,7 @@ mod_compo_ui <- function(id){
   tagList(
     fluidPage(
       infoBox("",
-              "Use phyloseq object without taxa merging step.",
+              "Use the phyloseq object without performing the taxa merging step.",
               icon = icon("info-circle"), fill=TRUE, width = 10),
 
       box(
@@ -85,7 +85,7 @@ mod_compo_server <- function(input, output, session, r = r){
                       choices = ranks1,
                       selected = ranks1[length(ranks1)])
     shinyWidgets::updatePickerInput(session, "Ord1",
-                      choices = r$var_list(),selected = r$var_list()[2])
+                      choices = r$var_list(),selected = r$var_list()[1])
   })
   
   
