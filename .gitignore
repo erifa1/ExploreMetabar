@@ -11,3 +11,7 @@ dev
 ExploreMetabar.Rproj
 *krona*
 Dockerfile*
+.agents/
+.blackbox/
+TODO.md
+*.swp
