@@ -14,16 +14,16 @@ app_server <- function(input, output,session) {
   })
 
 
-  # List the first level callModules here
-  callModule(mod_data_loading_server, "data_loading_ui_1", session=session, r=r)
-  callModule(mod_compo_server, "compo_ui_1", session = session, r = r)
-  callModule(mod_alpha_server, "alpha_ui_1", session = session, r = r)
-  callModule(mod_beta_server, "beta_ui_1", session = session, r = r)
-  callModule(mod_taxaboxplot_server, "taxaboxplot_ui_1", session = session, r = r)
-  callModule(mod_diffanalysis_server, "diffanalysis_ui_1", session = session, r = r)
-  callModule(mod_asvenn_server, "asvenn_ui_1", session = session, r = r)
-  callModule(mod_heatmap_server, "heatmap_ui_1", session=session,r=r)
-  callModule(mod_cluster_server, "cluster_ui_1", session=session,r=r)
-  callModule(mod_mixomics_server, "mixomics_1", session=session,r=r)
+  # List the first level modules here
+  mod_data_loading_server("data_loading_ui_1", r = r)
+  mod_compo_server("compo_ui_1", r = r)
+  mod_alpha_server("alpha_ui_1", r = r)
+  mod_beta_server("beta_ui_1", r = r)
+  mod_taxaboxplot_server("taxaboxplot_ui_1", r = r)
+  mod_diffanalysis_server("diffanalysis_ui_1", r = r)
+  mod_asvenn_server("asvenn_ui_1", r = r)
+  mod_heatmap_server("heatmap_ui_1", r = r)
+  mod_cluster_server("cluster_ui_1", r = r)
+  mod_mixomics_server("mixomics_1", r = r)
 
 }

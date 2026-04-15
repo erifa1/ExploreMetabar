@@ -149,12 +149,13 @@ plot_krona <- function(physeq,output,variable, trim=F){
 #' @importFrom grid grid.draw
 #' @importFrom grDevices rainbow recordPlot replayPlot
 #' @importFrom venn venn
-#' @importFrom qdapTools mtabulate
+
 #' @importFrom nVennR plotVenn
 #' @import ggpolypath
 
 
-mod_asvenn_server <- function(input, output, session, r=r){
+mod_asvenn_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
 
 
@@ -204,6 +205,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
     flog.info('compute Venn diagram...')
     if(length(input$lvls1) < 2 || length(input$lvls1) > 5){
       shinyalert("Oops!", "You need to choose between 2 and 5 factors...", type = "error")
+      req(FALSE)
     }
     else{
       res <- list()
@@ -212,8 +214,8 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
       for(lvl in input$lvls1){
         flog.info(lvl)
-        fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% '",lvl,"')",sep="")
-        eval(parse(text=fun))
+        keep <- sample_data(r$phyloseq_filtered())[[input$Fact1]] %in% lvl
+        data.tmp <- prune_samples(keep, r$phyloseq_filtered())
         sp_data <- prune_taxa(taxa_sums(data.tmp) > 0, data.tmp)
 
         abund_to_zero = function(x){
@@ -233,7 +235,10 @@ mod_asvenn_server <- function(input, output, session, r=r){
       TF <- sapply(TFdata, row.names, simplify = FALSE)
       names(TF) = input$lvls1
       res$TF <- TF
-      v.table <- as_tibble(t(qdapTools::mtabulate(TF)), rownames = "taxa")
+      all_taxa <- unique(unlist(TF))
+      mtab <- sapply(TF, function(x) as.integer(all_taxa %in% x))
+      rownames(mtab) <- all_taxa
+      v.table <- as_tibble(mtab, rownames = "taxa")
       v.table <- full_join(v.table, TFtax, by = 'taxa')
       res$v.table <- v.table
       return(res)
@@ -283,8 +288,8 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   get_boxplot_data <- reactive({
     req(input$tabvenn1_row_last_clicked, input$lvls1)
-    fun <- paste("data.tmp <- subset_samples(r$phyloseq_filtered(), ",input$Fact1," %in% c('",paste(input$lvls1, collapse='\',\''),"'))",sep="")
-    eval(parse(text=fun))
+    keep <- sample_data(r$phyloseq_filtered())[[input$Fact1]] %in% input$lvls1
+    data.tmp <- prune_samples(keep, r$phyloseq_filtered())
 
     obj <- prune_taxa(pull(resVenn()$v.table[input$tabvenn1_row_last_clicked,1]), data.tmp)
     ot <- as.data.frame(otu_table(obj))
@@ -312,18 +317,18 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
   get_krona_plot <- reactive({
     req(input$krona_select)
-    cat(file=stderr(),"Drawing krona...", "\n")
+    flog.info("Drawing krona...")
     df <- resVenn()$v.table
 
-    cat(file=stderr(),'Selected list: ', input$krona_select, "\n")
-    cat(file=stderr(),'Excluded list: ', input$krona_exclud, "\n")
+    flog.info('Selected list: %s', paste(input$krona_select, collapse = ", "))
+    flog.info('Excluded list: %s', paste(input$krona_exclud, collapse = ", "))
 
     if(length(input$krona_exclud) > 0){
       df_ex <- dplyr::select(df, c('taxa', input$krona_exclud) )
       df_ex$sum <- rowSums(select_if(df_ex, is.numeric ))
       ex_asv <- rownames(dplyr::filter(df_ex, df_ex$sum >= 1))
       df <- df[!(df$taxa %in% ex_asv),]
-      cat(file=stderr(),'Excluding ', length(ex_asv), "\n")
+      flog.info('Excluding %d', length(ex_asv))
     }
     df <- dplyr::select(df, c('taxa', input$krona_select))
 
@@ -332,25 +337,19 @@ mod_asvenn_server <- function(input, output, session, r=r){
     dff <- dplyr::filter(df, df$sum == length(input$krona_select))
     phy_obj <- phyloseq::phyloseq(otu_table(r$phyloseq_filtered()), tax_table(r$phyloseq_filtered()), sample_data(r$phyloseq_filtered()))
 
-    cat(file=stderr(),'prune_taxa...')
+    flog.info('prune_taxa...')
     phy_obj <- prune_taxa(dff$taxa, phy_obj)
-    cat(file=stderr(),'done.', "\n")
+    flog.info('prune_taxa done.')
 
-    cat(file=stderr(),'bool vector...')
-    ff <- glue::glue("tt <- r$sdat()${input$Fact1} %in% input$krona_select")
-    eval(parse(text=ff))
-    cat(file=stderr(),'done.', "\n")
-
-    cat(file=stderr(),'prune_sample...')
-    fun <- glue::glue("phy_obj <- phyloseq::prune_samples(tt, phy_obj)")
-    eval(parse(text=fun))
-    cat(file=stderr(),'done.', "\n")
+    flog.info('prune_sample...')
+    tt <- r$sdat()[[input$Fact1]] %in% input$krona_select
+    phy_obj <- phyloseq::prune_samples(tt, phy_obj)
+    flog.info('prune_sample done.')
 
     phy_obj <- prune_samples(sample_sums(phy_obj) > 0, phy_obj)
-    print(phy_obj)
+    flog.info(phy_obj)
     phy_obj@sam_data$sample.id <- rownames(sample_data(phy_obj))
-    cat(file=stderr(),"plot_krona...")
-    fun <- glue::glue("sample_data(phy_obj)${input$Fact1}")
+    flog.info("plot_krona...")
     krona_output <- file.path(krona_dir, "krona")
     if(input$krona_glom==1){
       plot_krona(phy_obj, krona_output, variable = input$Fact1, trim=T)
@@ -359,7 +358,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
       plot_krona(phy_obj, krona_output, variable = 'sample.id', trim=T)
     }
 
-    cat(file=stderr(),'done.', "\n")
+    flog.info('plot_krona done.')
     return('krona_tmp/krona.html')
   })
 
@@ -369,7 +368,7 @@ mod_asvenn_server <- function(input, output, session, r=r){
 
 
   output$krona_plot <- renderUI({
-    print(krona_reactive())
+    flog.info(krona_reactive())
     tags$iframe(
       seamless="seamless",
       src=krona_reactive(),
@@ -377,10 +376,11 @@ mod_asvenn_server <- function(input, output, session, r=r){
       height=800
     )
   })
+  })
 }
 
 ## To be copied in the UI
 # mod_asvenn_ui("asvenn_ui_1")
 
 ## To be copied in the server
-# callModule(mod_asvenn_server, "asvenn_ui_1")
+# mod_asvenn_server("asvenn_ui_1", r = r)

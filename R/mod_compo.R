@@ -67,14 +67,16 @@ mod_compo_ui <- function(id){
 #' @export
 #' @keywords internal
 #' @importFrom plotly renderPlotly
-#' @importFrom reshape2 melt
+#' @importFrom tidyr pivot_longer
 
-mod_compo_server <- function(input, output, session, r = r){
+mod_compo_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
 
   observeEvent(input$go1,{
     if(input$RankCompo==''){
       shinyalert(title = "Oops", text="You must provide a rank to plot.", type='error')
+      req(FALSE)
     }
   })
 
@@ -87,43 +89,23 @@ mod_compo_server <- function(input, output, session, r = r){
     shinyWidgets::updatePickerInput(session, "Ord1",
                       choices = r$var_list(),selected = r$var_list()[1])
   })
-  
-  
-  get_meta_col <- reactive({
-    req(input$Ord1, r$sdat())
-    metadata <- r$sdat()
-    if(length(input$Ord1) == 1){
-      meta.col <- input$Ord1
-    } else if(length(input$Ord1) > 1) {
-      validate(
-        need(!any(sapply(metadata[, input$Ord1], is.numeric)), message = "You can't select multiple with numeric factors")
-      )
-      meta.col <- paste0(input$Ord1, collapse='_')
+
+  observeEvent(input$Ord1, {
+    if ("sample.id" %in% input$Ord1) {
+      updateRadioButtons(session, "radio1",
+        choices = list("Default" = 1),
+        selected = 1, inline = TRUE)
+    } else {
+      updateRadioButtons(session, "radio1",
+        choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
+        selected = input$radio1, inline = TRUE)
     }
-    return(meta.col)
   })
-  
-  
-  local_metadata <- reactive({
-    req(input$Ord1, r$sdat())
-    metadata <- r$sdat()
-    if(! all(sapply(metadata[, input$Ord1], is.numeric))){
-      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Ord1, na.rm=TRUE)
-      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-      metadata <- select(metadata, "sample.id", get_meta_col())
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$Ord1)
-    }
-    return(metadata)
-  })
-  
-  
-  local_physeq <- reactive({
-    phy <- r$phyloseq_filtered()
-    sample_data(phy) <- sample_data(local_metadata())
-    return(phy)
-  })
+
+  factor_input <- reactive({ input$Ord1 })
+  get_meta_col  <- make_get_meta_col(factor_input, r)
+  local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
+  local_physeq  <- make_local_physeq(local_metadata, r)
   
   
   compo <- eventReactive(input$go1, {
@@ -189,6 +171,7 @@ mod_compo_server <- function(input, output, session, r = r){
       saveWidget(plot1, file= file)
     }
   )
+  })
 }
 
 
@@ -196,4 +179,4 @@ mod_compo_server <- function(input, output, session, r = r){
 # mod_compo_ui("compo_ui_1")
 
 ## To be copied in the server
-# callModule(mod_compo_server, "compo_ui_1")
+# mod_compo_server("compo_ui_1", r = r)

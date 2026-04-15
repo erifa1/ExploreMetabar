@@ -62,9 +62,10 @@ mod_taxaboxplot_ui <- function(id){
 #' @importFrom DT formatStyle
 #' @importFrom DT formatRound
 #' @importFrom DT styleInterval
-#' @import formulaic
+#' @importFrom rlang .data
 
-mod_taxaboxplot_server <- function(input, output, session, r = r){
+mod_taxaboxplot_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
 
   
@@ -110,50 +111,14 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
 
   
   
-  isNumFactor <- reactive({
-    req(get_meta_col(), local_metadata())
-    metadata <- local_metadata()
-    if(is.numeric(metadata[, get_meta_col()])){
-      return(TRUE)
-    } else{
-      return(FALSE)
-    }
-  })
-  
-  
-  get_meta_col <- reactive({
-    req(input$boxplot_fact1, r$sdat())
-    metadata <- r$sdat()
-    if(length(input$boxplot_fact1) == 1){
-      meta.col <- input$boxplot_fact1
-    } else if(length(input$boxplot_fact1) > 1) {
-      validate(
-        need(!any(sapply(metadata[, input$boxplot_fact1], is.numeric)), message = "You can't select multiple with numeric factors")
-      )
-      meta.col <- paste0(input$boxplot_fact1, collapse='_')
-    }
-    return(meta.col)
-  })
-  
-  
-  local_metadata <- reactive({
-    req(input$boxplot_fact1, r$sdat())
-    metadata <- r$sdat()
-    if(! all(sapply(metadata[, input$boxplot_fact1], is.numeric))){
-      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$boxplot_fact1, na.rm=TRUE)
-      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-      metadata <- select(metadata, "sample.id", get_meta_col())
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$boxplot_fact1)
-    }
-    return(metadata)
-  })
-  
-  
+  factor_input   <- reactive({ input$boxplot_fact1 })
+  get_meta_col   <- make_get_meta_col(factor_input, r)
+  local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
+  isNumFactor    <- make_is_num_factor(get_meta_col, local_metadata)
+
   local_physeq <- reactive({
     phy <- r$phyloseq_filtered_norm()
-    sample_data(phy) <- sample_data(local_metadata())
+    phyloseq::sample_data(phy) <- phyloseq::sample_data(local_metadata())
     return(phy)
   })
   
@@ -265,8 +230,7 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
   ordertable1 <- reactive({
     mtable <- get_merged_table()
     if(input$order1){
-      fun = glue::glue( "mtable${get_meta_col()} = factor( mtable${get_meta_col()}, levels = gtools::mixedsort(unique(mtable${get_meta_col()})) ) " )
-      eval(parse(text=fun))
+      mtable[[get_meta_col()]] <- factor(mtable[[get_meta_col()]], levels = gtools::mixedsort(unique(mtable[[get_meta_col()]])))
     }
     return(mtable)
   })
@@ -280,15 +244,15 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
       mtable <- get_merged_table()
       ptype <- 'scatter'
       select1  <- get_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
-      p <- ggplotly(ggplot2::ggplot(data = mtable, aes_string(x = formulaic::add.backtick(select1), y = get_meta_col())) + 
+      p <- ggplotly(ggplot2::ggplot(data = mtable, aes(x = .data[[select1]], y = .data[[get_meta_col()]])) + 
                  geom_point() + 
                  geom_smooth(method = 'lm', se = T, na.rm = T, show.legend = T))
                    
     } else{
       mtable <- ordertable1()
       select1  <- get_pval_table()[input$pvalout1_row_last_clicked,'taxa'] %>% pull
-      p <- plot_ly(mtable, x = as.formula(glue("~ {get_meta_col()}")), y = as.formula(paste0("~", formulaic::add.backtick(select1))),
-                   color = as.formula(glue("~{get_meta_col()}")), type = 'box', colors=r$factor_colors()[[input$boxplot_fact1]])
+      p <- plot_ly(mtable, x = as.formula(glue("~ `{get_meta_col()}`")), y = as.formula(paste0("~ `", select1, "`")),
+                   color = as.formula(glue("~ `{get_meta_col()}`")), type = 'box', colors=r$factor_colors()[[input$boxplot_fact1]])
     }
     
     return(p)
@@ -310,21 +274,20 @@ mod_taxaboxplot_server <- function(input, output, session, r = r){
     wtab = as.data.frame(LL$p.value)
 
     wtab %>%
-      tibble::rownames_to_column() %>%
-      reshape2::melt(value.name = "pvalue") %>%
+      tibble::rownames_to_column("Condition1") %>%
+      tidyr::pivot_longer(-Condition1, names_to = "Condition2", values_to = "pvalue") %>%
       na.omit() %>%
-      rename(Condition1 = rowname)%>%
-      rename(Condition2 = variable) %>%
       datatable() %>%
       formatStyle("pvalue",
         backgroundColor = styleInterval(c(0,0.05), c("white","greenyellow", "white"))
     )
   })
 
+  })
 }
 
 ## To be copied in the UI
 # mod_taxaboxplot_ui("taxaboxplot_ui_1")
 
 ## To be copied in the server
-# callModule(mod_taxaboxplot_server, "taxaboxplot_ui_1")
+# mod_taxaboxplot_server("taxaboxplot_ui_1", r = r)

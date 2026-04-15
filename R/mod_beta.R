@@ -120,45 +120,15 @@ veganifyOTU <- function(physeq){
 
 #'
 #' @noRd
-mod_beta_server <- function(input, output, session, r = r){
+mod_beta_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
 
   ### local metadata and phyloseq object functions
-  
-  isNumFactor <- reactive({
-    req(get_meta_col(), local_metadata())
-    metadata <- local_metadata()
-    if(is.numeric(metadata[, get_meta_col()])){
-      return(TRUE)
-    } else{
-      return(FALSE)
-    }
-  })
-  
-  get_meta_col <- reactive({
-    req(input$beta_factor, r$sdat())
-    metadata <- r$sdat()
-    if(length(input$beta_factor) == 1){
-      meta.col <- input$beta_factor
-    } else if(length(input$beta_factor) > 1) {
-      validate(
-        need(!any(sapply(metadata[, input$beta_factor], is.numeric)), message = "You can't select multiple numeric factors")
-      )
-      meta.col <- paste0(input$beta_factor, collapse='_')
-    }
-    return(meta.col)
-  })
-  
-  
-  local_metadata <- reactive({
-    req(input$beta_factor, r$sdat())
-    metadata <- r$sdat()
-    if(! all(sapply(metadata[, input$beta_factor], is.numeric))){
-      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$beta_factor, na.rm=TRUE)
-      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-    }
-    return(metadata)
-  })
+  factor_input   <- reactive({ input$beta_factor })
+  get_meta_col   <- make_get_meta_col(factor_input, r)
+  local_metadata <- make_local_metadata(factor_input, get_meta_col, r, keep_all_cols = TRUE)
+  isNumFactor    <- make_is_num_factor(get_meta_col, local_metadata)
   
   ### dynamic UI rendering functions
   
@@ -285,10 +255,8 @@ mod_beta_server <- function(input, output, session, r = r){
         need(input$metrics %in% c('bray', 'jaccard'), message = 'ordiR2step works only with bray and jaccard distances.')
       )
       if(input$metrics %in% c('bray', 'jaccard')){
-        fun <- glue::glue('mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = "{input$metrics}")')
-        eval(parse(text=fun))
-        fun <- glue::glue('mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = "{input$metrics}")')
-        eval(parse(text=fun))
+        mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = input$metrics)
+        mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = input$metrics)
       } 
       # else if(input$metrics %in% c('unifrac', 'wunifrac')){
       #   phy <- phyloseq::prune_samples(rownames(spe), local_physeq())
@@ -1055,7 +1023,7 @@ mod_beta_server <- function(input, output, session, r = r){
   
 
   output$adonis_formula <- renderText({
-    print(get_formula())
+    get_formula()
   })
 
 
@@ -1098,10 +1066,11 @@ mod_beta_server <- function(input, output, session, r = r){
   output$dispersionTukey <- DT::renderDataTable({
     get_dispersion_tukey()$group
   })
+  })
 }
 
 ## To be copied in the UI
-# mod_mod_beta_ui("mod_beta_ui_1")
+# mod_beta_ui("beta_ui_1")
 
 ## To be copied in the server
-# callModule(mod_mod_beta_server, "mod_beta_ui_1")
+# mod_beta_server("beta_ui_1", r = r)

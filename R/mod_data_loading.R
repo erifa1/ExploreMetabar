@@ -254,7 +254,8 @@ merge_table <- function(rank, table){
 #' @import tibble
 #' @import speedyseq
 #' 
-mod_data_loading_server <- function(input, output, session, r=r){
+mod_data_loading_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
   r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
 
@@ -315,8 +316,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
     }
     classes1 = sapply(ne, class)
     obj = classes1[classes1 == "phyloseq"]
-    fun = glue::glue("r_values$phyobj_initial <- ne${names(obj)}")
-    eval(parse(text = fun))
+    r_values$phyobj_initial <- ne[[names(obj)[1]]]
     if(is.null(refseq(r_values$phyobj_initial, errorIfNULL=FALSE)) ){
       showNotification("No refseq in object.", type="error", duration = 3)
     }
@@ -325,7 +325,7 @@ mod_data_loading_server <- function(input, output, session, r=r){
   })
 
   output$phy_prev <- renderPrint({
-    cat(file=stderr(), 'rendering phy_prev', "\n")
+    flog.info('rendering phy_prev')
     cat(paste0('Running ExploreMetabar v', as.character(utils::packageVersion("ExploreMetabar")), '\n'))
     phyloseq_data()
   })
@@ -986,9 +986,14 @@ mod_data_loading_server <- function(input, output, session, r=r){
       if(length(input$list_var_color) < 50){
         download_color <- r$factor_colors()[input$list_var_color]
         num <- sapply(r$sdat()[, input$list_var_color], is.numeric)
+        wb <- openxlsx::createWorkbook()
         for(i in 1:length(input$list_var_color)){
-          xlsx::write.xlsx(data.frame(download_color[[i]]), file = file, sheetName = input$list_var_color[i], col.names = FALSE, row.names = !num[i] , append = TRUE)
+          openxlsx::addWorksheet(wb, input$list_var_color[i])
+          df_out <- data.frame(download_color[[i]])
+          if(!num[i]) df_out <- cbind(names(download_color[[i]]), df_out)
+          openxlsx::writeData(wb, sheet = input$list_var_color[i], x = df_out, colNames = FALSE)
         }
+        openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
       }else{
         showNotification("Too much variables to export.", type = "warning", duration = 10)
       }
@@ -1092,9 +1097,13 @@ mod_data_loading_server <- function(input, output, session, r=r){
     filename = "taxa_colors.xlsx",
     content = function(file){
       download_color <- taxa_modality_colors()[input$list_taxa_color]
+      wb <- openxlsx::createWorkbook()
       for(i in 1:length(input$list_taxa_color)){
-        xlsx::write.xlsx(data.frame(download_color[[i]]), file = file, sheetName = input$list_taxa_color[i], col.names = FALSE, append = TRUE)
+        openxlsx::addWorksheet(wb, input$list_taxa_color[i])
+        df_out <- cbind(names(download_color[[i]]), data.frame(download_color[[i]]))
+        openxlsx::writeData(wb, sheet = input$list_taxa_color[i], x = df_out, colNames = FALSE)
       }
+      openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
     }
   )
   
@@ -1108,10 +1117,11 @@ mod_data_loading_server <- function(input, output, session, r=r){
     return(colors)
   })
   
+  })
 }
 
 ## To be copied in the UI
 # mod_data_loading_ui("data_loading_ui_1")
 
 ## To be copied in the server
-# callModule(mod_data_loading_server, "data_loading_ui_1")
+# mod_data_loading_server("data_loading_ui_1")

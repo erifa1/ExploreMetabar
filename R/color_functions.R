@@ -53,7 +53,7 @@ get_modality_file <- function(path_file, type, list_fact, num_fact = FALSE, num_
   sheet_names <- sheet_names[valid_names]
   if(length(sheet_names) > 0){
     list_colors <- lapply(1:length(sheet_names), FUN = function(k){
-      df_fact_colors <- xlsx::read.xlsx(file = path_file, sheetName = sheet_names[k], as.data.frame = TRUE, header = FALSE)
+      df_fact_colors <- as.data.frame(readxl::read_excel(path = path_file, sheet = sheet_names[k], col_names = FALSE))
       if(type == "fact"){
         if(num_fact[[sheet_names[k]]]){
           df_colors <- df_fact_colors[1, 1]

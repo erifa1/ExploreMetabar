@@ -106,7 +106,8 @@ mod_heatmap_ui <- function(id){
 #' @importFrom indicspecies multipatt
 #' @import shinyalert
 #' @importFrom grDevices svg
-mod_heatmap_server <- function(input, output, session, r){
+mod_heatmap_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
   
   observe({
@@ -304,6 +305,7 @@ mod_heatmap_server <- function(input, output, session, r){
     req(r$phyloseq_filtered, r$phyloseq_filtered_norm(), input$test_fact, input$select_features)
     if(anyNA(sample_data(r$phyloseq_filtered())[, input$test_fact])){
       shinyalert::shinyalert(title = "Oops", text = paste0("The factor ", input$test_fact, " has missing values. Features selection with indicspecies will not work. Please remove missing values."), type = "error")
+      req(FALSE)
     }
   })
   
@@ -323,6 +325,7 @@ mod_heatmap_server <- function(input, output, session, r){
       slct <- slct[slct$p.value <= input$pval, ]
       if(dim(slct)[1] == 0){
         shinyalert::shinyalert(title = "Oops", text = paste0("No taxa have been selected by indicspecies. Taxonomic rank chosen to agglomerate taxa may be too high.\n"), type = "error")
+        req(FALSE)
       }
       selected_data <- phyloseq::prune_taxa(rownames(slct), agglom_data())
     }else{
@@ -534,6 +537,7 @@ mod_heatmap_server <- function(input, output, session, r){
       write.table(selection_features_results(), file, sep = ",", row.names = FALSE)
     }
   )
+  })
 }
 
 
@@ -541,4 +545,4 @@ mod_heatmap_server <- function(input, output, session, r){
 # mod_heatmap_ui("heatmap_ui_1")
 
 ## To be copied in the server
-# callModule(mod_heatmap_server, "heatmap_ui_1")
+# mod_heatmap_server("heatmap_ui_1", r = r)

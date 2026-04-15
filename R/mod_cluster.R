@@ -84,8 +84,8 @@ mod_cluster_ui <- function(id){
 #' @import indicspecies
 #' @import reshape2
 
-mod_cluster_server <- function(input, output, session, r = r){
-
+mod_cluster_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     observe({
@@ -247,10 +247,9 @@ mod_cluster_server <- function(input, output, session, r = r){
 
 
       otable <- phyloseq::otu_table(sub.phy)
-      data.com <- reshape2::melt(otable)
-      #browser()
-      data.com$xlabel <- as.factor(r$sdat()[as.character(data.com$Var2),input$clust_fact1])
-      names(data.com) <- c("Tax", "Sample", "Abundance", "xlabel")
+      data.com <- as.data.frame(as.table(as.matrix(otable)))
+      colnames(data.com) <- c("Tax", "Sample", "Abundance")
+      data.com$xlabel <- as.factor(r$sdat()[as.character(data.com$Sample), input$clust_fact1])
       # data.com$Tax = factor(data.com$Tax, levels = sort(unique(as.character(data.com$Tax))))
 
       p.heat <- ggplot(data.com, aes(x = Sample, y = Tax)) + geom_tile(aes(fill = Abundance))
@@ -273,7 +272,7 @@ mod_cluster_server <- function(input, output, session, r = r){
       # Clean the facet label box
       p.heat <- p.heat + theme(legend.key = element_blank(),
                                strip.background = element_rect(colour="black", fill="white"))
-      cat(file=stderr(), 'done', "\n")
+      flog.info('done')
       return(p.heat)
     })
 
@@ -315,10 +314,11 @@ mod_cluster_server <- function(input, output, session, r = r){
 
   
     
+  })
 }
     
 ## To be copied in the UI
 # mod_cluster_ui("cluster_ui_1")
     
 ## To be copied in the server
-# mod_cluster_server("cluster_ui_1")
+# mod_cluster_server("cluster_ui_1", r = r)

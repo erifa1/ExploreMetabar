@@ -103,48 +103,14 @@ mod_diffanalysis_ui <- function(id){
 #' @import ggplot2
 
 
-mod_diffanalysis_server <- function(input, output, session, r = r){
+mod_diffanalysis_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
-  
-  isNumFactor <- reactive({
-    req(get_meta_col(), local_metadata())
-    metadata <- local_metadata()
-    if(is.numeric(metadata[, get_meta_col()])){
-      return(TRUE)
-    } else{
-      return(FALSE)
-    }
-  })
-  
-  
-  get_meta_col <- reactive({
-    req(input$diff_factor, r$sdat())
-    metadata <- r$sdat()
-    if(length(input$diff_factor) == 1){
-      meta.col <- input$diff_factor
-    } else if(length(input$diff_factor) > 1) {
-      validate(
-        need(!any(sapply(metadata[, input$diff_factor], is.numeric)), message = "You can't select multiple with numeric factors")
-      )
-      meta.col <- paste0(input$diff_factor, collapse='_')
-    }
-    return(meta.col)
-  })
-  
-  
-  local_metadata <- reactive({
-    req(input$diff_factor, r$sdat())
-    metadata <- r$sdat()
-    if(! all(sapply(metadata[, input$diff_factor], is.numeric))){
-      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$diff_factor, na.rm=TRUE)
-      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-      metadata <- select(metadata, "sample.id", get_meta_col())
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$diff_factor)
-    }
-    return(metadata)
-  })
+
+  factor_input   <- reactive({ input$diff_factor })
+  get_meta_col   <- make_get_meta_col(factor_input, r)
+  local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
+  isNumFactor    <- make_is_num_factor(get_meta_col, local_metadata)
   
   
   local_physeq <- reactive({
@@ -155,8 +121,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
       s.list <- na.omit(local_metadata()[,c('sample.id', input$diff_factor)])[, 'sample.id']
       phy <- prune_samples(s.list, phy)
     } else {
-      fun <- glue(" phy <- subset_samples(phy, {input$diff_factor} %in% c('{input$Cond1}','{input$Cond2}')) ")
-      eval(parse(text=fun))
+      keep <- sample_data(phy)[[input$diff_factor]] %in% c(input$Cond1, input$Cond2)
+      phy <- prune_samples(keep, phy)
     }
     phy <- prune_taxa(taxa_sums(phy) >= 1, phy)
     phy <- prune_samples(sample_sums(phy) >=1, phy)
@@ -233,8 +199,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     withProgress({
       req(input$diff_factor, input$Cond1, input$Cond2, r$phyloseq_filtered())
 
-      fun = glue ("deseq <- phyloseq_to_deseq2(local_physeq(), ~ {input$diff_factor})")
-      eval(parse(text=fun))
+      deseq <- phyloseq_to_deseq2(local_physeq(), as.formula(paste0("~", input$diff_factor)))
       gm_mean = function(x, na.rm=TRUE){
         exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
       }
@@ -373,8 +338,7 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
         
         incProgress(amount = 0.4, message = 'Comparing groups...')
         flog.info('metacoder - compare_groups')
-        fun <- paste('obj$data$diff_table <- metacoder::compare_groups(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id, groups = obj$data$sample_data$', input$diff_factor, ',func = mean_ratio)', sep='')
-        eval(parse(text=fun))
+        obj$data$diff_table <- metacoder::compare_groups(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id, groups = obj$data$sample_data[[input$diff_factor]], func = mean_ratio)
         flog.info('metacoder - wilcox_p_value')
         obj$data$diff_table$wilcox_p_value <- p.adjust(obj$data$diff_table$wilcox_p_value, method = "fdr")
         table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
@@ -417,8 +381,8 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     wilcoxDA = eventReactive(input$go3, {
       withProgress({
         req(r$phyloseq_filtered(), input$diff_factor, input$Cond1, input$Cond2)
-        fun <- glue(" tmp <- subdata <- subset_samples(r$phyloseq_filtered(), {input$diff_factor} %in% c('{input$Cond1}','{input$Cond2}')) ")
-        eval(parse(text=fun))
+        keep <- sample_data(r$phyloseq_filtered())[[input$diff_factor]] %in% c(input$Cond1, input$Cond2)
+        tmp <- subdata <- prune_samples(keep, r$phyloseq_filtered())
 
         tax_table(tmp) <- NULL
         wilcoxon_data <- tmp %>%
@@ -683,10 +647,11 @@ mod_diffanalysis_server <- function(input, output, session, r = r){
     #
     # })
 
+  })
 }
 
 ## To be copied in the UI
 # mod_diffanalysis_ui("diffanalysis_ui_1")
 
 ## To be copied in the server
-# callModule(mod_diffanalysis_server, "diffanalysis_ui_1")
+# mod_diffanalysis_server("diffanalysis_ui_1", r = r)

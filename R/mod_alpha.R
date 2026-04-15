@@ -71,61 +71,22 @@ mod_alpha_ui <- function(id){
 #' @importFrom agricolae HSD.test
 #' @importFrom gtools mixedsort
 
-mod_alpha_server <- function(input, output, session, r = r){
+mod_alpha_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
   ns <- session$ns
-  
-  isNumFactor <- reactive({
-    req(get_meta_col(), local_metadata())
-    metadata <- local_metadata()
-    if(is.numeric(metadata[, get_meta_col()])){
-      return(TRUE)
-    } else{
-      return(FALSE)
-    }
-  })
-  
-  
-  get_meta_col <- reactive({
-    req(input$Fact1, r$sdat())
-    metadata <- r$sdat()
-    if(length(input$Fact1) == 1){
-      meta.col <- input$Fact1
-    } else if(length(input$Fact1) > 1) {
-      validate(
-        need(!any(sapply(metadata[, input$Fact1], is.numeric)), message = "You can't select multiple numeric factors")
-      )
-      meta.col <- paste0(input$Fact1, collapse='_')
-    }
-    return(meta.col)
-  })
-  
-  
-  local_metadata <- reactive({
-    req(input$Fact1, r$sdat())
-    metadata <- r$sdat()
-    if(! all(sapply(metadata[, input$Fact1], is.numeric))){
-      metadata <- tidyr::unite(metadata, !!get_meta_col(), input$Fact1, na.rm=TRUE)
-      metadata[, get_meta_col()] <- as.factor(metadata[, get_meta_col()])
-      metadata <- select(metadata, "sample.id", get_meta_col())
-    }
-    else{
-      metadata <- select(metadata, "sample.id", input$Fact1)
-    }
-    return(metadata)
-  })
-  
-  
-  local_physeq <- reactive({
-    phy <- r$phyloseq_filtered()
-    sample_data(phy) <- sample_data(local_metadata())
-    return(phy)
-  })
+
+  factor_input <- reactive({ input$Fact1 })
+  get_meta_col  <- make_get_meta_col(factor_input, r)
+  local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
+  isNumFactor   <- make_is_num_factor(get_meta_col, local_metadata)
+  local_physeq  <- make_local_physeq(local_metadata, r)
   
 
   observeEvent(r$tabs$tabselected, {
     flog.info(paste0('tab - ', r$tabs$tabselected))
     if(r$tabs$tabselected!='data_loading' && !isTruthy(r$phyloseq_filtered())){
       shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
+      req(FALSE)
     }
   })
   
@@ -229,8 +190,7 @@ mod_alpha_server <- function(input, output, session, r = r){
 
     if(! is.numeric(boxtab[, input$Fact1])){
       if(input$checkbox1){
-        fun = glue::glue( "boxtab${input$Fact1} = factor( boxtab${input$Fact1}, levels = gtools::mixedsort(levels(as.factor(boxtab${input$Fact1}))) ) ")
-        eval(parse(text=fun))
+        boxtab[[input$Fact1]] <- factor(boxtab[[input$Fact1]], levels = gtools::mixedsort(levels(as.factor(boxtab[[input$Fact1]]))))
       }
     }
 
@@ -306,27 +266,25 @@ mod_alpha_server <- function(input, output, session, r = r){
   reacalpha <- reactive({
     req(input$metrics, get_meta_col(), boxtab())
     
-    cat(file=stderr(),'Alpha tests...',"\n")
+    flog.info('Alpha tests...')
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
 
     form1 = glue::glue("{input$metrics} ~ Depth + {get_meta_col()}")
     anova_res1 <- aov( as.formula(form1), boxtab())
 
-    fun <- glue::glue("tukey_hsd <- TukeyHSD(anova_res1, \"{get_meta_col()}\")")
-    eval(parse(text=fun))
+    tukey_hsd <- TukeyHSD(anova_res1, get_meta_col())
 
     LL = list()
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
-    fun <- glue::glue("LL$groups1 <- tukey_hsd${get_meta_col()}")
-    eval(parse(text=fun))
+    LL$groups1 <- tukey_hsd[[get_meta_col()]]
     
     LL$groups1 <- LL$groups1 %>% as.data.frame() %>% rownames_to_column('comparison')
 
     setProgress(value = 10, detail = 'done')
 
     })
-    cat(file=stderr(),'Done...',"\n")
+    flog.info('Done...')
     return(LL)
  })
 
@@ -353,10 +311,11 @@ mod_alpha_server <- function(input, output, session, r = r){
      LL = reacalpha()
      write.table(LL$groups1, file, sep="\t", col.names=NA)}
  )
+  })
 }
 
 ## To be copied in the UI
 # mod_alpha_ui("alpha_ui_1")
 
 ## To be copied in the server
-# callModule(mod_alpha_server, "alpha_ui_1")
+# mod_alpha_server("alpha_ui_1", r = r)

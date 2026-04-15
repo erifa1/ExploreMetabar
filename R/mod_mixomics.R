@@ -110,7 +110,8 @@ mod_mixomics_ui <- function(id){
 #' @import svglite
 #' @import zip
 #' 
-mod_mixomics_server <- function(input, output, session, r){
+mod_mixomics_server <- function(id, r) {
+  moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     observe({
@@ -255,6 +256,7 @@ mod_mixomics_server <- function(input, output, session, r){
         if(1 %in% table(y())){
           levels_pb <- paste(names(which(table(y()) == 1)), collapse = ", ")
           shinyalert::shinyalert(title = "Oops", text = paste0("The following levels of the factor ", input$factor_spls_da, " have a single associated sample.\n", levels_pb), type = "error")
+          req(FALSE)
         }
       }
     })
@@ -587,6 +589,7 @@ mod_mixomics_server <- function(input, output, session, r){
         zip::zipr(zipfile = file, files = file_list)
       }
     )
+  })
 }
     
 ## To be copied in the UI
