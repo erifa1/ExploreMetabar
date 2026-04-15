@@ -14,50 +14,77 @@
 #' @export
 #' @importFrom shiny NS tagList
 #' @importFrom plotly plotlyOutput
+#' @import bslib
+#' @import bsicons
+
 mod_compo_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      infoBox("",
-              "Use the phyloseq object without performing the taxa merging step.",
-              icon = icon("info-circle"), fill=TRUE, width = 10),
+    # Info card
+    card(
+      full_screen = TRUE,
+      card_header(class = "bg-info"),
+      "Use the phyloseq object without performing the taxa merging step."
+    ),
 
-      box(
-        selectInput(
-          ns("RankCompo"),
-          label = "Select rank to plot: ",
-          choices = ""
-        ),
+    br(),
 
-        shinyWidgets::pickerInput(
-          ns("Ord1"),
-          label = "Select one or more categorial variable to order/split samples (X axis): ",
-          choices = "",
-          multiple = TRUE
-        ),
-        numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
-        radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
-        selected = 1, inline = TRUE),
-        checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
+    # Settings card
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("gear"), " Settings"),
+      selectInput(
+        ns("RankCompo"),
+        label = "Select rank to plot: ",
+        choices = ""
+      ),
+      shinyWidgets::pickerInput(
+        ns("Ord1"),
+        label = "Select one or more categorial variable to order/split samples (X axis): ",
+        choices = "",
+        multiple = TRUE
+      ),
+      numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
+      radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
+      selected = 1, inline = TRUE),
+      checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
+      actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play"))
+    ),
 
-        actionButton(ns("go1"), "Run Composition Plot", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-        ),
+    br(),
 
-      box(
-        downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
-        plotlyOutput(ns("compo2"), height = "600px"),
-        title = "Relative abundance:", width = 12, status = "primary", solidHeader = TRUE),
-      # box(plotlyOutput(ns("compo3")),
-      #     title = "VST Normalized abundance:", width = 12, status = "primary", solidHeader = TRUE),
-      box(
-        downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
-        plotlyOutput(ns("compo1"), height = "600px"),
-        title = "Raw abundance:", width = 12, status = "primary", solidHeader = TRUE),
-      box(verbatimTextOutput(ns("totalsum1")),
-          title = "Total sum per samples:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE)
-  )
+    # Relative abundance plot
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("pie-chart"), " Relative abundance"),
+      downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
+      plotlyOutput(ns("compo2"), height = "600px")
+    ),
+
+    br(),
+
+    # Raw abundance plot
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("bar-chart"), " Raw abundance"),
+      downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
+      plotlyOutput(ns("compo1"), height = "600px")
+    ),
+
+    br(),
+
+    # Total sum info
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("info-circle"), " Total sum per samples"),
+      accordion(
+        open = FALSE,
+        accordion_panel(
+          "Details",
+          verbatimTextOutput(ns("totalsum1"))
+        )
+      )
+    )
   )
 }
 
@@ -68,6 +95,8 @@ mod_compo_ui <- function(id){
 #' @keywords internal
 #' @importFrom plotly renderPlotly
 #' @importFrom tidyr pivot_longer
+#' @import futile.logger
+#' @importFrom futile.logger flog.info
 
 mod_compo_server <- function(id, r) {
   moduleServer(id, function(input, output, session) {
@@ -106,8 +135,8 @@ mod_compo_server <- function(id, r) {
   get_meta_col  <- make_get_meta_col(factor_input, r)
   local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
   local_physeq  <- make_local_physeq(local_metadata, r)
-  
-  
+
+
   compo <- eventReactive(input$go1, {
     flog.info('compo - Creating plots...')
     req(input$topTax, get_meta_col(), input$RankCompo, local_physeq())
@@ -125,7 +154,7 @@ mod_compo_server <- function(id, r) {
         if(input$radio1 == 1 | input$radio1 == 3){split1 = FALSE}else{split1 = TRUE}
         flog.info('compo - Std...')
       }
-      
+
       LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
       LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
 
@@ -134,7 +163,6 @@ mod_compo_server <- function(id, r) {
     }, message="Processing, please wait...")
 
   })
-
 
 
   output$compo1 <- renderPlotly({
@@ -173,7 +201,6 @@ mod_compo_server <- function(id, r) {
   )
   })
 }
-
 
 ## To be copied in the UI
 # mod_compo_ui("compo_ui_1")

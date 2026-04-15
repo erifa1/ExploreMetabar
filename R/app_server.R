@@ -1,9 +1,14 @@
 #' @import shiny
 #' @import rhdf5
+#' @importFrom thematic thematic_shiny
 
 
 app_server <- function(input, output,session) {
   options(shiny.maxRequestSize=30*1024^2)
+
+  # Enable thematic for automatic plot theming
+  thematic::thematic_shiny()
+
   r <- reactiveValues(
     tabs = reactiveValues(),
     fdata = NULL

@@ -10,93 +10,78 @@
 mod_mixomics_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      fluidRow(
-        box(title = "sPLS-DA settings", width = 12, status = "warning", solidHeader = TRUE,
-            selectInput(
-              ns("factor_spls_da"),
-              label = "Factor",
-              choices = ""
-            ),
-            radioButtons(ns("spls_da_type"),
-                         label = "sPLS-DA type",
-                         inline = TRUE,
-                         choices = list(
-                           "initial" = "initial",
-                           "optimised (can take a long time)" = "optimised"),
-                         selected = "initial"),
-            uiOutput(ns("ui_nb_comp")),
-            uiOutput(ns("ui_nb_feat")),
-            uiOutput(ns("ui_optimised_dist")),
-            uiOutput(ns("ui_optimised_measure")),
-            actionButton(ns("launch_spls_da"), "Launch sPLS-DA", icon = icon("play-circle"),
-                         style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
-        ),
-        uiOutput(ns("ui_comp_axis")),
-        uiOutput(ns("ui_perform_plots")),
-        box(id = ns("plot_indiv_box"), title = "Plot of individuals", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            fluidRow(
-              column(width = 2, checkboxInput(ns("plot_indiv_labels"), label = "Display sample labels", value = FALSE)),
-              column(width = 2, checkboxInput(ns("plot_indiv_ellipses"), label = "Display ellipses", value = TRUE))
-            ),
-            downloadButton(ns("spls_da_indiv_download"), label = "Download plot"),
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_indiv'), width = "1000px", height = "1000px"),
-              type = "html", loader = "loader4"
-            )
-        ),
-        box(id = ns("plot_var_box"), title = "Plot of variables", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            numericInput(ns("spls_da_var_corr"),
-                         label = "Features with correlations below this threshold will not be plotted",
-                         min = 0,
-                         max = 1,
-                         value = 0,
-                         step = 0.1
-            ),
-            downloadButton(ns("spls_da_var_download"), label = "Download plot"),
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_var'), width = "1000px", height = "1000px"),
-              type = "html", loader = "loader4"
-            )
-        ),
-        box(title = "Biplot", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            numericInput(ns("spls_da_biplot_corr"),
-                         label = "Features with correlations below this threshold will not be plotted",
-                         min = 0,
-                         max = 1,
-                         value = 0,
-                         step = 0.1
-            ),
-            fluidRow(
-              column(width = 2, checkboxInput(ns("biplot_labels"), label = "Display sample labels", value = FALSE)),
-              column(width = 2, checkboxInput(ns("biplot_arrows"), label = "Display arrows", value = TRUE))
-            ),
-            downloadButton(ns("spls_da_biplot_download"), label = "Download plot"),
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_biplot'), width = "1000px", height = "1000px"),
-              type = "html", loader = "loader4"
-            )
-        ),
-        uiOutput(ns("ui_spls_da_loadings")),
-        box(title = "Features contribution", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            uiOutput(ns("ui_comp_select_var")),
-            downloadButton(ns("select_var_download"), label = "Download table"),
-            shinycustomloader::withLoader(
-              DT::dataTableOutput(ns("spls_da_select_var")),
-              type = "html", loader = "loader4"
-            )
-        ),
-        box(title = "CIM", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            downloadButton(ns("spls_da_cim_download"), label = "Download plot"),
-            shinycustomloader::withLoader(
-              plotOutput(ns('spls_da_cim'), width = "1000px", height = "1000px"),
-              type = "html", loader = "loader4"
-            )
-        ),
-        box(title = "Download all sPLS-DA results", width = 6, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            downloadButton(ns("download_all"), label = "Download zip")
-        )
-      )
+    card(
+      card_header("sPLS-DA settings"),
+      selectInput(ns("factor_spls_da"), label = "Factor", choices = ""),
+      radioButtons(ns("spls_da_type"), label = "sPLS-DA type", inline = TRUE,
+                   choices = list("initial" = "initial", "optimised (can take a long time)" = "optimised"),
+                   selected = "initial"),
+      uiOutput(ns("ui_nb_comp")),
+      uiOutput(ns("ui_nb_feat")),
+      uiOutput(ns("ui_optimised_dist")),
+      uiOutput(ns("ui_optimised_measure")),
+      actionButton(ns("launch_spls_da"), "Launch sPLS-DA", icon = icon("play-circle"),
+                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+    ),
+
+    uiOutput(ns("ui_comp_axis")),
+    uiOutput(ns("ui_perform_plots")),
+
+    card(
+      full_screen = TRUE,
+      card_header("Plot of individuals"),
+      layout_columns(
+        col_widths = c(6, 6),
+        checkboxInput(ns("plot_indiv_labels"), label = "Display sample labels", value = FALSE),
+        checkboxInput(ns("plot_indiv_ellipses"), label = "Display ellipses", value = TRUE)
+      ),
+      downloadButton(ns("spls_da_indiv_download"), label = "Download plot"),
+      plotOutput(ns('spls_da_indiv'), width = "100%", height = "800px")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Plot of variables"),
+      numericInput(ns("spls_da_var_corr"), label = "Features with correlations below this threshold will not be plotted",
+                   min = 0, max = 1, value = 0, step = 0.1),
+      downloadButton(ns("spls_da_var_download"), label = "Download plot"),
+      plotOutput(ns('spls_da_var'), width = "100%", height = "800px")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Biplot"),
+      numericInput(ns("spls_da_biplot_corr"), label = "Features with correlations below this threshold will not be plotted",
+                   min = 0, max = 1, value = 0, step = 0.1),
+      layout_columns(
+        col_widths = c(6, 6),
+        checkboxInput(ns("biplot_labels"), label = "Display sample labels", value = FALSE),
+        checkboxInput(ns("biplot_arrows"), label = "Display arrows", value = TRUE)
+      ),
+      downloadButton(ns("spls_da_biplot_download"), label = "Download plot"),
+      plotOutput(ns('spls_da_biplot'), width = "100%", height = "800px")
+    ),
+
+    uiOutput(ns("ui_spls_da_loadings")),
+
+    card(
+      full_screen = TRUE,
+      card_header("Features contribution"),
+      uiOutput(ns("ui_comp_select_var")),
+      downloadButton(ns("select_var_download"), label = "Download table"),
+      DT::dataTableOutput(ns("spls_da_select_var"))
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("CIM"),
+      downloadButton(ns("spls_da_cim_download"), label = "Download plot"),
+      plotOutput(ns('spls_da_cim'), width = "100%", height = "800px")
+    ),
+
+    card(
+      card_header("Download all sPLS-DA results"),
+      downloadButton(ns("download_all"), label = "Download zip")
     )
   )
 }
@@ -171,15 +156,9 @@ mod_mixomics_server <- function(id, r) {
       output$ui_perform_plots <- renderUI({
         req(input$spls_da_type)
         if(input$spls_da_type == "optimised"){
-          box(title = "sPLS-DA performance evaluation plots", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-              shinycustomloader::withLoader(
-                plotOutput(ns('spls_da_ncomp')),
-                type = "html", loader = "loader4"
-              ),
-              shinycustomloader::withLoader(
-                plotOutput(ns('spls_da_keepX')),
-                type = "html", loader = "loader4"
-              )
+          card(full_screen = TRUE, card_header("sPLS-DA performance evaluation plots"),
+              plotOutput(ns('spls_da_ncomp')),
+              plotOutput(ns('spls_da_keepX'))
           )
         }
       })
@@ -187,7 +166,7 @@ mod_mixomics_server <- function(id, r) {
     
     output$ui_comp_axis <- renderUI({
       req(final_ncomp())
-      box(title = "Choose components", width = 12, status = "warning", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+      card(card_header("Choose components"),
           numericInput(ns("comp_axis_1"),
                        label = "Component used on the horizontal axis",
                        min = 1,
@@ -214,7 +193,7 @@ mod_mixomics_server <- function(id, r) {
     
     output$ui_spls_da_loadings <- renderUI({
       req(final_ncomp(), final_keepX())
-      box(title = "Loadings", width = 12, status = "primary", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
+      card(card_header("Loadings"),
           lapply(1:final_ncomp(), FUN = function(i){
             numericInput(ns(paste("nb_feat_load", i, sep = "_")),
                          label = paste("Number of features to display for component", i),
@@ -224,10 +203,7 @@ mod_mixomics_server <- function(id, r) {
           }),
           downloadButton(ns("spls_da_loadings_download"), label = "Download plot"),
           lapply(1:final_ncomp(), FUN = function(i){
-            shinycustomloader::withLoader(
-              plotOutput(ns(paste("spls_da_loadings", i, sep = "_"))),
-              type = "html", loader = "loader4"
-            )
+            plotOutput(ns(paste("spls_da_loadings", i, sep = "_")))
           })
       )
     })

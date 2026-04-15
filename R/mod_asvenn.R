@@ -10,69 +10,55 @@
 mod_asvenn_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      fluidRow(
-        infoBox("",
-                "Select conditions to highlight shared taxa",
-                icon = icon("info-circle"), fill=TRUE, width = 8
-                )
-      ),
-      fluidRow(
-        box(
-          selectInput(
-            ns("Fact1"),
-            label = "Select factor to test: ",
-            choices = ""
-          ),
-          uiOutput(ns("lvls1")),
-          numericInput(ns("minAb"), "Minimum raw abundance to detect a taxa in group of samples:", 1, min = 1, max = NA),
-          actionButton(ns("go1"), "Run/Update ASVenn", icon = icon("play-circle"),
-                       style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-          title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-        )
-      ),
-      fluidRow(
-        box(
-          plotOutput(ns("venn2"), height = "800px"),
-          title = "Venn Diagram classic:", width = 12, status = "primary", solidHeader = TRUE,
-          collapsible = TRUE, collapsed = FALSE
-        )
-      ),
-      fluidRow(
-        box(
-        # plotOutput(ns("venn1"), height = "800px"),
+    card(
+      card_header(class = "bg-info"),
+      "Select conditions to highlight shared taxa"
+    ),
 
-          imageOutput(ns("venn1"), width = "100%", height = "100%"),
-          title = "Venn Diagram VennR:", width = 12, status = "primary", solidHeader = TRUE,
-          collapsible = TRUE, collapsed = TRUE
-        )
-      ),
-      fluidRow(
-        box(
-          title = "Venn table:", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
-          h3(icon("info-circle"), "Click on rows to generate boxplot displaying raw abundance of the taxa."),
-          DT::dataTableOutput(ns("tabvenn1")),
-          downloadButton(outputId = ns("otable_download"), label = "Download Table"),
-        )
-      ),
-      fluidRow(
-        box(
-          plotly::plotlyOutput(ns('boxplot_chart'), width = '100%', height = '100%'),
-          title = "Boxplot Chart: (click on one taxa above)", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
-        )
-      ),
-      fluidRow(
-        box(
-          uiOutput(ns("krona_select")),
-          uiOutput(ns("krona_exclud")),
-          uiOutput(ns("krona_glom")),
-          actionButton(ns("launch_krona"), "Generate Krona", icon = icon("play-circle"),
-                       style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-          # htmlwidgets::shinyWidgetOutput(ns("krona_plot"), "Krona"),
-          htmlOutput(ns("krona_plot")),
-          title = "Krona plot", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE
-        )
-      )
+    card(
+      card_header("Settings"),
+      selectInput(ns("Fact1"), label = "Select factor to test: ", choices = ""),
+      uiOutput(ns("lvls1")),
+      numericInput(ns("minAb"), "Minimum raw abundance to detect a taxa in group of samples:", 1, min = 1, max = NA),
+      actionButton(ns("go1"), "Run/Update ASVenn", icon = icon("play-circle"),
+                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Venn Diagram classic"),
+      plotOutput(ns("venn2"), height = "800px")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Venn Diagram VennR"),
+      imageOutput(ns("venn1"), width = "100%", height = "100%")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Venn table"),
+      h3("Click on rows to generate boxplot displaying raw abundance of the taxa."),
+      DT::dataTableOutput(ns("tabvenn1")),
+      downloadButton(outputId = ns("otable_download"), label = "Download Table")
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Boxplot Chart (click on one taxa above)"),
+      plotly::plotlyOutput(ns('boxplot_chart'), width = '100%', height = '100%')
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Krona plot"),
+      uiOutput(ns("krona_select")),
+      uiOutput(ns("krona_exclud")),
+      uiOutput(ns("krona_glom")),
+      actionButton(ns("launch_krona"), "Generate Krona", icon = icon("play-circle"),
+                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+      htmlOutput(ns("krona_plot"))
     )
   )
 }

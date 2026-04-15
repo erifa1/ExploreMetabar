@@ -16,67 +16,62 @@
 mod_diffanalysis_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      box(title = "Settings:", width = 6, status = "warning", solidHeader = TRUE,
-        uiOutput(ns("factor1")),
-        fluidRow(column(3, uiOutput(ns("cond1")) ),
-                 column(3, uiOutput(ns("cond2")) )
-        ),
-        numericInput(ns("pval"),
-                     label = "Define pvalue threshold:",
-                     min = 0, max = 1,
-                     value = 0.05
-        )
+    card(
+      card_header("Settings"),
+      uiOutput(ns("factor1")),
+      layout_columns(
+        col_widths = c(6, 6),
+        uiOutput(ns("cond1")),
+        uiOutput(ns("cond2"))
       ),
+      numericInput(ns("pval"),
+                   label = "Define pvalue threshold:",
+                   min = 0, max = 1,
+                   value = 0.05
+      )
+    ),
 
-      box(title = "Differential analysis:", width = 12, status = "primary", solidHeader = TRUE,
-          tabsetPanel(
-            tabPanel("DESeq2",
-                     # verbatimTextOutput(ns("print1")),
-                     actionButton(ns("go_deseq"), "Run DESeq2", icon = icon("play-circle"),
-                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     DT::dataTableOutput(ns("deseqTab"))
-
-                     ),
-            tabPanel("MetaGenomeSeq",
-                     h1("Run MGseq with same settings:"),
-                     actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle"),
-                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     DT::dataTableOutput(ns("MGseqTab"))
-            ),
-            tabPanel("MetaCoder",
-                     h1("Run Metacoder wilcox test with fdr correction:"),
-                     actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle"),
-                                  style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                     DT::dataTableOutput(ns("mtcoderTab")),
-                     plotOutput(ns("plot_metacoder"), height = "1000px")
-            ),
-            # tabPanel("Wilcox non parametric test",
-            #          h1("Run Wilcox tests with same settings:"),
-            #          actionButton(ns("go3"), "Run Wilcox"),
-            #          DT::dataTableOutput(ns("WilcoxTab"))
-            # ),
-            tabPanel("Merge results",
-                     h1("Merge results of differential analysis:"),
-                     # verbatimTextOutput(ns("mergePrint")),
-                     box(
+    card(
+      full_screen = TRUE,
+      card_header("Differential analysis"),
+      navset_card_underline(
+        nav_panel("DESeq2",
+                   actionButton(ns("go_deseq"), "Run DESeq2", icon = icon("play-circle"),
+                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+                   DT::dataTableOutput(ns("deseqTab"))
+        ),
+        nav_panel("MetaGenomeSeq",
+                   h3("Run MGseq with same settings:"),
+                   actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle"),
+                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+                   DT::dataTableOutput(ns("MGseqTab"))
+        ),
+        nav_panel("MetaCoder",
+                   h3("Run Metacoder wilcox test with fdr correction:"),
+                   actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle"),
+                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
+                   DT::dataTableOutput(ns("mtcoderTab")),
+                   plotOutput(ns("plot_metacoder"), height = "1000px")
+        ),
+        nav_panel("Merge results",
+                   h3("Merge results of differential analysis:"),
+                   card(
+                     card_header("Aggregate table"),
                      downloadButton(outputId = ns("merge_download"), label = "Download Table"),
                      downloadButton(outputId = ns("fasta_download"), label = "Download FASTA"),
-                     DT::dataTableOutput(ns("mergeTab")),
-                     title = "Aggregate table:", width = 12, status = "primary", solidHeader = TRUE),
-
-                     box(
-                       sliderInput(ns("Nmeth"), "Number of diff. methods :",
-                                   min = 1, max = 3, value = 1
-                       ),
+                     DT::dataTableOutput(ns("mergeTab"))
+                   ),
+                   card(
+                     card_header("Plotting features"),
+                     sliderInput(ns("Nmeth"), "Number of diff. methods :",
+                                 min = 1, max = 3, value = 1
+                     ),
                      numericInput(ns("minAb"), "Minimum mean relative abundance:", value = 0.001, min = 0, max = 1, step = 1000),
                      sliderInput(ns("Nfeat"), "Number of features to plot:",
                                  min = 0, max = 100, value = 50
                      ),
-                     plotlyOutput(ns("barplot1"), height = "800px"), #, height = "1000px"
-                     title = "Plotting features:", width = 12, status = "primary", solidHeader = TRUE)
-            )
-
+                     plotlyOutput(ns("barplot1"), height = "800px")
+                   )
         )
       )
     )

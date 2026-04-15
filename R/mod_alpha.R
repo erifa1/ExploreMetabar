@@ -16,47 +16,67 @@
 #' @importFrom plotly plotlyOutput
 #' @importFrom shinyalert shinyalert useShinyalert
 #' @import bslib
+#' @import bsicons
 mod_alpha_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      infoBox("",
-              "Use the phyloseq object without performing the taxa merging step.",
-              icon = icon("info-circle"), fill=TRUE, width = 10),
+    # Info card
+    card(
+      full_screen = TRUE,
+      card_header(class = "bg-info"),
+      "Use the phyloseq object without performing the taxa merging step."
+    ),
 
-      box(
-        uiOutput(ns('ui_alpha_factor')),
-        checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
+    br(),
 
-        actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-        title = "Settings:", width = 12, status = "warning", solidHeader = TRUE
-      ),
+    # Settings card
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("gear"), " Settings"),
+      uiOutput(ns('ui_alpha_factor')),
+      checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
+      actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play"))
+    ),
 
-      box(
-        DT::dataTableOutput(ns("alphaout")),
-        downloadButton(outputId = ns("alpha_download"), label = "Download Table", icon = icon("download"), class = "butt",
-                       style="background-color: #3b9ef5"),
-        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes table", collapsible = TRUE, collapsed = FALSE
+    br(),
+
+    # Alpha indexes table
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("table"), " Alpha indexes table"),
+      DT::dataTableOutput(ns("alphaout")),
+      downloadButton(outputId = ns("alpha_download"), label = "Download Table")
+    ),
+
+    br(),
+
+    # Alpha by group
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("people"), " Alpha indexes by group"),
+      DT::dataTableOutput(ns("alphagrp")),
+      downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table")
+    ),
+
+    br(),
+
+    # Boxplot
+    card(
+      full_screen = TRUE,
+      card_header(bs_icon("bar-chart"), " Boxplot"),
+      radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                   choices =
+                     list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+                          "InvSimpson"),
+                   selected = c("Shannon")
       ),
-      box(
-        DT::dataTableOutput(ns("alphagrp")),
-        downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table", icon = icon("download"), class = "butt",
-                       style="background-color: #3b9ef5"),
-        width=12, status = "primary", solidHeader = TRUE, title = "Alpha indexes by group", collapsible = TRUE, collapsed = FALSE
-      ),
-      box(
-        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                     choices =
-                       list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                            "InvSimpson"),
-                     selected = c("Shannon")
-        ),
-        plotly::plotlyOutput(ns("boxplot")),
-        width=12, status = "primary", solidHeader = TRUE, title = "Boxplot"
-      ),
-      uiOutput(ns('anovaBox'))
-    )
+      plotly::plotlyOutput(ns("boxplot"))
+    ),
+
+    br(),
+
+    # Statistics and tests
+    uiOutput(ns('anovaBox'))
   )
 }
 
@@ -70,6 +90,8 @@ mod_alpha_ui <- function(id){
 #' @importFrom plotly renderPlotly config layout
 #' @importFrom agricolae HSD.test
 #' @importFrom gtools mixedsort
+#' @import futile.logger
+#' @importFrom futile.logger flog.info
 
 mod_alpha_server <- function(id, r) {
   moduleServer(id, function(input, output, session) {
@@ -80,7 +102,7 @@ mod_alpha_server <- function(id, r) {
   local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
   isNumFactor   <- make_is_num_factor(get_meta_col, local_metadata)
   local_physeq  <- make_local_physeq(local_metadata, r)
-  
+
 
   observeEvent(r$tabs$tabselected, {
     flog.info(paste0('tab - ', r$tabs$tabselected))
@@ -89,8 +111,8 @@ mod_alpha_server <- function(id, r) {
       req(FALSE)
     }
   })
-  
-  
+
+
   observe({
     req(r$phyloseq_filtered(), r$var_list())
     shinyWidgets::updatePickerInput(session, "Fact1",
@@ -107,8 +129,7 @@ mod_alpha_server <- function(id, r) {
         )
   })
 
-  
-  
+
   alpha1 <- eventReactive(input$launch_alpha, {
     withProgress(message = 'Computing alpha diversity tables', min=0, max=10, value = 0,{
       flog.info('computing alpha1...')
@@ -135,12 +156,12 @@ mod_alpha_server <- function(id, r) {
     LL$alphatab
   }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
 
-  
+
   alphagrp_table <- eventReactive(input$launch_alpha, {
     req(alpha1(), local_metadata(), get_meta_col())
     withProgress(message = 'Group table', min=0, max=10, value = 0,{
     alpha.table <- alpha1()$alphatab
-    
+
     alpha.table =  tibble::rownames_to_column(alpha.table)
     alpha.table <- dplyr::left_join(local_metadata(), alpha.table, by = c( "sample.id" = "rowname"))
 
@@ -223,16 +244,16 @@ mod_alpha_server <- function(id, r) {
         config(toImageButtonOptions = list(format = "svg"))
     })
   })
-  
-  
+
+
   output$boxplot <- renderPlotly({
     get_box_plot()
   })
-  
+
   output$alphalrm <- renderPrint(
     print(alpha_lm())
   )
-  
+
   alpha_lm <- reactive({
     dt <- boxtab()
     form1 = glue::glue("{input$metrics} ~ Depth + {get_meta_col()}")
@@ -242,30 +263,34 @@ mod_alpha_server <- function(id, r) {
 
   output$anovaBox <- renderUI({
     if(isNumFactor()){
-      box(
+      card(
+        full_screen = TRUE,
+        card_header(bs_icon("calculator"), " Statistics and tests"),
         h3("Linear regression model"),
-        box(verbatimTextOutput(ns("alphalrm")), width=12, status = "primary"),
-        width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
+        card(
+          verbatimTextOutput(ns("alphalrm"))
+        )
       )
     }
     else{
-      box(
-            h3("ANOVA results"),
-            box(verbatimTextOutput(ns("testalpha")), width=12, status = "primary"),
-
-            h3("TukeyHSD test results"),
-            downloadButton(outputId = ns("boxtab_download"), label = "Download Table", icon = icon("download")),
-            DT::dataTableOutput(ns("boxstats")),
-
-            width=12, status = "primary", solidHeader = TRUE, title = "Statistics and tests", collapsible = TRUE
-          )
+      card(
+        full_screen = TRUE,
+        card_header(bs_icon("calculator"), " Statistics and tests"),
+        h3("ANOVA results"),
+        card(
+          verbatimTextOutput(ns("testalpha"))
+        ),
+        h3("TukeyHSD test results"),
+        downloadButton(outputId = ns("boxtab_download"), label = "Download Table"),
+        DT::dataTableOutput(ns("boxstats"))
+      )
     }
   })
-  
-  
+
+
   reacalpha <- reactive({
     req(input$metrics, get_meta_col(), boxtab())
-    
+
     flog.info('Alpha tests...')
     withProgress(message = 'Statistics...', min=0, max=10, value = 0,{
 
@@ -278,7 +303,7 @@ mod_alpha_server <- function(id, r) {
     LL$form1 = form1
     LL$aov1 = summary(anova_res1)
     LL$groups1 <- tukey_hsd[[get_meta_col()]]
-    
+
     LL$groups1 <- LL$groups1 %>% as.data.frame() %>% rownames_to_column('comparison')
 
     setProgress(value = 10, detail = 'done')

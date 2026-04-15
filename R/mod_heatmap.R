@@ -23,75 +23,43 @@
 mod_heatmap_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      fluidRow(
-        box(title = "Settings", width = 6, status = "warning", solidHeader = TRUE,
-            selectInput(
-              ns("rank"),
-              label = "Rank to agglomerate",
-              choices = ""
-            ),
-            selectInput(
-              ns("norm"),
-              label = "Normalization",
-              choices = list(
-                "Raw" = 0 ,
-                "TSS (total-sum normalization)" = 1,
-                "CLR (centered log-ratio)" = 2,
-                "VST (variance stabilizing transformation)" = 3,
-                "hellinger" = 4,
-                "log10" = 5),
-              selected = 0
-            ),
-            selectInput(
-              ns("sample_label"),
-              label = "Sample label",
-              choices = ""
-            ),
-            checkboxInput(ns("select_features"), label = "Features selection", value = FALSE),
-            checkboxInput(ns("clust_taxa"), label = "Taxa clustering", value = FALSE),
-            checkboxInput(ns("clust_samp"), label = "Sample clustering", value = FALSE),
-            selectInput(
-              ns("fact_annot"),
-              label = "Factor annotation",
-              choices = "",
-              multiple = TRUE
-            ),
-            selectInput(
-              ns("taxa_annot"),
-              label = "Taxa annotation",
-              choices = "",
-              multiple = TRUE
-            ),
-            actionButton(ns("launch_heatmap"), "Launch heatmap", icon = icon("play-circle"),
-                         style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+    layout_columns(
+      col_widths = c(6, 6),
+      card(
+        card_header("Settings"),
+        selectInput(ns("rank"), label = "Rank to agglomerate", choices = ""),
+        selectInput(ns("norm"), label = "Normalization",
+          choices = list("Raw" = 0, "TSS (total-sum normalization)" = 1, "CLR (centered log-ratio)" = 2,
+                         "VST (variance stabilizing transformation)" = 3, "hellinger" = 4, "log10" = 5),
+          selected = 0
         ),
-        box(title = "Display settings", width = 6, status = "warning", solidHeader = TRUE,
-            sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
-            sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value= 600),
-            checkboxInput(ns("print_taxa"), label = "Taxa labels", value = TRUE),
-            checkboxInput(ns("print_sample"), label = "Sample labels", value = TRUE),
-            checkboxInput(ns("print_nb"), label = "Frequencies", value = FALSE),
-            selectInput(
-              ns("color_map"),
-              label = "Heatmap color palette",
-              choices = ""
-            )
-        ),
-        uiOutput(ns("ui_sample_clustering")),
-        uiOutput(ns("ui_select_features")),
-        uiOutput(ns("ui_factor_annot_file")),
-        uiOutput(ns("ui_taxa_annot_file")),
-        uiOutput(ns("ui_fact_colors")),
-        uiOutput(ns("ui_taxa_colors"))
+        selectInput(ns("sample_label"), label = "Sample label", choices = ""),
+        checkboxInput(ns("select_features"), label = "Features selection", value = FALSE),
+        checkboxInput(ns("clust_taxa"), label = "Taxa clustering", value = FALSE),
+        checkboxInput(ns("clust_samp"), label = "Sample clustering", value = FALSE),
+        selectInput(ns("fact_annot"), label = "Factor annotation", choices = "", multiple = TRUE),
+        selectInput(ns("taxa_annot"), label = "Taxa annotation", choices = "", multiple = TRUE),
+        actionButton(ns("launch_heatmap"), "Launch heatmap", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
       ),
-      fluidRow(
-        uiOutput(ns("ui_box_heatmap"))
-      ),
-      fluidRow(
-        uiOutput(ns("ui_selected_features"))
-      ),
+      card(
+        card_header("Display settings"),
+        sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
+        sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value = 600),
+        checkboxInput(ns("print_taxa"), label = "Taxa labels", value = TRUE),
+        checkboxInput(ns("print_sample"), label = "Sample labels", value = TRUE),
+        checkboxInput(ns("print_nb"), label = "Frequencies", value = FALSE),
+        selectInput(ns("color_map"), label = "Heatmap color palette", choices = "")
+      )
     ),
+    uiOutput(ns("ui_sample_clustering")),
+    uiOutput(ns("ui_select_features")),
+    uiOutput(ns("ui_factor_annot_file")),
+    uiOutput(ns("ui_taxa_annot_file")),
+    uiOutput(ns("ui_fact_colors")),
+    uiOutput(ns("ui_taxa_colors")),
+    uiOutput(ns("ui_box_heatmap")),
+    uiOutput(ns("ui_selected_features"))
   )
 }
 
@@ -143,7 +111,7 @@ mod_heatmap_server <- function(id, r) {
   })
   
   output$ui_box_heatmap <- renderUI({
-    box(title = "Heatmap", width = 12, status = "primary", solidHeader = TRUE, height = plot_height() + 100,
+    card(full_screen = TRUE, card_header("Heatmap"),
         downloadButton(ns("heatmap_download"), label = "Download plot"),
         plotOutput(ns('heatmap_t'))
     )
@@ -156,7 +124,7 @@ mod_heatmap_server <- function(id, r) {
     }else{
       choice = list("euclidean", "bray", "jaccard", "unifrac", "wunifrac", "dpcoa")
     }
-    box(title = "Sample clustering", width = 6, status = "warning", solidHeader = TRUE,
+    card(card_header("Sample clustering"),
         selectInput(
           ns("dist_method"),
           label = "Distance method",
@@ -174,7 +142,7 @@ mod_heatmap_server <- function(id, r) {
   
   output$ui_select_features <- renderUI({
     req(input$select_features)
-    box(title = "Features selection", width = 6, status = "warning", solidHeader = TRUE,
+    card(card_header("Features selection"),
         radioButtons(ns("selection_method"),
                      label = "Selection method",
                      inline = TRUE,
@@ -496,12 +464,9 @@ mod_heatmap_server <- function(id, r) {
   output$ui_selected_features <- renderUI({
     req(input$selection_method)
     if(input$selection_method == "indicspecies"){
-      box(title = "Selected features", width = 12, status = "primary", collapsible = TRUE, collapsed = FALSE, solidHeader = TRUE,
+      card(card_header("Selected features"),
           downloadButton(ns("table_download"), label = "Download table"),
-          shinycustomloader::withLoader(
-            DT::dataTableOutput(ns("feat")),
-            type = "html", loader = "loader2"
-          )
+          DT::dataTableOutput(ns("feat"))
       )
     }
   })

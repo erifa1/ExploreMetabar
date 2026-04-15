@@ -19,79 +19,62 @@
 mod_beta_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      fluidRow(
-        infoBox("",
-                "Use the phyloseq object without performing the taxa merging step.",
-                icon = icon("info-circle"), fill=TRUE, width = 10
-        )
-      ),
-      fluidRow(
-        box(
-          fluidPage(
-            htmltools::p('In this module, asv table is normalized by hellinger (Legendre & Gallagher 2001) method and environmental variables are centered and scaled.'),
-            fluidRow(
-              radioButtons(ns('ordi_type'), 'Choose your ordination type:',
-                           inline = T,
-                           # choices = c('Unconstrained', 'Constrained', 'Distance-based'),
-                           choices = c('Constrained', 'Distance-based'),
-                           selected = 'Distance-based')
-            ),
-            fluidRow(
-              uiOutput(ns('ui_metrics'))
-            ),
-            fluidRow(
-              radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
-                           choices = '',
-                           selected = ''
-              ),
-              uiOutput(ns('ui_beta_factor'))
-            ),
-            fluidRow(
-              actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
-                           style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
-            )
-          ),  title = "Settings:", width = 6, status = "warning", solidHeader = TRUE
+    card(
+      card_header(class = "bg-info"),
+      "Use the phyloseq object without performing the taxa merging step."
+    ),
+
+    layout_columns(
+      col_widths = c(6, 6),
+      card(
+        card_header("Settings"),
+        htmltools::p('In this module, asv table is normalized by hellinger (Legendre & Gallagher 2001) method and environmental variables are centered and scaled.'),
+        radioButtons(ns('ordi_type'), 'Choose your ordination type:',
+                     inline = TRUE,
+                     choices = c('Constrained', 'Distance-based'),
+                     selected = 'Distance-based'),
+        uiOutput(ns('ui_metrics')),
+        radioButtons(ns("ordination"), "Choose one ordination:", inline = TRUE,
+                     choices = '',
+                     selected = ''
         ),
+        uiOutput(ns('ui_beta_factor')),
+        actionButton(ns("launch_beta"), "Run Beta Plot", icon = icon("play-circle"),
+                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+      ),
+      tagList(
         uiOutput(ns('ui_constrain')),
         uiOutput(ns('ui_ordistep')),
         uiOutput(ns('ui_envfit_box')),
         uiOutput(ns('ui_envfit_box_res'))
-      ),
-      fluidRow(
-        box(
-          shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
-                                            choices =
-                                              list("samples", "taxa", "env"),
-                                            selected = c("samples")
-          ),
-          uiOutput(ns('ui_taxa_rank')),
-          #shinyWidgets::materialSwitch(inputId = ns('ggplot_switch'), label = 'ggplot2 or plotly'),
-          uiOutput(ns('ui_axe_x')),
-          uiOutput(ns('ui_axe_y')),
-          title = "Plot options", width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
-        )
-      ),
-      fluidRow(
-        box(
-          shinycustomloader::withLoader(
-            uiOutput(ns('ui_plot')),
-            # plotly::plotlyOutput(ns("plot1"), height = "730px"),
-            type = "html", loader = "loader4"
-          ),
-          title = "Ordination plot:", width = 12, height = "800px", status = "primary", solidHeader = TRUE
-        ), style = "height:800px;"
-      ),
-      fluidRow(
-        box(
-          plotOutput(ns('screeplot')),
-          title = 'Screeplot', width = 12, collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE)
-      ),
-      fluidRow(
-        uiOutput(ns('ui_permanova_box')),
-        uiOutput(ns('ui_anova_box'))
       )
-    )
+    ),
+
+    card(
+      card_header("Plot options"),
+      shinyWidgets::prettyCheckboxGroup(ns("plot_type"), "Choose plot type:", inline = TRUE,
+                                        choices = list("samples", "taxa", "env"),
+                                        selected = c("samples")
+      ),
+      uiOutput(ns('ui_taxa_rank')),
+      uiOutput(ns('ui_axe_x')),
+      uiOutput(ns('ui_axe_y'))
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Ordination plot"),
+      uiOutput(ns('ui_plot'))
+    ),
+
+    card(
+      full_screen = TRUE,
+      card_header("Screeplot"),
+      plotOutput(ns('screeplot'))
+    ),
+
+    uiOutput(ns('ui_permanova_box')),
+    uiOutput(ns('ui_anova_box'))
   )
 }
 
@@ -147,7 +130,7 @@ mod_beta_server <- function(id, r) {
   output$ui_constrain <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
-      box(title = 'Model parameters', width=6, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
+      card(card_header("Model parameters"),
           htmltools::p('Warning: when integrating environmental variable, samples with missing values are omitted.'),
           radioButtons(inputId = ns('param_mode'),
                        label = 'methode to select parameters',
@@ -323,8 +306,8 @@ mod_beta_server <- function(id, r) {
   output$pairwise_res <- renderUI({
     req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
-      box(
-        title = "Pairwise Adonis Test", width = 12, status = "primary", solidHeader = TRUE,
+      card(
+        card_header("Pairwise Adonis Test"),
         DT::dataTableOutput(ns("adonispairwisetest"))
       )
     }
@@ -351,8 +334,8 @@ mod_beta_server <- function(id, r) {
   output$disper_res <- renderUI({
     req(get_meta_col())
     if(! isNumFactor() && get_meta_col() != 'sample.id'){
-      box(
-        title = "Dispersion results:", width = 12, status = "primary", solidHeader = TRUE,
+      card(
+        card_header("Dispersion results"),
         h3('Boxplots distance to centroid for each group:'),
         checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
         plotlyOutput(ns("dispersionPlot")),
@@ -367,7 +350,7 @@ mod_beta_server <- function(id, r) {
   
   output$ui_beta_factor <- renderUI({
     req(r$var_list())
-    box(
+    tagList(
     shinyWidgets::pickerInput(
        ns("beta_factor"),
        label = "Select factor(s) to color samples and ellipses:",
@@ -442,7 +425,7 @@ mod_beta_server <- function(id, r) {
   output$ui_envfit_box <- renderUI({
     req(input$ordination, local_metadata())
     if(input$ordination %in% c('NMDS', 'PCOA')){
-      box(
+      card(card_header("VEGAN envfit"),
         htmltools::p('The envfit function fits environmental vectors or factors onto an ordination.'),
         shinyWidgets::pickerInput(
           ns("envfit_param"),
@@ -484,7 +467,6 @@ mod_beta_server <- function(id, r) {
           max = 1,
           step = 0.01
         ),
-        title = 'VEGAN envfit', width=6, status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE
       )
     }
   })
@@ -493,10 +475,8 @@ mod_beta_server <- function(id, r) {
   output$ui_envfit_box_res <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('NMDS', 'PCOA')){
-      box(width=6, status = "primary", solidHeader = TRUE, title = 'envfit results', collapsible = TRUE, collapsed = TRUE,
-        verbatimTextOutput(
-          ns('envfit_res')
-        ),
+      card(card_header("envfit results"),
+        verbatimTextOutput(ns('envfit_res'))
       )
     }
   })
@@ -520,8 +500,8 @@ mod_beta_server <- function(id, r) {
   
   output$ui_anova_box <- renderUI({
     if(input$ordination %in% c('RDA', 'CCA')){
-      box(
-        title = "Anova on RDA/CCA results", width = 12, status = "primary", solidHeader = TRUE,
+      card(
+        card_header("Anova on RDA/CCA results"),
         h3("Anova results on model"),
         verbatimTextOutput(ns('anova_res')),
         h3("Anova results on axis"),
@@ -583,8 +563,8 @@ mod_beta_server <- function(id, r) {
   
   output$ui_permanova_box <- renderUI({
     if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
-      box(
-        title = "Permanova with adonis:", width = 12, status = "primary", solidHeader = TRUE,
+      card(
+        card_header("Permanova with adonis"),
         htmltools::p(paste0('Permanova is done on the dissimilarity matrix computed with the selected index.', ' (here ', input$metrics, ' is used)')),
         uiOutput(ns("ui_adonis_factor")),
         actionButton(ns("update_test_btn"), "Update Test", style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),

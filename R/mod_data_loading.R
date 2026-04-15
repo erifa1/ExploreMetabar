@@ -9,179 +9,206 @@
 #' @importFrom shiny NS tagList
 #' @import DT
 #' @importFrom Biostrings writeXStringSet
-#' @importFrom shinyBS bsButton updateButton
 #' @importFrom glue glue
 #' @importFrom futile.logger flog.info flog.debug
 #' @import datamods
 #' @import phyloseq
+#' @import bslib
+#' @importFrom bsicons bs_icon
 #'
 mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
-    fluidPage(
-      fluidRow(infoBox("",
-        HTML(paste("You must validate each step (filtering, normalization) by clicking the corresponding button, even if no modification was made.")),
-        HTML(paste("Otherwise you just need to click 'Launch all' button, then you can use others modules.")),
-        icon = icon("info-circle"), fill=TRUE, width = 6
-      )),
+    layout_sidebar(
+      sidebar = sidebar(
+        title = "Configuration",
+        width = "350px",
+        open = "desktop",
+        accordion(
+          id = ns("config_accordion"),
+          open = "Data input",
+          multiple = TRUE,
 
-      fluidRow(
-        box(
-          title = "Input phyloseq object", status = "warning", solidHeader = TRUE,
-          tags$div(
-            title = "RData where 'data' is a phyloseq object.",
-            fileInput(ns("fileRData"),
-                      label = "RData with phyloseq object : ",
-                      placeholder = "data.RData")
-          ),
-          shinyBS::bsButton(inputId = ns('launch_all'), label = "Launch all", block = F, style = 'danger', type='action')
-        ),
-        box(
-          title = 'Phyloseq preview', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
-          verbatimTextOutput(ns("phy_prev"))
-        )
-      ),
-      
-      fluidRow(
-        uiOutput(ns('ui_combine_columns'))
-      ),
-
-      fluidRow(box(title = "STEP 1: Metadata table",solidHeader = TRUE, status = "warning", width=12,
-
-        tabBox(width=12,
-
-          tabPanel("Metadata / Filters",
-            tags$h3(icon("diagnoses"), "Use filters to subset your dataset based on your metadata :"),
-
-              fluidRow(
-                column(
-                  width = 3,
-                  datamods::filter_data_ui(ns("filtering"), max_height = "500px")
-                ),
-                column(
-                  width = 9,
-                  # progressBar(
-                  #   id = ns("pbar"), value = 100,
-                  #   total = 100, display_pct = TRUE
-                  # ),
-                  DT::dataTableOutput(outputId = ns("metadata_table"))
-                )
-              )
-
-            ),
-          tabPanel("Update variables",
-            fluidRow(
-                column(
-                  width = 12,
-                  datamods::update_variables_ui(ns("vars"))
-                )
-              )
+          accordion_panel(
+            "Data input",
+            icon = bs_icon("upload"),
+            tooltip(
+              fileInput(ns("fileRData"),
+                        label = "RData with phyloseq object :",
+                        placeholder = "data.RData"),
+              "RData where 'data' is a phyloseq object."
             )
           ),
-          actionButton(ns('update_metadata'), " Update Sample", icon("paper-plane"),
-                  style="color: #fff; background-color: #D73925; border-color: #DB4836")
-        )),
 
-      fluidRow(
-        box(
-          title = "STEP 2: Taxonomy rank and filtering options", solidHeader = TRUE, status = "primary", collapsible=FALSE, collapsed=FALSE,
-          selectInput(
-            ns("rank_glom"),
-            label='Select rank to merge taxonomy table',
-            choices='',
-            selected = 1,
+          accordion_panel(
+            "Combine columns",
+            icon = bs_icon("columns-gap"),
+            uiOutput(ns("ui_combine_columns"))
           ),
-          shinyBS::bsButton(inputId = ns('update_taxo0'), label = "Launch glom", block = F, style = 'danger', type='action'),
-          autonumericInput(ns("minAb"), "Minimum taxa overall raw abundance:", value = 0, width = NULL, decimalPlaces = 6),
-          autonumericInput(ns("minPrev"), "Minimum taxa prevalence in samples:", value = 0, width = NULL, decimalPlaces = 6),
-          shinyBS::bsButton(inputId = ns('update_filters'), label = "Update Filters", block = F, style = 'danger', type='action')
-        )
-      ),
 
-      fluidRow(box(title = "STEP 3: Taxa filtering, preview abundances & representative sequences",solidHeader = TRUE, status = "warning", width=12,
-
-        # tabBox(width=12,
-
-          # tabPanel("Metadata / Filters",
-            h3(icon("diagnoses"), "Use filters to subset your dataset based on taxonomy."),
-
-              fluidRow(
-                column(
-                  width = 3,
-                  datamods::filter_data_ui(ns("filtering_taxo"), max_height = "500px")
-                ),
-                column(
-                  width = 9,
-                  # progressBar(
-                  #   id = ns("pbar"), value = 100,
-                  #   total = 100, display_pct = TRUE
-                  # ),
-                  DT::dataTableOutput(outputId = ns("table_taxoFILT"))
-                )
-              ),
-          # actionButton(inputId = ns('subset_taxo'), label = "Update Taxo"),
-          actionButton(ns('subset_taxo'), " Update Taxo", icon("paper-plane"),
-                style="color: #fff; background-color: #D73925; border-color: #DB4836")
-        # )
-      )),
-
-
-      fluidRow(
-        box(
-          title = 'STEP 4: Abundance normalization', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
-          radioButtons(
-            ns("norm_method"),
-            label = "Normalization : ",
-            inline = TRUE,
-            choices = list(
-              "Raw" = 0 ,
-              "TSS (total-sum normalization)" = 1,
-              "CLR (centered log-ratio)" = 2,
-              "VST (variance stabilizing transformation)" = 3
-            ), selected = 1
+          accordion_panel(
+            "Sample filtering",
+            icon = bs_icon("funnel"),
+            datamods::filter_data_ui(ns("filtering"), max_height = "400px")
           ),
-          shinyBS::bsButton(inputId = ns('norm'), label = "Normalize", block = F, style = 'danger', type='action')
-          # actionButton(ns('norm'), "Normalize", class='butt2')
-        ),
-        box(
-          title = 'Final phyloseq object', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
-          verbatimTextOutput(ns("phy_after"))
-        ),
-        box(
-          title = 'Phyloseq normalized object', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
-          verbatimTextOutput(ns("phy_norm"))
-        )
-      ),
-      fluidRow(
-        box(
-          title = 'Download RAW tables', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
-          downloadButton(outputId = ns("raw_otable_download"), label = "Download raw ASV table"),
-          downloadButton(outputId = ns("raw_refseq_download"), label = "Download raw FASTA sequences")
-        ),
-        box(
-          title = 'Download filtered tables', status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE,
-          downloadButton(outputId = ns("filt_otable_download"), label = "Download filtered ASV table"),
-          downloadButton(outputId = ns("filt_norm_otable_download"), label = "Download filtered and normalized ASV table"),
-          downloadButton(outputId = ns("filt_rdata_download"), label = "Download filtered Phyloseq object"),
-          downloadButton(outputId = ns("filt_rdata_norm_download"), label = "Download filtered and normalized Phyloseq object"),
-          downloadButton(outputId = ns("filt_refseq_download"), label = "Download filtered FASTA sequences")
-        )
-      ),
-      fluidRow(
-        box(title = "Color selection", width = 12, status = "warning", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-            infoBox("",
-                    HTML(paste("Accepted formats for color assignation.")),
-                    HTML(paste("When the variable is a <b>factor</b>, modalities must be written in the first column of the Excel file and colors associated in hexadecimal code form in the second column.<br/> When the variable is <b>numeric</b>, a palette must be chosen with the form package::palette written in the Excel file (only packages ggthemes and viridis are accepted).")),
-                    icon = icon("info-circle"), fill = FALSE, width = 12
+
+          accordion_panel(
+            "Taxonomy rank",
+            icon = bs_icon("diagram-3"),
+            selectInput(
+              ns("rank_glom"),
+              label = "Rank to merge taxonomy",
+              choices = "",
+              selected = 1
             ),
-            uiOutput(ns("var_color")),
-            downloadButton(ns("var_color_download"), label = "Download xlsx file"),
-            fileInput(ns("file_var_color"), label = "var-color file", placeholder = "var_colors.xlsx"),
-            verbatimTextOutput(ns("fact_color_file_log")),
-            uiOutput(ns("taxa_color")),
-            downloadButton(ns("taxa_color_download"), label = "Download xlsx file"),
-            fileInput(ns("file_taxa_color"), label = "taxa-color file", placeholder = "taxa_colors.xlsx"),
-            verbatimTextOutput(ns("taxa_color_file_log"))
+            layout_columns(
+              col_widths = c(6, 6),
+              autonumericInput(ns("minAb"), "Min. abundance:", value = 0, width = NULL, decimalPlaces = 6),
+              autonumericInput(ns("minPrev"), "Min. prevalence:", value = 0, width = NULL, decimalPlaces = 6)
+            )
+          ),
+
+          accordion_panel(
+            "Taxa filtering",
+            icon = bs_icon("filter"),
+            datamods::filter_data_ui(ns("filtering_taxo"), max_height = "400px")
+          ),
+
+          accordion_panel(
+            "Normalization",
+            icon = bs_icon("sliders"),
+            radioButtons(
+              ns("norm_method"),
+              label = "Method :",
+              choices = list(
+                "Raw" = 0,
+                "TSS" = 1,
+                "CLR" = 2,
+                "VST" = 3
+              ), selected = 1
+            )
+          )
+        ),
+        tags$hr(),
+        input_task_button(
+          ns("process_data"),
+          label = "Process Data",
+          icon = bs_icon("play-fill"),
+          class = "btn-danger w-100",
+          label_busy = "Processing..."
+        )
+      ),
+
+      # ── Main content area ──
+      card(
+        fill = FALSE,
+        card_header("Phyloseq preview", class = "bg-primary"),
+        card_body(fillable = FALSE, verbatimTextOutput(ns("phy_prev")))
+      ),
+
+      navset_card_underline(
+        id = ns("main_tabs"),
+
+        nav_panel(
+          title = "Metadata",
+          icon = bs_icon("table"),
+          navset_underline(
+            nav_panel(
+              "Table",
+              DT::dataTableOutput(outputId = ns("metadata_table"))
+            ),
+            nav_panel(
+              "Update variables",
+              datamods::update_variables_ui(ns("vars"))
+            )
+          )
+        ),
+
+        nav_panel(
+          title = "Taxonomy",
+          icon = bs_icon("diagram-3"),
+          DT::dataTableOutput(outputId = ns("table_taxoFILT"))
+        ),
+
+        nav_panel(
+          title = "Downloads",
+          icon = bs_icon("download"),
+          layout_column_wrap(
+            width = 1/2,
+            heights_equal = "row",
+            card(
+              fill = FALSE,
+              card_header("RAW tables"),
+              card_body(
+                fillable = FALSE,
+                downloadButton(outputId = ns("raw_otable_download"), label = "Download raw ASV table"),
+                downloadButton(outputId = ns("raw_refseq_download"), label = "Download raw FASTA sequences")
+              )
+            ),
+            card(
+              fill = FALSE,
+              card_header("Filtered tables"),
+              card_body(
+                fillable = FALSE,
+                downloadButton(outputId = ns("filt_otable_download"), label = "Download filtered ASV table"),
+                downloadButton(outputId = ns("filt_norm_otable_download"), label = "Download filtered and normalized ASV table"),
+                downloadButton(outputId = ns("filt_rdata_download"), label = "Download filtered Phyloseq object"),
+                downloadButton(outputId = ns("filt_rdata_norm_download"), label = "Download filtered and normalized Phyloseq object"),
+                downloadButton(outputId = ns("filt_refseq_download"), label = "Download filtered FASTA sequences")
+              )
+            )
+          )
+        ),
+
+        nav_panel(
+          title = "Colors",
+          icon = bs_icon("palette"),
+          accordion(
+            open = FALSE,
+            accordion_panel(
+              "Color format help",
+              HTML("When the variable is a <b>factor</b>, modalities must be written in the first column of the Excel file and colors associated in hexadecimal code form in the second column.<br/> When the variable is <b>numeric</b>, a palette must be chosen with the form package::palette written in the Excel file (only packages ggthemes and viridis are accepted).")
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            div(
+              uiOutput(ns("var_color")),
+              downloadButton(ns("var_color_download"), label = "Download xlsx file"),
+              fileInput(ns("file_var_color"), label = "var-color file", placeholder = "var_colors.xlsx"),
+              verbatimTextOutput(ns("fact_color_file_log"))
+            ),
+            div(
+              uiOutput(ns("taxa_color")),
+              downloadButton(ns("taxa_color_download"), label = "Download xlsx file"),
+              fileInput(ns("file_taxa_color"), label = "taxa-color file", placeholder = "taxa_colors.xlsx"),
+              verbatimTextOutput(ns("taxa_color_file_log"))
+            )
+          )
+        ),
+
+        nav_panel(
+          title = "Pipeline",
+          icon = bs_icon("terminal"),
+          layout_column_wrap(
+            width = 1/3,
+            heights_equal = "row",
+            card(
+              fill = FALSE,
+              card_header("Filtered object"),
+              card_body(fillable = FALSE, verbatimTextOutput(ns("phy_after")))
+            ),
+            card(
+              fill = FALSE,
+              card_header("Normalized object"),
+              card_body(fillable = FALSE, verbatimTextOutput(ns("phy_norm")))
+            ),
+            card(
+              fill = FALSE,
+              card_header("Pipeline log"),
+              card_body(fillable = FALSE, verbatimTextOutput(ns("pipeline_log")))
+            )
+          )
         )
       )
     )
@@ -380,40 +407,41 @@ mod_data_loading_server <- function(id, r) {
 
   })
 
-  #update button color when clicked
-  observeEvent(input$update_metadata,{
-    shinyBS::updateButton(session = session, ns('update_metadata'), block = F, style = 'success')
-    shinyBS::updateButton(session = session, ns('update_filters'), block = F, style = 'danger')
-    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
-    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
-  })
-  observeEvent(input$update_filters,{
-    shinyBS::updateButton(session = session, ns('update_filters'), block = F, style = 'success')
-    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'danger')
-    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
-  })
-  observeEvent(input$subset_taxo,{
-    shinyBS::updateButton(session = session, ns('subset_taxo'), block = F, style = 'success')
-    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'danger')
-  })
-  observeEvent(input$norm,{
-    shinyBS::updateButton(session = session, ns('norm'), block = F, style = 'success')
+  # Pipeline log
+  pipeline_log <- reactiveVal("")
+  log_msg <- function(msg) {
+    pipeline_log(paste0(pipeline_log(), msg, "\n"))
+  }
+
+  output$pipeline_log <- renderPrint({
+    cat(pipeline_log())
   })
 
+  # ── Single "Process Data" pipeline ──
+  observeEvent(input$process_data, {
+    pipeline_log("")
+    log_msg(paste0("[", Sys.time(), "] Pipeline started"))
 
-  observeEvent(input$launch_all, {
+    log_msg("Step 1/4: Subsetting samples...")
     subset_samples()
+    log_msg(paste0("  -> ", phyloseq::nsamples(r_values$phyobj_sub_samples), " samples retained"))
+
+    log_msg("Step 2/4: Taxonomy agglomeration & filtering...")
     glom_taxo()
     launch_filters()
-    subset_taxa()
-    normalize()
-  })
+    log_msg(paste0("  -> ", phyloseq::ntaxa(r_values$phyobj_taxglom), " taxa after glom + filters"))
 
-  observeEvent(input$update_metadata, {
-    flog.info('button update_metadata')
-    subset_samples()
-  },
-  ignoreNULL = TRUE, ignoreInit = TRUE)
+    log_msg("Step 3/4: Taxa subsetting...")
+    subset_taxa()
+    log_msg(paste0("  -> ", phyloseq::ntaxa(r_values$phyobj_final), " taxa retained"))
+
+    log_msg("Step 4/4: Normalization...")
+    normalize()
+    log_msg(paste0("  -> Method: ", c("Raw", "TSS", "CLR", "VST")[as.integer(input$norm_method) + 1]))
+
+    log_msg(paste0("[", Sys.time(), "] Pipeline complete!"))
+    showNotification("Dataset ready!", type = "message", duration = 5)
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
   observe({
@@ -488,14 +516,7 @@ mod_data_loading_server <- function(id, r) {
   })
 
 
-  observeEvent(input$update_taxo0, {
-    glom_taxo()
-  },ignoreInit = TRUE)
-
-
-  observeEvent(input$update_filters, {
-    launch_filters()
-  },ignoreInit = TRUE)
+  # Individual step handlers removed — pipeline runs via "Process Data" button
 
 
   render_taxonomy_table <- reactive({
@@ -584,10 +605,7 @@ mod_data_loading_server <- function(id, r) {
   })
 
 
-  observeEvent(input$subset_taxo, {
-    flog.info('button subset_taxo')
-    subset_taxa()
-  },ignoreNULL = TRUE, ignoreInit = TRUE)
+  # subset_taxo button handler removed — handled by pipeline
 
   ## Filter taxo
 
@@ -649,10 +667,7 @@ mod_data_loading_server <- function(id, r) {
     r_values$phyobj_norm <- FNGdata
   })
 
-  observeEvent(input$norm, {
-    flog.info('button normalize')
-    normalize()
-  },ignoreNULL = TRUE, ignoreInit = TRUE)
+  # norm button handler removed — handled by pipeline
 
 
   output$phy_after <- renderPrint({
@@ -737,8 +752,8 @@ mod_data_loading_server <- function(id, r) {
 
   # final filtered object
   r$phyloseq_filtered <- reactive({
+    req(r_values$phyobj_final)
     r_values$phyobj_final
-    # r_values$phyobj_initial #dev
   })
 
 
@@ -791,19 +806,18 @@ mod_data_loading_server <- function(id, r) {
   })
  
   output$ui_combine_columns <- renderUI({
-    box(title = "Combine columns", width = 12, status = "warning", collapsible = TRUE, collapsed = TRUE, solidHeader = TRUE,
-        column(width = 6,
-               shinyWidgets::pickerInput(
-                 ns("combin_1"),
-                 label = "Variable to combine",
-                 choices = choice_combine_var(),
-                 selected = NULL,
-                 multiple = TRUE,
-                 options = pickerOptions(maxOptions = 1)
-               )),
-        lapply(2:8, FUN = function(i){
-          column(width = 6, uiOutput(ns(paste0("ui_combin_", i))))
-        })
+    tagList(
+      shinyWidgets::pickerInput(
+        ns("combin_1"),
+        label = "Variable to combine",
+        choices = choice_combine_var(),
+        selected = NULL,
+        multiple = TRUE,
+        options = pickerOptions(maxOptions = 1)
+      ),
+      lapply(2:8, FUN = function(i){
+        uiOutput(ns(paste0("ui_combin_", i)))
+      })
     )
   })
   
@@ -1028,7 +1042,10 @@ mod_data_loading_server <- function(id, r) {
   })
   
   rank_list <- reactive({
-    phyloseq::rank_names(r$phyloseq_filtered())
+    req(r$phyloseq_filtered())
+    phy <- r$phyloseq_filtered()
+    validate(need(!is.null(phyloseq::access(phy, "tax_table")), "Tax table not available yet."))
+    phyloseq::rank_names(phy)
   })
   
   taxa_modality <- reactive({
