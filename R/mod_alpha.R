@@ -147,21 +147,10 @@ mod_alpha_server <- function(id, r) {
 
   output$alphaout <- DT::renderDataTable({
     LL = alpha1()
-    LL$alphatab
+    round_df(LL$alphatab, 4)
   }, options = list(
-    pageLength = 5, 
-    scrollX = TRUE,
-    columnDefs = list(list(
-      targets = '_all',
-      render = DT::JS(
-        "function(data, type, row) {",
-        "  if (type === 'display' && !isNaN(parseFloat(data))) {",
-        "    return parseFloat(data).toFixed(4);",
-        "  }",
-        "  return data;",
-        "}"
-      )
-    ))
+    pageLength = 5,
+    scrollX = TRUE
   ))
 
 
@@ -180,8 +169,8 @@ mod_alpha_server <- function(id, r) {
         group_by_at(get_meta_col()) %>%
         summarise(
           tibble(
-            across(where(is.numeric), ~round(mean(.x),2), .names = "mean_{.col}"),
-            across(where(is.numeric), ~round(median(.x),2), .names = "median_{.col}")
+            across(where(is.numeric), ~mean(.x), .names = "mean_{.col}"),
+            across(where(is.numeric), ~median(.x), .names = "median_{.col}")
           )
         )
     }
@@ -191,21 +180,10 @@ mod_alpha_server <- function(id, r) {
   })
 
   output$alphagrp <- DT::renderDataTable({
-    alphagrp_table()
+    round_df(as.data.frame(alphagrp_table()), 4)
   }, options = list(
-    pageLength = 5, 
-    scrollX = TRUE,
-    columnDefs = list(list(
-      targets = '_all',
-      render = DT::JS(
-        "function(data, type, row) {",
-        "  if (type === 'display' && !isNaN(parseFloat(data))) {",
-        "    return parseFloat(data).toFixed(4);",
-        "  }",
-        "  return data;",
-        "}"
-      )
-    ))
+    pageLength = 5,
+    scrollX = TRUE
   ))
 
   output$alphagrp_download <- downloadHandler(
@@ -345,21 +323,10 @@ mod_alpha_server <- function(id, r) {
    tt <- reacalpha()
    anova_df <- as.data.frame(tt$aov1[[1]])
    anova_df <- tibble::rownames_to_column(anova_df, "Term")
-   datatable(anova_df, options = list(
+   datatable(round_df(anova_df, 4), options = list(
      pageLength = 10,
      scrollX = TRUE,
-     dom = 't',
-     columnDefs = list(list(
-       targets = '_all',
-       render = DT::JS(
-         "function(data, type, row) {",
-         "  if (type === 'display' && !isNaN(parseFloat(data))) {",
-         "    return parseFloat(data).toFixed(4);",
-         "  }",
-         "  return data;",
-         "}"
-       )
-     ))
+     dom = 't'
    ))
  }, server = FALSE)
 
@@ -367,21 +334,10 @@ mod_alpha_server <- function(id, r) {
  output$boxstats <- DT::renderDataTable({
    req(reacalpha)
    LL = reacalpha()
-   LL$groups1
+   round_df(as.data.frame(LL$groups1), 4)
  }, filter="top", options = list(
    pageLength = 5,
-   scrollX = TRUE,
-   columnDefs = list(list(
-     targets = '_all',
-     render = DT::JS(
-       "function(data, type, row) {",
-       "  if (type === 'display' && !isNaN(parseFloat(data))) {",
-       "    return parseFloat(data).toFixed(4);",
-       "  }",
-       "  return data;",
-       "}"
-     )
-   ))
+   scrollX = TRUE
  ))
 
 

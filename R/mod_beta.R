@@ -928,22 +928,10 @@ get_axis_names <- reactive({
   })
 
   output$adonistest <- DT::renderDataTable({
-    round_df <- function(x, digits = 4) {
-      if (is.data.frame(x)) {
-        x[] <- lapply(x, function(col) if (is.numeric(col)) round(col, digits) else col)
-      }
-      x
-    }
     round_df(get_adonis_res(), 4)
   })
 
   output$adonispairwisetest <- DT::renderDataTable({
-    round_df <- function(x, digits = 4) {
-      if (is.data.frame(x)) {
-        x[] <- lapply(x, function(col) if (is.numeric(col)) round(col, digits) else col)
-      }
-      x
-    }
     round_df(get_pairwise_res(), 4)
   })
 
@@ -971,22 +959,10 @@ get_axis_names <- reactive({
  })
 
   output$dispersionTable <- DT::renderDataTable({
-    round_df <- function(x, digits = 4) {
-      if (is.data.frame(x)) {
-        x[] <- lapply(x, function(col) if (is.numeric(col)) round(col, digits) else col)
-      }
-      x
-    }
     round_df(as.data.frame(get_dispersion_anova()), 4)
   })
 
   output$dispersionTukey <- DT::renderDataTable({
-    round_df <- function(x, digits = 4) {
-      if (is.data.frame(x)) {
-        x[] <- lapply(x, function(col) if (is.numeric(col)) round(col, digits) else col)
-      }
-      x
-    }
     round_df(as.data.frame(get_dispersion_tukey()$group), 4)
   })
   })

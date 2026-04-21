@@ -99,3 +99,25 @@ make_local_physeq <- function(local_metadata, r) {
     return(phy)
   })
 }
+
+
+#' Round numeric columns of a data.frame
+#'
+#' Helper used at the rendering layer of DT::renderDataTable to limit the
+#' number of displayed decimals without altering the upstream reactive data
+#' (which other reactives may depend on with full precision).
+#'
+#' Non-numeric columns (character, factor, logical, integer kept as-is when
+#' not rounded meaningfully) are left untouched. If the input is not a
+#' data.frame it is returned unchanged.
+#'
+#' @param x A data.frame (or coercible object). Non-data.frames are returned as-is.
+#' @param digits Integer number of decimal places (default: 4).
+#' @return A data.frame with numeric columns rounded to `digits` decimals.
+#' @noRd
+round_df <- function(x, digits = 4) {
+  if (is.data.frame(x)) {
+    x[] <- lapply(x, function(col) if (is.numeric(col)) round(col, digits) else col)
+  }
+  x
+}
