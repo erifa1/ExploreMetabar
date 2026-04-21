@@ -47,9 +47,9 @@ mod_beta_ui <- function(id){
           tooltip(
             radioButtons(ns('ordi_type'), 'Type:',
                          inline = TRUE,
-                         choices = c('Constrained', 'Distance-based'),
+                         choices = c('Distance-based'),
                          selected = 'Distance-based'),
-            "Constrained uses environmental variables. Distance-based uses dissimilarity matrices.",
+            "Distance-based ordination using dissimilarity matrices.",
             placement = "right"
           ),
           uiOutput(ns('ui_metrics')),
@@ -84,14 +84,6 @@ mod_beta_ui <- function(id){
           uiOutput(ns('ui_envfit_box_res'))
         ),
         
-        # ANOVA only (RDA/CCA specific)
-        accordion_panel(
-          "Model ANOVA", 
-          icon = bs_icon("bezier"),
-          tooltip(bs_icon("question-circle"), "ANOVA results for constrained models (RDA/CCA)", placement = "right"),
-          uiOutput(ns('ui_anova_box'))
-        ),
-        
         # Plot options
         accordion_panel(
           "Plot Options", 
@@ -114,12 +106,22 @@ mod_beta_ui <- function(id){
         full_screen = TRUE,
         plotOutput(ns('beta_ggplot'), height = "80vh")
       ),
-      nav_panel("Screeplot", plotOutput(ns('screeplot'))),
+      nav_panel("Screeplot", plotOutput(ns('screeplot'), height = "400px")),
       
       # PERMANOVA (moved from sidebar ui_permanova_box)
       nav_panel(
         title = "PERMANOVA", 
         icon = bs_icon("calculator"),
+        h4("About PERMANOVA"),
+        htmltools::p(
+          "PERMANOVA (Permutational Multivariate Analysis of Variance) tests whether ",
+          "groups of samples differ in their multivariate composition. It partitions the ",
+          "variation of a dissimilarity matrix among explanatory factors and assesses ",
+          "significance via permutations. The formula below uses the factors selected ",
+          "for colors and shapes in the sidebar as explanatory variables, with sequencing ",
+          "depth included as a covariate."
+        ),
+        hr(),
         h3("Adonis formula:"),
         verbatimTextOutput(ns("adonis_formula")),
         hr(),
@@ -130,19 +132,29 @@ mod_beta_ui <- function(id){
         DT::dataTableOutput(ns('adonispairwisetest'))
       ),
       
-      # Dispersion (moved from sidebar ui_dispersion)
+      # Dispersion (flat layout, full_screen only on boxplot)
       nav_panel(
         title = "Dispersion", 
         icon = bs_icon("funnel"),
+        h4("Dispersion Analysis"),
+        htmltools::p(
+          "Multivariate homogeneity of group dispersions (variances) computed with ",
+          "vegan::betadisper(). Boxplots show the distance of each sample to its group ",
+          "centroid; ANOVA and TukeyHSD test for differences in dispersion among groups."
+        ),
+        hr(),
         card(
           full_screen = TRUE,
-          card_header("Dispersion Analysis"),
-          checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
-          navset_card_underline(
-            nav_panel("Boxplots", plotlyOutput(ns("dispersionPlot"))),
-            nav_panel("Anova", DT::dataTableOutput(ns("dispersionTable"))),
-            nav_panel("TukeyHSD", DT::dataTableOutput(ns("dispersionTukey")))
-          )
+          card_header("Boxplots — Distance to centroid"),
+          plotlyOutput(ns("dispersionPlot"))
+        ),
+        card(
+          card_header("ANOVA on dispersion"),
+          DT::dataTableOutput(ns("dispersionTable"))
+        ),
+        card(
+          card_header("TukeyHSD on dispersion"),
+          DT::dataTableOutput(ns("dispersionTukey"))
         )
       )
     )
@@ -261,53 +273,52 @@ mod_beta_server <- function(id, r) {
     )
   })
 
-  # ---- Dynamic UI: constrained model parameters ----
+  # ---- Dynamic UI: constrained model parameters (dbRDA only) ----
   output$ui_constrain <- renderUI({
     req(input$ordination)
-    if(input$ordination %in% c('RDA','CCA', 'dbRDA')){
+    if(input$ordination == 'dbRDA'){
       tooltip(
-        card(card_header(bs_icon("calculator"), "Constrained Model"),
+        card(card_header(bs_icon("calculator"), "dbRDA Constrained Model"),
           htmltools::p(
-            class = "text-warning", 
-            '⚠️ Samples with missing environmental values will be omitted.'
+            class = "text-info",
+            "ℹ️ For dbRDA, the constrained model defines the explanatory variables ",
+            "of the ordination itself (model parameters shown as biplot vectors). ",
+            "This is distinct from envfit, which post-hoc maps environmental ",
+            "variables onto an unconstrained PCoA/NMDS plot."
+          ),
+          htmltools::p(
+            class = "text-warning",
+            '⚠️ Samples with missing values in selected env variables will be omitted.'
           ),
           tooltip(
             radioButtons(inputId = ns('param_mode'),
                          label = 'Parameter selection:',
-                         choices = c('Picker' = 'picker', 'Auto (ordiR2step)' = 'ordiR2step', 'Manual formula' = 'manual')),
-            "Picker: Select variables manually. ordiR2step: Automatic stepwise selection. Manual: Write formula.",
+                         choices = c('Picker' = 'picker', 'Manual formula' = 'manual'),
+                         selected = 'picker'),
+            "Picker: Select variables for ~ formula. Manual: Write formula directly.",
             placement = "right"
           ),
           uiOutput(ns('constr_select')),
-          uiOutput(ns('ordiR2_out')),
-          verbatimTextOutput(ns('formula')),
-          uiOutput(ns('ui_ordiR2_btn'))
+          verbatimTextOutput(ns('formula'))
         ),
-        "Build constrained ordination model (~ environmental variables)",
+        "dbRDA constrained axes from environmental formula. Vectors plotted when 'Env' selected.",
         placement = "right"
       )
     }
   })
 
-  output$ui_ordiR2_btn <- renderUI({
-    if(input$param_mode == 'ordiR2step'){
-      shinyWidgets::actionBttn(inputId = ns('ordiR2_btn'), label = 'launch', size = 'sm')
-    }
-  })
-
-  output$ordiR2_out <- renderUI({
-    req(input$param_mode)
-    if(input$param_mode == 'ordiR2step'){
-      verbatimTextOutput(ns('constr_ordiR2step_out'))
-    }
-  })
-
   output$constr_select <- renderUI({
     req(input$param_mode)
-    if(input$param_mode %in% c('picker', 'ordiR2step')){
+    if(input$param_mode == 'picker'){
+      # Preselect the sidebar factor(s) used for color (beta_factor) when available
+      preselected <- NULL
+      if(isTruthy(input$beta_factor) && input$beta_factor %in% colnames(local_metadata())){
+        preselected <- input$beta_factor
+      }
       shinyWidgets::pickerInput(inputId = ns('constr_picker'),
-                                label = 'Select terms to create a formula',
+                                label = 'Select terms to build the formula:',
                                 choices = colnames(local_metadata()),
+                                selected = preselected,
                                 multiple = TRUE,
                                 options = pickerOptions(
                                   actionsBox = TRUE,
@@ -325,68 +336,11 @@ mod_beta_server <- function(id, r) {
     }
   })
 
-  # ---- ordiR2step computation ----
-  get_ordiR2step <- eventReactive(input$ordiR2_btn, {
-    req(local_metadata(), local_physeq())
-    flog.info('get_ordiR2step() starting...')
-    flog.debug('get_ordiR2step(): ordination=%s, selected_terms=[%s]',
-               input$ordination, paste(input$constr_picker, collapse = ', '))
-
-    spe <- veganifyOTU(local_physeq())
-    spe <- vegan::decostand(spe, method = 'hell')
-
-    env <- local_metadata()[, c(input$constr_picker, 'sample.id')]
-    nsample_before <- nrow(env)
-    env <- na.omit(env)
-    nsample_after <- nrow(env)
-
-    flog.debug('get_ordiR2step(): samples before NA removal=%d, after=%d',
-               nsample_before, nsample_after)
-
-    spe <- spe[env$sample.id,]
-    if('sample.id' %in% colnames(env)){
-      env[,'sample.id'] <- NULL
-    }
-    validate(
-      need(nsample_after > 0, message = 'Too much NAs in your env variables. No sample left.')
-    )
-
-    if(input$ordination == 'RDA'){
-      mod0 <- vegan::rda(spe ~ 1, data = env, na.action = 'na.omit')
-      mod1 <- vegan::rda(spe ~ ., data = env, na.action = 'na.omit')
-    } else if(input$ordination == 'CCA'){
-      mod0 <- vegan::cca(spe ~ 1, data = env, na.action = 'na.omit')
-      mod1 <- vegan::cca(spe ~ ., data = env, na.action = 'na.omit')
-    } else if(input$ordination == 'dbRDA'){
-      validate(
-        need(input$metrics %in% c('bray', 'jaccard'), message = 'ordiR2step works only with bray and jaccard distances.')
-      )
-      if(input$metrics %in% c('bray', 'jaccard')){
-        mod0 <- vegan::capscale(spe ~ 1, data = env, na.action = "na.omit", distance = input$metrics)
-        mod1 <- vegan::capscale(spe ~ ., data = env, na.action = "na.omit", distance = input$metrics)
-      }
-    }
-    res <- list()
-
-    res$sel <- vegan::ordiR2step(mod0, scope = formula(mod1), R2scope = FALSE, trace = FALSE)
-    res$lostsamples <- nsample_before - nsample_after
-    flog.info('get_ordiR2step() end.')
-    return(res)
-  })
-
-  output$constr_ordiR2step_out <- renderPrint({
-    res <- get_ordiR2step()
-    if(res$lostsamples != 0){
-      print(paste0('warn: ', res$lostsamples, ' samples omitted due to NAs in envirnomental variables.'))
-    }
-    print(res$sel$anova)
-  })
-
   output$formula <- renderPrint({
     get_constr_formula()
   })
 
-  # ---- Constrained formula builder ----
+  # ---- Constrained formula builder (dbRDA only) ----
   get_constr_formula <- reactive({
     req(input$param_mode)
     if(input$param_mode == 'picker'){
@@ -395,8 +349,6 @@ mod_beta_server <- function(id, r) {
       } else {
         f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
       }
-    } else if(input$param_mode == 'ordiR2step'){
-      f <- as.character(formula(get_ordiR2step()$sel))
     } else if(input$param_mode == 'manual'){
       f <- input$constr_manual_formula
     }
@@ -418,13 +370,6 @@ mod_beta_server <- function(id, r) {
   })
 
 
-  output$pairwise_res <- renderUI({
-    req(get_meta_col())
-    if(! isNumFactor() && get_meta_col() != 'sample.id'){
-      NULL  # Will be handled in main PERMANOVA navset
-    }
-  })
-
   # ---- Screeplot ----
   get_screeplot <- reactive({
     req(ord())
@@ -443,26 +388,6 @@ mod_beta_server <- function(id, r) {
 
   output$screeplot <- renderPlot({
     get_screeplot()
-  })
-
-  # ---- Dynamic UI: dispersion results ----
-  output$ui_dispersion <- renderUI({
-    req(get_meta_col())
-    if(! isNumFactor() && get_meta_col() != 'sample.id'){
-      tagList(
-        card(
-          card_header("Dispersion Analysis"),
-          checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE)
-        ),
-        navset_card_underline(
-          title = "Dispersion Results",
-          full_screen = TRUE,
-          nav_panel("Boxplots Distance", plotlyOutput(ns("dispersionPlot"))),
-          nav_panel("Anova on Dispersion", DT::dataTableOutput(ns("dispersionTable"))),
-          nav_panel("TukeyHSD Test", DT::dataTableOutput(ns("dispersionTukey")))
-        )
-      )
-    }
   })
 
   # ---- Dynamic UI: factor & shape pickers ----
@@ -503,16 +428,29 @@ mod_beta_server <- function(id, r) {
     )
   })
 
-  # ---- Dynamic UI: envfit ----
+  # ---- Dynamic UI: envfit (PCoA / NMDS only) ----
   output$ui_envfit_box <- renderUI({
     req(input$ordination, local_metadata())
     if(input$ordination %in% c('NMDS', 'PCOA')){
-      card(card_header("VEGAN envfit"),
-        htmltools::p('The envfit function fits environmental vectors or factors onto an ordination.'),
+      all_cols <- sort(colnames(local_metadata()))
+      # Preselect the factors chosen in the sidebar for color and shape
+      preselected <- intersect(c(input$beta_factor, input$beta_shape), all_cols)
+      if(length(preselected) == 0) preselected <- NULL
+
+      card(
+        card_header(bs_icon("compass"), "VEGAN envfit (PCoA / NMDS)"),
+        htmltools::p(
+          class = "text-info",
+          "ℹ️ Envfit post-hoc fits environmental vectors/factors onto an ",
+          "unconstrained ordination (PCoA or NMDS). This is distinct from a dbRDA ",
+          "constrained model, where the explanatory variables are part of the ",
+          "ordination itself."
+        ),
         shinyWidgets::pickerInput(
           ns("envfit_param"),
-          label = "Select one or more factor to use in envfit module:",
-          choices = sort(colnames(local_metadata())),
+          label = "Variables to map onto the ordination:",
+          choices = all_cols,
+          selected = preselected,
           multiple = TRUE,
           options = pickerOptions(
             actionsBox = TRUE,
@@ -521,7 +459,7 @@ mod_beta_server <- function(id, r) {
           ),
           choicesOpt = list(
             content = make_picker_choices(
-              local_metadata(), sort(colnames(local_metadata()))
+              local_metadata(), all_cols
             )
           )
         ),
@@ -531,7 +469,7 @@ mod_beta_server <- function(id, r) {
           min = 0,
           max = 1,
           step = 0.01
-        ),
+        )
       )
     }
   })
@@ -548,118 +486,14 @@ mod_beta_server <- function(id, r) {
 
   # ---- Ordination type observer ----
   observeEvent(input$ordi_type, {
-    if(input$ordi_type == 'Unconstrained'){
-      ch <- c('PCA', 'CA', 'DCA')
-    } else if (input$ordi_type == 'Constrained'){
-      ch <- c('RDA', 'CCA')
-    } else{
-      ch <- c('PCOA', 'NMDS', 'dbRDA')
-    }
+    ch <- c('PCOA', 'NMDS', 'dbRDA')
     updateRadioButtons(session,
                        "ordination",
-                       choices = ch ,
-                       inline = T)
+                       choices = ch,
+                       inline = TRUE,
+                       selected = 'PCOA')
   })
 
-  # ---- Dynamic UI: ANOVA box ----
-  output$ui_anova_box <- renderUI({
-    if(input$ordination %in% c('RDA', 'CCA')){
-      card(
-        card_header("Anova on RDA/CCA results"),
-        h3("Anova results on model"),
-        verbatimTextOutput(ns('anova_res')),
-        h3("Anova results on axis"),
-        verbatimTextOutput(ns('anova_axis_res')),
-        h3("Anova results on terms"),
-        verbatimTextOutput(ns('anova_term_res')),
-        h3('Anova results on contrasts'),
-        verbatimTextOutput(ns('anova_contrasts_res'))
-      )
-    }
-  })
-
-  # ---- ANOVA computations ----
-  get_anova_contrast <- eventReactive(input$launch_beta, {
-    flog.info('get_anova_contrast() starting...')
-    res <- anova(ord(), permutations = permute::how(nperm = 999), by = 'onedf')
-    flog.info('get_anova_contrast() end.')
-    return(res)
-  })
-
-  get_anova_term <- eventReactive(input$launch_beta, {
-    flog.info('get_anova_term() starting...')
-    res <- anova(ord(), permutations = permute::how(nperm = 999), by = 'term')
-    flog.info('get_anova_term() end.')
-    return(res)
-  })
-
-  get_anova_model <- eventReactive(input$launch_beta, {
-    flog.info('get_anova_model() starting...')
-    res <- anova(ord(), permutations = permute::how(nperm = 999))
-    flog.info('get_anova_model() end.')
-    return(res)
-  })
-
-  output$anova_res <- renderPrint({
-    get_anova_model()
-  })
-
-  get_anova_axis <- eventReactive(input$launch_beta, {
-    flog.info('get_anova_axis() starting...')
-    res <- anova(ord(), permutations = permute::how(nperm = 999), by = "axis")
-    flog.info('get_anova_axis() end.')
-    return(res)
-  })
-
-  output$anova_term_res <- renderPrint({
-    get_anova_term()
-  })
-
-  output$anova_contrasts_res <- renderPrint({
-    get_anova_contrast()
-  })
-
-  output$anova_axis_res <- renderPrint({
-    get_anova_axis()
-  })
-
-  # ---- Dynamic UI: PERMANOVA box ----
-  output$ui_permanova_box <- renderUI({
-    if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA')){
-      tagList(
-        card(
-          card_header("PERMANOVA Analysis"),
-          htmltools::p(paste0('Permanova is done on the dissimilarity matrix computed with the selected index.', ' (here ', input$metrics, ' is used)')),
-          uiOutput(ns("ui_adonis_factor")),
-          actionButton(ns("update_test_btn"), "Update Test", class = "btn-primary"),
-          h3('ADONIS formula:'),
-          verbatimTextOutput(ns("adonis_formula"))
-        ),
-        navset_card_underline(
-          title = "PERMANOVA Results",
-          full_screen = TRUE,
-          nav_panel("Adonis Test Result",
-            DT::dataTableOutput(ns('adonistest'))
-          ),
-          nav_panel("Pairwise Adonis Test",
-            DT::dataTableOutput(ns('adonispairwisetest'))
-          )
-        )
-      )
-    }
-  })
-
-  output$ui_adonis_factor = renderUI({
-    req(get_meta_col(), r$sdat())
-    facts = r$var_list()
-    Fchoices = facts[facts != get_meta_col()]
-
-    shinyWidgets::pickerInput(inputId = ns('adonis_factor'),
-                              label = 'Select factor(s) to add as covariable: ',
-                              choices = Fchoices,
-                              multiple = TRUE
-    )
-  })
 
   # ---- Distance matrix computation ----
   physeq_dist <- eventReactive(input$launch_beta, {
@@ -849,8 +683,22 @@ mod_beta_server <- function(id, r) {
   })
 
 get_axis_names <- reactive({
-  req(ord())
   flog.info('get_axis_names() starting...')
+  
+  # Safe fallback before ord() available
+  if (is.null(ord())) {
+    fallback <- switch(input$ordination %||% "PCOA",
+      "NMDS" = c("MDS1", "MDS2"),
+      "PCOA" = c("PC1", "PC2"),
+      "RDA" = c("RDA1", "RDA2"),
+      "CCA" = c("CCA1", "CCA2"),
+      "dbRDA" = c("dbRDA1", "dbRDA2"),
+      c("PC1", "PC2")
+    )
+    flog.debug('get_axis_names(): ord NULL, fallback=%s', paste(fallback, collapse=', '))
+    return(fallback)
+  }
+  
   axes <- colnames(vegan::scores(ord(), display = 'sites'))
   
   # Fallback defaults by ordination type
@@ -877,14 +725,18 @@ get_axis_names <- reactive({
     req(ord(), input$beta_factor)
     flog.info('base_plot() starting...')
     
-    # Default axes if UI not rendered yet
-    axe_x <- input$axe_x %||% get_axis_names()[1]
-    axe_y <- input$axe_y %||% get_axis_names()[2]
+    # Robust axes fallback chain
+    axe_x <- input$axe_x %||% get_axis_names()[1] %||% "PC1"
+    axe_y <- input$axe_y %||% get_axis_names()[2] %||% "PC2"
     
-    # Default plot_type
-    plot_types <- if (is.null(input$plot_type)) "samples" else input$plot_type
+    # Validate axes ready
+    validate(need(!is.null(axe_x) && axe_x != "" && !is.null(axe_y) && axe_y != "", 
+                  "Ordination axes not ready. Click '🚀 Run Ordination Analysis' first."))
     
-    flog.debug('base_plot(): plot_type=[%s], axe_x=%s, axe_y=%s',
+    # Default plot_type safe
+    plot_types <- input$plot_type %||% c("samples")
+    
+    flog.debug('base_plot(): plot_types=%s, axe_x=%s, axe_y=%s',
                paste(plot_types, collapse = ', '), axe_x, axe_y)
                
     withProgress(message = 'Plotting...', min=0, max=10, value = 0,{
@@ -1000,23 +852,22 @@ get_axis_names <- reactive({
   })
 
   # ---- Plot rendering ----
-  observe({
-    base_plot()
+  observeEvent(list(input$axe_x, input$axe_y, input$plot_type, ord()), {
     output$beta_ggplot <- renderPlot({
       base_plot()
     })
-  })
+  }, ignoreNULL = FALSE)
 
-  # ---- PERMANOVA formula ----
+  # ---- PERMANOVA formula (built from sidebar color + shape selections) ----
   get_formula <- reactive({
     req(input$metrics, get_meta_col())
-    form <- glue::glue('dist ~ Depth + ')
-    if(!is.null(input$adonis_factor)){
-      cov1 = paste(input$adonis_factor, collapse = " + ")
-      form <- paste(form, glue::glue('{cov1} + {get_meta_col()}'), sep='')
-    } else{
-      form <- paste(form, glue::glue('{get_meta_col()}'), sep='')
+    terms <- c('Depth', get_meta_col())
+    # Add shape factor(s) only if set and distinct from the color factor
+    if(!is.null(input$beta_shape) && length(input$beta_shape) > 0){
+      extra <- setdiff(input$beta_shape, get_meta_col())
+      terms <- c(terms, extra)
     }
+    form <- paste('dist ~', paste(terms, collapse = ' + '))
     flog.debug('get_formula(): %s', form)
     return(form)
   })
@@ -1047,7 +898,7 @@ get_axis_names <- reactive({
   })
 
   # ---- PERMANOVA (adonis) ----
-  get_adonis_res <- eventReactive(input$launch_beta | input$update_test_btn, {
+  get_adonis_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_formula(), ord())
     flog.info('get_adonis_res() starting...')
     flog.debug('get_adonis_res(): formula=%s', get_formula())
@@ -1061,7 +912,7 @@ get_axis_names <- reactive({
     return(data.frame(res))
   })
 
-  get_pairwise_res <- eventReactive(input$launch_beta | input$update_test_btn, {
+  get_pairwise_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_meta_col(), local_metadata())
     flog.info('get_pairwise_res() starting...')
     flog.debug('get_pairwise_res(): factor=%s, nsamples=%d',
@@ -1097,16 +948,16 @@ get_axis_names <- reactive({
   })
 
   # ---- Dispersion outputs ----
-  dfdisper <- eventReactive(input$launch_beta | input$update_test_btn,{
+  dfdisper <- eventReactive(input$launch_beta, {
     req(get_dispersion_res())
     flog.info('dfdisper() starting...')
 
     df1 = cbind.data.frame(distances = get_dispersion_res()$distances, group = get_dispersion_res()$group)
 
-    if(input$order1){
-      flog.debug('dfdisper(): ordering factor levels with mixedsort')
-      df1$group = factor( df1$group, levels = gtools::mixedsort(levels(df1$group)) )
-    }
+    # Always order factor levels with natural sort (previous optional behavior made default)
+    flog.debug('dfdisper(): ordering factor levels with mixedsort')
+    df1$group = factor(df1$group, levels = gtools::mixedsort(levels(df1$group)))
+
     flog.info('dfdisper() end.')
     return(df1)
   })
