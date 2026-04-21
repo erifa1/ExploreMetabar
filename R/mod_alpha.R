@@ -27,56 +27,50 @@ mod_alpha_ui <- function(id){
       "Use the phyloseq object without performing the taxa merging step."
     ),
 
-    br(),
-
-    # Settings card
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("gear"), " Settings"),
-      uiOutput(ns('ui_alpha_factor')),
-      checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
-      actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play"))
-    ),
-
-    br(),
-
-    # Alpha indexes table
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("table"), " Alpha indexes table"),
-      DT::dataTableOutput(ns("alphaout")),
-      downloadButton(outputId = ns("alpha_download"), label = "Download Table")
-    ),
-
-    br(),
-
-    # Alpha by group
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("people"), " Alpha indexes by group"),
-      DT::dataTableOutput(ns("alphagrp")),
-      downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table")
-    ),
-
-    br(),
-
-    # Boxplot
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("bar-chart"), " Boxplot"),
-      radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
-                   choices =
-                     list("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-                          "InvSimpson"),
-                   selected = c("Shannon")
+    layout_sidebar(
+      # Sidebar: Settings
+      sidebar = card(
+        full_screen = FALSE,
+        card_header(bs_icon("gear"), "Settings"),
+        uiOutput(ns('ui_alpha_factor')),
+        checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
+        actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play"), class = "btn-primary w-100")
       ),
-      plotly::plotlyOutput(ns("boxplot"))
-    ),
 
-    br(),
+      # Main content
+      card(
+        full_screen = TRUE,
+        card_header(bs_icon("table"), "Alpha Indexes"),
 
-    # Statistics and tests
-    uiOutput(ns('anovaBox'))
+        # Navset for tables
+        navset_card_underline(
+          nav_panel(
+            title = "Alpha indexes table",
+            DT::dataTableOutput(ns("alphaout")),
+            downloadButton(outputId = ns("alpha_download"), label = "Download Table")
+          ),
+          nav_panel(
+            title = "Alpha indexes by group",
+            DT::dataTableOutput(ns("alphagrp")),
+            downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table")
+          )
+        )
+      ),
+
+      # Boxplot card (unchanged)
+      card(
+        full_screen = TRUE,
+        card_header(bs_icon("bar-chart"), "Boxplot"),
+        radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
+                     choices = list("Observed", "Chao1", "ACE", "Shannon", "Simpson", "InvSimpson"),
+                     selected = c("Shannon")
+        ),
+        plotly::plotlyOutput(ns("boxplot"))
+      ),
+
+      # Statistics and tests
+      uiOutput(ns('anovaBox'))
+    )
   )
 }
 
@@ -154,7 +148,21 @@ mod_alpha_server <- function(id, r) {
   output$alphaout <- DT::renderDataTable({
     LL = alpha1()
     LL$alphatab
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+  }, options = list(
+    pageLength = 5, 
+    scrollX = TRUE,
+    columnDefs = list(list(
+      targets = '_all',
+      render = DT::JS(
+        "function(data, type, row) {",
+        "  if (type === 'display' && !isNaN(parseFloat(data))) {",
+        "    return parseFloat(data).toFixed(4);",
+        "  }",
+        "  return data;",
+        "}"
+      )
+    ))
+  ))
 
 
   alphagrp_table <- eventReactive(input$launch_alpha, {
@@ -184,7 +192,21 @@ mod_alpha_server <- function(id, r) {
 
   output$alphagrp <- DT::renderDataTable({
     alphagrp_table()
-  }, filter="top",options = list(pageLength = 5, scrollX = TRUE))
+  }, options = list(
+    pageLength = 5, 
+    scrollX = TRUE,
+    columnDefs = list(list(
+      targets = '_all',
+      render = DT::JS(
+        "function(data, type, row) {",
+        "  if (type === 'display' && !isNaN(parseFloat(data))) {",
+        "    return parseFloat(data).toFixed(4);",
+        "  }",
+        "  return data;",
+        "}"
+      )
+    ))
+  ))
 
   output$alphagrp_download <- downloadHandler(
     filename = "alphagrp_index.csv",
@@ -275,14 +297,18 @@ mod_alpha_server <- function(id, r) {
     else{
       card(
         full_screen = TRUE,
-        card_header(bs_icon("calculator"), " Statistics and tests"),
-        h3("ANOVA results"),
-        card(
-          verbatimTextOutput(ns("testalpha"))
-        ),
-        h3("TukeyHSD test results"),
-        downloadButton(outputId = ns("boxtab_download"), label = "Download Table"),
-        DT::dataTableOutput(ns("boxstats"))
+        card_header(bs_icon("calculator"), "Statistics and tests"),
+        navset_card_underline(
+          nav_panel(
+            title = "ANOVA Results",
+            DT::dataTableOutput(ns("testalpha"))
+          ),
+          nav_panel(
+            title = "Post-hoc Tukey HSD Test",
+            DT::dataTableOutput(ns("boxstats")),
+            downloadButton(outputId = ns("boxtab_download"), label = "Download Tukey Table")
+          )
+        )
       )
     }
   })
@@ -314,19 +340,49 @@ mod_alpha_server <- function(id, r) {
  })
 
 
- output$testalpha <- renderPrint({
-  req(input$metrics)
+ output$testalpha <- DT::renderDataTable({
+   req(input$metrics)
    tt <- reacalpha()
-   print(tt$form1)
-   print(tt$aov1)
- })
+   anova_df <- as.data.frame(tt$aov1[[1]])
+   anova_df <- tibble::rownames_to_column(anova_df, "Term")
+   datatable(anova_df, options = list(
+     pageLength = 10,
+     scrollX = TRUE,
+     dom = 't',
+     columnDefs = list(list(
+       targets = '_all',
+       render = DT::JS(
+         "function(data, type, row) {",
+         "  if (type === 'display' && !isNaN(parseFloat(data))) {",
+         "    return parseFloat(data).toFixed(4);",
+         "  }",
+         "  return data;",
+         "}"
+       )
+     ))
+   ))
+ }, server = FALSE)
 
 
  output$boxstats <- DT::renderDataTable({
    req(reacalpha)
    LL = reacalpha()
    LL$groups1
- }, filter="top", options = list(pageLength = 5, scrollX = TRUE))
+ }, filter="top", options = list(
+   pageLength = 5,
+   scrollX = TRUE,
+   columnDefs = list(list(
+     targets = '_all',
+     render = DT::JS(
+       "function(data, type, row) {",
+       "  if (type === 'display' && !isNaN(parseFloat(data))) {",
+       "    return parseFloat(data).toFixed(4);",
+       "  }",
+       "  return data;",
+       "}"
+     )
+   ))
+ ))
 
 
  output$boxtab_download <- downloadHandler(
