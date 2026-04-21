@@ -29,59 +29,42 @@ mod_compo_ui <- function(id){
 
     br(),
 
-    # Settings card
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("gear"), " Settings"),
-      selectInput(
-        ns("RankCompo"),
-        label = "Select rank to plot: ",
-        choices = ""
+    layout_sidebar(
+      # Settings sidebar
+      sidebar = card(
+        full_screen = FALSE,
+        card_header(bs_icon("gear"), " Settings"),
+        selectInput(
+          ns("RankCompo"),
+          label = "Select rank to plot: ",
+          choices = ""
+        ),
+        shinyWidgets::pickerInput(
+          ns("Ord1"),
+          label = "Select one or more categorial variable to order/split samples (X axis): ",
+          choices = "",
+          multiple = TRUE
+        ),
+        numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
+        radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
+        selected = 1, inline = TRUE),
+        checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
+        actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play"))
       ),
-      shinyWidgets::pickerInput(
-        ns("Ord1"),
-        label = "Select one or more categorial variable to order/split samples (X axis): ",
-        choices = "",
-        multiple = TRUE
-      ),
-      numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
-      radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
-      selected = 1, inline = TRUE),
-      checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
-      actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play"))
-    ),
 
-    br(),
-
-    # Relative abundance plot
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("pie-chart"), " Relative abundance"),
-      downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
-      plotlyOutput(ns("compo2"), height = "600px")
-    ),
-
-    br(),
-
-    # Raw abundance plot
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("bar-chart"), " Raw abundance"),
-      downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
-      plotlyOutput(ns("compo1"), height = "600px")
-    ),
-
-    br(),
-
-    # Total sum info
-    card(
-      full_screen = TRUE,
-      card_header(bs_icon("info-circle"), " Total sum per samples"),
-      accordion(
-        open = FALSE,
-        accordion_panel(
-          "Details",
-          verbatimTextOutput(ns("totalsum1"))
+      # Main navset for plots
+      navset_card_underline(
+        nav_panel(
+          title = "Relative abundance",
+          card_header(bs_icon("pie-chart")),
+          downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
+          plotlyOutput(ns("compo2"), height = "600px")
+        ),
+        nav_panel(
+          title = "Raw abundance",
+          card_header(bs_icon("bar-chart")),
+          downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
+          plotlyOutput(ns("compo1"), height = "600px")
         )
       )
     )
@@ -131,6 +114,7 @@ mod_compo_server <- function(id, r) {
     }
   })
 
+  # Reactive dependencies kept for consistency, but no computation
   factor_input <- reactive({ input$Ord1 })
   get_meta_col  <- make_get_meta_col(factor_input, r)
   local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
@@ -173,11 +157,6 @@ mod_compo_server <- function(id, r) {
   output$compo2 <- renderPlotly({
     LL <- compo()
     LL$p2 %>% config(toImageButtonOptions = list(format = "svg"))
-  })
-
-  output$totalsum1 <- renderPrint({
-      Fdata <- r$phyloseq_filtered()
-    print(sample_sums(Fdata))
   })
 
   output$DLcompo2 <- downloadHandler(
