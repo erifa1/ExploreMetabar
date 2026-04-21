@@ -13,66 +13,134 @@
 #' @keywords internal
 #' @export
 #' @importFrom shiny NS tagList
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel
+#'   navset_card_underline nav_panel card card_header tooltip
+#' @importFrom bsicons bs_icon
 mod_diffanalysis_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    card(
-      card_header("Settings"),
-      uiOutput(ns("factor1")),
-      layout_columns(
-        col_widths = c(6, 6),
-        uiOutput(ns("cond1")),
-        uiOutput(ns("cond2"))
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "🧬 Differential Analysis Setup",
+      open = "desktop",
+      width = "350px",
+
+      htmltools::p(
+        "Configure the comparison, then launch DESeq2, MetaGenomeSeq and ",
+        "MetaCoder in one click. Results and merged outputs appear on the right.",
+        style = "font-size: 0.9em; color: grey;"
       ),
-      numericInput(ns("pval"),
-                   label = "Define pvalue threshold:",
-                   min = 0, max = 1,
-                   value = 0.05
+
+      tags$hr(),
+
+      accordion(
+        id = ns("config_accordion"),
+        open = "Analysis Setup",
+        multiple = TRUE,
+
+        accordion_panel(
+          "Analysis Setup",
+          icon = bs_icon("sliders"),
+          tooltip(
+            uiOutput(ns("factor1")),
+            "Factor used to build the contrast for all methods.",
+            placement = "right"
+          ),
+          uiOutput(ns("cond1")),
+          uiOutput(ns("cond2")),
+          tooltip(
+            numericInput(ns("pval"),
+                         label = "Adjusted p-value threshold:",
+                         min = 0, max = 1,
+                         value = 0.05),
+            "Threshold applied to adjusted p-values in every method and in the merge step.",
+            placement = "right"
+          )
+        ),
+
+        accordion_panel(
+          "Plot Options",
+          icon = bs_icon("bar-chart"),
+          tooltip(
+            sliderInput(ns("Nmeth"), "Number of diff. methods:",
+                        min = 1, max = 3, value = 1),
+            "Minimum number of methods (DESeq2 / MGseq / MetaCoder) flagging a feature as significant.",
+            placement = "right"
+          ),
+          tooltip(
+            numericInput(ns("minAb"), "Minimum mean relative abundance:",
+                         value = 0.001, min = 0, max = 1, step = 1000),
+            "Minimum mean relative abundance in at least one of the two conditions.",
+            placement = "right"
+          ),
+          tooltip(
+            sliderInput(ns("Nfeat"), "Number of features to plot:",
+                        min = 0, max = 100, value = 50),
+            "Top features (by |DESeq2 log2FC|) kept for the merged barplot.",
+            placement = "right"
+          )
+        )
+      ),
+
+      tags$hr(),
+
+      div(
+        style = "margin: 1rem 0;",
+        tooltip(
+          actionButton(ns("launch_diff"), "🚀 Run Differential Analyses",
+                       icon = icon("play-circle"),
+                       class = "btn-primary w-100 btn-lg"),
+          "Runs DESeq2, MetaGenomeSeq and MetaCoder with the current settings.",
+          placement = "top"
+        )
       )
     ),
 
-    card(
+    navset_card_underline(
+      title = "Differential Analysis Results",
       full_screen = TRUE,
-      card_header("Differential analysis"),
-      navset_card_underline(
-        nav_panel("DESeq2",
-                   actionButton(ns("go_deseq"), "Run DESeq2", icon = icon("play-circle"),
-                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                   DT::dataTableOutput(ns("deseqTab"))
-        ),
-        nav_panel("MetaGenomeSeq",
-                   h3("Run MGseq with same settings:"),
-                   actionButton(ns("go2"), "Run MGSeq", icon = icon("play-circle"),
-                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                   DT::dataTableOutput(ns("MGseqTab"))
-        ),
-        nav_panel("MetaCoder",
-                   h3("Run Metacoder wilcox test with fdr correction:"),
-                   actionButton(ns("go4"), "Run Metacoder", icon = icon("play-circle"),
-                                style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-                   DT::dataTableOutput(ns("mtcoderTab")),
-                   plotOutput(ns("plot_metacoder"), height = "1000px")
-        ),
-        nav_panel("Merge results",
-                   h3("Merge results of differential analysis:"),
-                   card(
-                     card_header("Aggregate table"),
-                     downloadButton(outputId = ns("merge_download"), label = "Download Table"),
-                     downloadButton(outputId = ns("fasta_download"), label = "Download FASTA"),
-                     DT::dataTableOutput(ns("mergeTab"))
-                   ),
-                   card(
-                     card_header("Plotting features"),
-                     sliderInput(ns("Nmeth"), "Number of diff. methods :",
-                                 min = 1, max = 3, value = 1
-                     ),
-                     numericInput(ns("minAb"), "Minimum mean relative abundance:", value = 0.001, min = 0, max = 1, step = 1000),
-                     sliderInput(ns("Nfeat"), "Number of features to plot:",
-                                 min = 0, max = 100, value = 50
-                     ),
-                     plotlyOutput(ns("barplot1"), height = "800px")
-                   )
+
+      nav_panel(
+        "DESeq2",
+        icon = bs_icon("table"),
+        DT::dataTableOutput(ns("deseqTab"))
+      ),
+
+      nav_panel(
+        "MetaGenomeSeq",
+        icon = bs_icon("table"),
+        DT::dataTableOutput(ns("MGseqTab"))
+      ),
+
+      nav_panel(
+        "MetaCoder — table",
+        icon = bs_icon("table"),
+        DT::dataTableOutput(ns("mtcoderTab"))
+      ),
+
+      nav_panel(
+        "MetaCoder — heat tree",
+        icon = bs_icon("diagram-3"),
+        plotOutput(ns("plot_metacoder"), height = "1000px")
+      ),
+
+      nav_panel(
+        "Merged — table",
+        icon = bs_icon("layers"),
+        card(
+          card_header("Aggregate table"),
+          div(
+            downloadButton(outputId = ns("merge_download"), label = "Download Table"),
+            downloadButton(outputId = ns("fasta_download"), label = "Download FASTA")
+          ),
+          DT::dataTableOutput(ns("mergeTab"))
         )
+      ),
+
+      nav_panel(
+        "Merged — barplot",
+        icon = bs_icon("bar-chart-line"),
+        plotlyOutput(ns("barplot1"), height = "800px")
       )
     )
   )
@@ -106,16 +174,17 @@ mod_diffanalysis_server <- function(id, r) {
   get_meta_col   <- make_get_meta_col(factor_input, r)
   local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
   isNumFactor    <- make_is_num_factor(get_meta_col, local_metadata)
-  
-  
+
+
   local_physeq <- reactive({
-    req(local_metadata(), input$diff_factor, input$Cond1, input$Cond2, r$phyloseq_filtered())
+    req(local_metadata(), input$diff_factor, r$phyloseq_filtered())
     phy <- r$phyloseq_filtered()
     sample_data(phy) <- sample_data(local_metadata())
     if(isNumFactor()){
       s.list <- na.omit(local_metadata()[,c('sample.id', input$diff_factor)])[, 'sample.id']
       phy <- prune_samples(s.list, phy)
     } else {
+      req(input$Cond1, input$Cond2)
       keep <- sample_data(phy)[[input$diff_factor]] %in% c(input$Cond1, input$Cond2)
       phy <- prune_samples(keep, phy)
     }
@@ -164,18 +233,18 @@ mod_diffanalysis_server <- function(id, r) {
                               )
     )
   })
-  
+
 
   output$cond1 = renderUI({
     req(input$diff_factor, r$phyloseq_filtered())
     if(! isNumFactor()){
       selectInput(ns("Cond1"),
-                  label = "Select Condition 1 to compare: ",
+                  label = "Condition 1 to compare: ",
                   choices = unique(local_metadata()[,input$diff_factor])
       )
     }
   })
-  
+
 
   output$cond2 = renderUI({
     req(input$Cond1, input$diff_factor, r$phyloseq_filtered())
@@ -183,16 +252,17 @@ mod_diffanalysis_server <- function(id, r) {
       Conds <- unique(local_metadata()[,input$diff_factor])
       choices2 <- Conds[Conds != input$Cond1]
       selectInput(ns("Cond2"),
-                  label = "Select Condition 2 to compare: ",
+                  label = "Condition 2 to compare: ",
                   choices = choices2
       )
     }
   })
 
 
-  deseqDA = eventReactive(input$go_deseq, {
+  deseqDA = eventReactive(input$launch_diff, {
     withProgress({
-      req(input$diff_factor, input$Cond1, input$Cond2, r$phyloseq_filtered())
+      req(input$diff_factor, r$phyloseq_filtered())
+      if(! isNumFactor()) req(input$Cond1, input$Cond2)
 
       deseq <- phyloseq_to_deseq2(local_physeq(), as.formula(paste0("~", input$diff_factor)))
       gm_mean = function(x, na.rm=TRUE){
@@ -218,10 +288,11 @@ mod_diffanalysis_server <- function(id, r) {
 
 
   output$deseqTab <- DT::renderDataTable({
-    req(deseqDA(), input$pval, local_physeq())
+    req(deseqDA(), input$pval, snap$physeq)
     res <- deseqDA()
+    phy_snap <- snap$physeq
     # Construct table
-    ttable1 <- as.data.frame(phyloseq::tax_table(local_physeq())) %>%
+    ttable1 <- as.data.frame(phyloseq::tax_table(phy_snap)) %>%
               rownames_to_column()
 
     resDESeq <- as.data.frame(res) %>%
@@ -229,47 +300,32 @@ mod_diffanalysis_server <- function(id, r) {
       mutate(absLFC = abs(log2FoldChange)) %>%
       # filter(padj<=input$pval) %>%
       left_join(ttable1, by="rowname")
-    
-    
-    if(!is.null(refseq(local_physeq(), errorIfNULL=FALSE))){
-      sseq1 <- as.data.frame(phyloseq::refseq(local_physeq())) %>%
+
+
+    if(!is.null(refseq(phy_snap, errorIfNULL=FALSE))){
+      sseq1 <- as.data.frame(phyloseq::refseq(phy_snap)) %>%
         rownames_to_column()
-      
+
       if(nrow(sseq1) != 0){
         sseq1 <- rename(sseq1, sequence = 2)
       }
-      
+
       resDESeq <- resDESeq %>% left_join(sseq1, by="rowname")
     }
-    as.data.frame(resDESeq)
+    round_df(as.data.frame(resDESeq), 4)
   }, filter="top", options = list(scrollX = TRUE))
 
 
   #### METAGENOMESEQ
-  mgSeqDA = eventReactive(input$go2, {
+  mgSeqDA = eventReactive(input$launch_diff, {
     withProgress({
-      req(input$diff_factor, input$Cond1, input$Cond2, local_physeq())
-      # if( isNumFactor() ){
-      #   s.list <- na.omit(local_metadata()[,c('sample.id', input$diff_factor)])[, 'sample.id']
-      #   tmp <- prune_samples(s.list, local_physeq())
-      # } else{
-      #   fun <- glue(" tmp <- subset_samples(local_physeq(), {input$diff_factor} %in% c('{input$Cond1}','{input$Cond2}')) ")
-      #   eval(parse(text=fun))
-      # }
-      # browser()
-      # tmp <- prune_taxa(taxa_sums(tmp) >= 1, tmp)
-      # tmp <- prune_samples(sample_sums(tmp) >=1, tmp)
-      # tax_table(tmp) <- NULL #problem with taxonomy table conversion
+      req(input$diff_factor, local_physeq())
+      if(! isNumFactor()) req(input$Cond1, input$Cond2)
       flog.info('metaGseq...')
       MGdata <- phyloseq_to_metagenomeSeq(local_physeq())
       flog.info("phyloseq to metaGseq")
-      # featuresToKeep = which(rowSums(MGdata@assayData$counts) > 0)
-      # samplesToKeep = which(pData(MGdata)[,input$diff_factor] == input$Cond1 | pData(MGdata)[,input$diff_factor] == input$Cond2)
-      # print(samplesToKeep)
-      # obj_f = MGdata[featuresToKeep, samplesToKeep]
 
       #FitFeature model : zero-inflated log-normal model
-      # print('Fitzig Model')
       pd <- pData(MGdata)
       mod <- model.matrix(as.formula(paste("~", input$diff_factor)), data = pd)
 
@@ -286,16 +342,17 @@ mod_diffanalysis_server <- function(id, r) {
       }, message="Performing metagenomeSeq...")
   })
 
-  
+
   output$MGseqTab <- DT::renderDataTable({
-    mgSeqDA()
+    round_df(as.data.frame(mgSeqDA()), 4)
   }, filter="top", options = list(scrollX = TRUE))
 
 
     ### MEtacoder
-  mtcoderDA <- eventReactive(input$go4, {
+  mtcoderDA <- eventReactive(input$launch_diff, {
     withProgress({
-      req(input$diff_factor, input$Cond1, input$Cond2, r$phyloseq_filtered())
+      req(input$diff_factor, r$phyloseq_filtered())
+      if(! isNumFactor()) req(input$Cond1, input$Cond2)
       mean_ratio <- function(abund_1, abund_2) {
         log_ratio <- log2(mean(abund_1) / mean(abund_2))
         if (is.nan(log_ratio)) {
@@ -306,6 +363,8 @@ mod_diffanalysis_server <- function(id, r) {
              mean_diff = mean(abund_1) - mean(abund_2),
              wilcox_p_value = wilcox.test(abund_1, abund_2)$p.value)
       }
+      table <- NULL
+      plot  <- NULL
       if( isNumFactor()){
         table <- NULL
       } else{
@@ -322,26 +381,26 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('metacoder - filter_obs')
         obj <- metacoder::filter_obs(obj, "otu_table", ! no_reads, drop_taxa = TRUE)
         if(nrow(obj$data$otu_table)==0){return(NULL)}
-        
+
         incProgress(amount = 0.2, message = 'Calculating taxon abundance...')
         flog.info('metacoder - calc_taxon_abund')
         obj$data$tax_abund <- metacoder::calc_taxon_abund(obj, "otu_table",  cols = obj$data$sample_data$sample_id)
         obj$data$tax_abund$total <- rowSums(obj$data$tax_abund[, -1]) # -1 = taxon_id column
         flog.info('metacoder - calc_n_samples')
         obj$data$n_samples <- metacoder::calc_n_samples(obj,data="tax_abund")
-        
-        
+
+
         incProgress(amount = 0.4, message = 'Comparing groups...')
         flog.info('metacoder - compare_groups')
         obj$data$diff_table <- metacoder::compare_groups(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id, groups = obj$data$sample_data[[input$diff_factor]], func = mean_ratio)
         flog.info('metacoder - wilcox_p_value')
         obj$data$diff_table$wilcox_p_value <- p.adjust(obj$data$diff_table$wilcox_p_value, method = "fdr")
         table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
-        
+
         flog.info('metacoder - heat_tree')
         incProgress(amount = 0.1, message = 'Plotting tree...')
         obj$data$diff_table$log2_mean_ratio[obj$data$diff_table$wilcox_p_value > 0.05] <- 0
-        
+
         plot <- heat_tree(obj,
                           node_label = taxon_names,
                           node_size = n_obs, # n_obs is a function that calculates, in this case, the number of OTUs per taxon
@@ -352,18 +411,49 @@ mod_diffanalysis_server <- function(id, r) {
                           layout = "davidson-harel", # The primary layout algorithm
                           initial_layout = "reingold-tilford") # The layout algorithm that initializes node locations
       }
-      # fun <- glue(" psobj <- subset_samples(r$phyloseq_filtered(), {input$diff_factor} %in% c('{input$Cond1}','{input$Cond2}')) ")
-      # eval(parse(text=fun))
-      # psobj <- prune_taxa(taxa_sums(psobj) >= 1, psobj)
-      # psobj <- prune_samples(sample_sums(psobj) >=1, psobj)
-      
       }, message = "Performing metacoder...", min = 0, max = 1)
     return_obj <- list(table = table, heat_tree = plot)
       return(return_obj)
     })
 
+
+    # ---- Run-on-click orchestration -----------------------------------------
+    # Snapshot the contrast inputs (factor + conditions + filtered phyloseq)
+    # at the moment the user clicks the Run button. Downstream displays
+    # (deseqTab, mergeTab, barplot) read from this snapshot so they stay
+    # consistent with the data that was actually analysed, even if the user
+    # later tweaks Cond1 / Cond2 / diff_factor without re-clicking Run.
+    snap <- reactiveValues(
+      factor = NULL,
+      cond1  = NULL,
+      cond2  = NULL,
+      is_num = NULL,
+      physeq = NULL
+    )
+
+    observeEvent(input$launch_diff, {
+      req(input$diff_factor, r$phyloseq_filtered())
+      if (! isNumFactor()) req(input$Cond1, input$Cond2)
+
+      # Capture state of the run
+      snap$factor <- input$diff_factor
+      snap$cond1  <- input$Cond1
+      snap$cond2  <- input$Cond2
+      snap$is_num <- isNumFactor()
+      snap$physeq <- local_physeq()
+
+      # Force all three differential analyses to evaluate now,
+      # regardless of which result tab is currently visible. Their
+      # eventReactive caches are populated here, so subsequent tab
+      # navigation just reads cached results without re-running.
+      deseqDA()
+      mgSeqDA()
+      mtcoderDA()
+    }, ignoreInit = TRUE)
+
+
     output$mtcoderTab <- DT::renderDataTable({
-      mtcoderDA()$table
+      round_df(as.data.frame(mtcoderDA()$table), 4)
     }, filter="top", options = list(scrollX = TRUE))
 
 
@@ -371,92 +461,27 @@ mod_diffanalysis_server <- function(id, r) {
       mtcoderDA()$heat_tree
     })
 
-    ### Wilcox test M. Mariadassou
-
-    wilcoxDA = eventReactive(input$go3, {
-      withProgress({
-        req(r$phyloseq_filtered(), input$diff_factor, input$Cond1, input$Cond2)
-        keep <- sample_data(r$phyloseq_filtered())[[input$diff_factor]] %in% c(input$Cond1, input$Cond2)
-        tmp <- subdata <- prune_samples(keep, r$phyloseq_filtered())
-
-        tax_table(tmp) <- NULL
-        wilcoxon_data <- tmp %>%
-          transform_sample_counts(function(x) {x / sum(x)}) %>%
-          psmelt()
-
-
-        log_fold_change <- function(data, variable = input$diff_factor, cond1 = "Feces", cond2 = "Soil") {
-          geom_mean <- function(x) {
-            x <- x[x > 0]
-            mean(log(x))
-          }
-          data %>%
-            group_by(!!enquo(variable)) %>%
-            summarize(geom_mean = geom_mean(Abundance)) %>%
-            filter(!!enquo(variable) %in% c(cond1, cond2)) %>%
-            pull(geom_mean) -> ratios
-          if (is.na(ratios[1])) return(-10)
-          if (is.na(ratios[2])) return(10)
-          ratios[1] - ratios[2]
-        }
-
-        res <- wilcoxon_data %>%
-          group_by(OTU) %>%
-          nest() %>%
-          mutate(
-            wilcox_fit     = map(data, ~ wilcox.test(as.formula(glue("Abundance ~ {input$diff_factor}")), data = .x)),
-            log2FoldChange = purrr::map_dbl(data, log_fold_change),
-            tidied         = map(wilcox_fit, tidy)
-          ) %>%
-          select(-data, -wilcox_fit) %>%
-          unnest(tidied) %>%
-          select(-alternative, -method) %>%
-          rename(pvalue = p.value) %>%
-          ungroup() %>%
-          mutate(padj = p.adjust(pvalue, method = "fdr"))
-
-        #Out
-        LL=list()
-        LL$res = res
-        LL$subdata = subdata
-
-        LL
-
-      }, message="Performing Wilcox test")
-
-    })
-
-    output$WilcoxTab <- DT::renderDataTable({
-      req(input$pval)
-      LL <-wilcoxDA()
-      res = LL$res
-      subdata = LL$subdata
-
-      wilcoxon_results <- res %>%
-        rename(ASV = OTU) %>%
-        filter(padj <= input$pval) %>%
-        inner_join(tax_table(subdata) %>% as("matrix") %>%
-                     as_tibble() %>% mutate(ASV = taxa_names(subdata)),
-                   by = "ASV") %>%
-        mutate(ASV = forcats::fct_reorder(ASV, log2FoldChange))
-
-      if(nrow(wilcoxon_results) != 0){
-        as.data.frame(wilcoxon_results)
-      }else(return(NULL))
-    })
-
 
     mergeList <- reactive({
       withProgress({
-        req(input$pval, input$Cond1, input$Cond2, input$diff_factor)
+        # Use the snapshotted contrast (factor / Cond1 / Cond2 / is_num)
+        # captured at the last button click. This guarantees the merged
+        # output is always consistent with the DA results currently cached
+        # in deseqDA() / mgSeqDA() / mtcoderDA(), even if the user has
+        # since changed the contrast inputs without re-clicking Run.
+        req(input$pval, snap$factor)
+        if(! snap$is_num) req(snap$cond1, snap$cond2)
         flog.info("mergeList")
 
         flog.info("mergeList - metacoder")
-        if(! isNumFactor()){
+        mtList <- NULL
+        if(! snap$is_num){
           mtTab <- mtcoderDA()$table
-          mtList <- mtTab[mtTab$wilcox_p_value <= input$pval, "otu_id"]
+          if(!is.null(mtTab)){
+            mtList <- mtTab[mtTab$wilcox_p_value <= input$pval, "otu_id"]
+          }
         }
-        
+
         if(all(is.na(mtList))){
           mtList <- NULL
         }
@@ -468,7 +493,7 @@ mod_diffanalysis_server <- function(id, r) {
         if(all(is.na(deList))){
           deList <- NULL
         }
-  
+
         flog.info("mergeList - metagenomeSeq")
         mgTab <- mgSeqDA()
         mgList <- row.names(na.omit(mgTab[mgTab$adjPvalues <= input$pval,]))
@@ -483,7 +508,7 @@ mod_diffanalysis_server <- function(id, r) {
 
         #Construction de la table
         flog.info('mergeList - Building table...')
-        comp1 <- paste(input$Cond1, '_vs_' , input$Cond2,sep='')
+        comp1 <- paste(snap$cond1, '_vs_' , snap$cond2, sep='')
         col_comp <- rep(comp1, length(ListAllOtu))
         TABf <- cbind.data.frame(ListAllOtu, col_comp)
 
@@ -492,7 +517,6 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('mergeList - Check methods ...')
         for (j in 1:length(TF)){
           TABtest <- TF[[j]]
-          # TABtest=gsub("\\[|\\]", "", TF[[j]]) # cherche les ASVids
 
           TABtest_signif <- rep(0, length(ListAllOtu))
           names(TABtest_signif) <- ListAllOtu
@@ -516,7 +540,6 @@ mod_diffanalysis_server <- function(id, r) {
         otableNORM <- otu_table(data.norm)
         ssample <- as.matrix(sample_data(data.norm))
         ttax <- tax_table(data.norm)
-        # head(ttax)
 
         seqs = NULL
         if(!is.null(refseq(data.norm, errorIfNULL=FALSE)) ){
@@ -527,13 +550,13 @@ mod_diffanalysis_server <- function(id, r) {
         Gtab <- cbind(as.data.frame(ssample), t(otableNORM))
         MeanRelAbcond1 <- NULL
         for(i in TABf$ListAllOtu){
-          tt <- mean(Gtab[Gtab[,input$diff_factor]==input$Cond1,i], na.rm=TRUE)
+          tt <- mean(Gtab[Gtab[, snap$factor] == snap$cond1, i], na.rm=TRUE)
           MeanRelAbcond1 <- c(MeanRelAbcond1,tt)
         }
         flog.info("mergeList - mean2")
         MeanRelAbcond2 <- NULL
         for(i in TABf$ListAllOtu){
-          tt <- mean(Gtab[Gtab[,input$diff_factor]==input$Cond2,i], na.rm=TRUE)
+          tt <- mean(Gtab[Gtab[, snap$factor] == snap$cond2, i], na.rm=TRUE)
           MeanRelAbcond2 <- c(MeanRelAbcond2,tt)
         }
         TABfbak <- TABf <- cbind(TABf, MeanRelAbcond1, MeanRelAbcond2)
@@ -542,9 +565,9 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('mergeList - Adjusting table...')
         TABf <- TABf[!is.na(TABf$DESeqLFC),]
         TABf$Condition <- rep(NA, nrow(TABf))
-        TABf[TABf$DESeqLFC>0, "Condition"] <- as.character(input$Cond1)
-        TABf[TABf$DESeqLFC<0, "Condition"] <- as.character(input$Cond2)
-        TABf$Condition <- factor(TABf$Condition,  levels = c(as.character(input$Cond1), as.character(input$Cond2)) )
+        TABf[TABf$DESeqLFC>0, "Condition"] <- as.character(snap$cond1)
+        TABf[TABf$DESeqLFC<0, "Condition"] <- as.character(snap$cond2)
+        TABf$Condition <- factor(TABf$Condition,  levels = c(as.character(snap$cond1), as.character(snap$cond2)) )
 
         flog.info("mergeList - Adding taxonomy and sequences...")
 
@@ -552,7 +575,7 @@ mod_diffanalysis_server <- function(id, r) {
         if(!is.null(seqs)){
           TABf <- cbind.data.frame(TABf, sequences = seqs[as.character(TABf[,1])])
         }
-        
+
 
 
         LL <- list()
@@ -566,10 +589,10 @@ mod_diffanalysis_server <- function(id, r) {
 
 
     output$mergeTab <- DT::renderDataTable({
-      mergeList()$TABf
+      round_df(mergeList()$TABf, 4)
       }, filter="top", options = list(scrollX = TRUE), rownames = FALSE)
 
-    
+
     output$merge_download <- downloadHandler(
       filename = "aggregate_table.csv",
       content = function(file) {
@@ -598,11 +621,11 @@ mod_diffanalysis_server <- function(id, r) {
       ## differentialy abundant features on 2 methods
       ## Top abs(LogFolchange)
       ## feature with relative abondance > 0.1% (0.001)
-      
-      TABbar <- TABf[TABf$sumMethods >= input$Nmeth, ] #TABf$DESeq ==1 | TABf$metagenomeSeq ==1 &
-      TABbar <- TABbar[TABbar$MeanRelAbcond1 >= input$minAb | TABbar$MeanRelAbcond2 >= input$minAb, ]    # min mean Abundance to choose
-      TABbar <- tail(TABbar[order(abs(TABbar$DESeqLFC)),], input$Nfeat)      # number of features to plot
-      
+
+      TABbar <- TABf[TABf$sumMethods >= input$Nmeth, ]
+      TABbar <- TABbar[TABbar$MeanRelAbcond1 >= input$minAb | TABbar$MeanRelAbcond2 >= input$minAb, ]
+      TABbar <- tail(TABbar[order(abs(TABbar$DESeqLFC)),], input$Nfeat)
+
       if(nrow(TABbar)!=0){
         if(r$rank_glom() == "ASV"){
           TABbar$tax <- paste( substr(ttax[as.character(TABbar$ListAllOtu),"Species"],1,20),"...","_", TABbar$ListAllOtu, sep="")
@@ -612,10 +635,10 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('reacbarplot1 - ggplot2')
 
         p <- ggplot2::ggplot(data = TABbar, aes(x = reorder(tax, -abs(DESeqLFC)), y = DESeqLFC, fill = Condition ) ) +
-                geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{input$Cond1} vs. {input$Cond2}")) + labs(x='Features') +
+                geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{snap$cond1} vs. {snap$cond2}")) + labs(x='Features') +
                 coord_flip() + theme_bw() +
-                scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5)) + scale_fill_manual(values = r$factor_colors()[[input$diff_factor]])
-                
+                scale_y_continuous(minor_breaks = seq(-1E4 , 1E4, 1), breaks = seq(-1E4, 1E4, 5)) + scale_fill_manual(values = r$factor_colors()[[snap$factor]])
+
         p <- plotly::ggplotly(p)
 
       }else{
@@ -627,20 +650,6 @@ mod_diffanalysis_server <- function(id, r) {
     output$barplot1 <- renderPlotly({
         reacbarplot1()
     })
-
-
-    # output$mergePlot <- renderPlot({
-    #   TF = mergeList()
-    #   venn.plot <- venn.diagram(TF, filename = NULL, col = "black",
-    #                             fill = rainbow(length(TF)), alpha = 0.50,
-    #                             cex = 2, cat.col = 1, lty = "blank",
-    #                             cat.cex = 2.5, cat.fontface = "bold",
-    #                             margin = 0.07, main="test", main.cex=2.5,
-    #                             fontfamily ="Arial",main.fontfamily="Arial",cat.fontfamily="Arial");
-    #
-    #   grid.draw(venn.plot)
-    #
-    # })
 
   })
 }

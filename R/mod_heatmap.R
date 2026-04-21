@@ -19,47 +19,166 @@
 #' @import DESeq2
 #' @importFrom htmlwidgets saveWidget
 #' @importFrom plotly ggplotly
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel input_task_button tooltip
+#' @importFrom bsicons bs_icon
 
 mod_heatmap_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    layout_columns(
-      col_widths = c(6, 6),
-      card(
-        card_header("Settings"),
-        selectInput(ns("rank"), label = "Rank to agglomerate", choices = ""),
-        selectInput(ns("norm"), label = "Normalization",
-          choices = list("Raw" = 0, "TSS (total-sum normalization)" = 1, "CLR (centered log-ratio)" = 2,
-                         "VST (variance stabilizing transformation)" = 3, "hellinger" = 4, "log10" = 5),
-          selected = 0
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Heatmap configuration",
+      open = "desktop",
+      width = "350px",
+
+      accordion(
+        id = ns("config_accordion"),
+        open = "Heatmap Setup",
+        multiple = TRUE,
+
+        # ── Panel 1: Core heatmap setup ──
+        accordion_panel(
+          "Heatmap Setup",
+          icon = bs_icon("gear"),
+          tooltip(
+            selectInput(ns("rank"), label = "Rank to agglomerate", choices = ""),
+            "Taxonomic rank used to agglomerate ASV counts before computing the heatmap.",
+            placement = "right"
+          ),
+          tooltip(
+            selectInput(ns("norm"), label = "Normalization",
+              choices = list(
+                "Raw" = 0,
+                "TSS (total-sum normalization)" = 1,
+                "CLR (centered log-ratio)" = 2,
+                "VST (variance stabilizing transformation)" = 3,
+                "hellinger" = 4,
+                "log10" = 5
+              ),
+              selected = 0
+            ),
+            "Method used to normalize/transform abundance values displayed in the heatmap.",
+            placement = "right"
+          ),
+          tooltip(
+            selectInput(ns("sample_label"), label = "Sample label", choices = ""),
+            "Metadata column used as label for samples (columns of the heatmap).",
+            placement = "right"
+          )
         ),
-        selectInput(ns("sample_label"), label = "Sample label", choices = ""),
-        checkboxInput(ns("select_features"), label = "Features selection", value = FALSE),
-        checkboxInput(ns("clust_taxa"), label = "Taxa clustering", value = FALSE),
-        checkboxInput(ns("clust_samp"), label = "Sample clustering", value = FALSE),
-        selectInput(ns("fact_annot"), label = "Factor annotation", choices = "", multiple = TRUE),
-        selectInput(ns("taxa_annot"), label = "Taxa annotation", choices = "", multiple = TRUE),
-        actionButton(ns("launch_heatmap"), "Launch heatmap", icon = icon("play-circle"),
-                     style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+
+        # ── Panel 2: Features selection ──
+        accordion_panel(
+          "Features Selection",
+          icon = bs_icon("funnel"),
+          tooltip(
+            checkboxInput(ns("select_features"), label = "Enable features selection", value = FALSE),
+            "Restrict the heatmap to a subset of taxa selected by indicator species analysis or by abundance.",
+            placement = "right"
+          ),
+          uiOutput(ns("ui_select_features"))
+        ),
+
+        # ── Panel 3: Clustering (samples + taxa) ──
+        accordion_panel(
+          "Clustering",
+          icon = bs_icon("diagram-3"),
+          tooltip(
+            checkboxInput(ns("clust_taxa"), label = "Taxa clustering", value = FALSE),
+            "Cluster taxa (rows of the heatmap) based on the displayed values.",
+            placement = "right"
+          ),
+          tooltip(
+            checkboxInput(ns("clust_samp"), label = "Sample clustering", value = FALSE),
+            "Cluster samples (columns of the heatmap) using a chosen distance and linkage method.",
+            placement = "right"
+          ),
+          uiOutput(ns("ui_sample_clustering"))
+        ),
+
+        # ── Panel 4: Annotations & Display ──
+        accordion_panel(
+          "Annotations & Display",
+          icon = bs_icon("brush"),
+          tooltip(
+            selectInput(ns("fact_annot"), label = "Factor annotation", choices = "", multiple = TRUE),
+            "Metadata variables to annotate samples (top of the heatmap).",
+            placement = "right"
+          ),
+          tooltip(
+            selectInput(ns("taxa_annot"), label = "Taxa annotation", choices = "", multiple = TRUE),
+            "Taxonomic ranks to annotate taxa (left side of the heatmap).",
+            placement = "right"
+          ),
+          tooltip(
+            selectInput(ns("color_map"), label = "Heatmap color palette", choices = ""),
+            "Color palette used for the heatmap cells (RColorBrewer).",
+            placement = "right"
+          ),
+          tags$hr(),
+          tooltip(
+            sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
+            "Adjust the rendered plot height (pixels).",
+            placement = "right"
+          ),
+          tooltip(
+            sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value = 600),
+            "Adjust the rendered plot width (pixels).",
+            placement = "right"
+          ),
+          tooltip(
+            checkboxInput(ns("print_taxa"), label = "Show taxa labels", value = TRUE),
+            "Display taxa names on the rows of the heatmap.",
+            placement = "right"
+          ),
+          tooltip(
+            checkboxInput(ns("print_sample"), label = "Show sample labels", value = TRUE),
+            "Display sample names on the columns of the heatmap.",
+            placement = "right"
+          ),
+          tooltip(
+            checkboxInput(ns("print_nb"), label = "Show frequencies", value = FALSE),
+            "Print numerical values inside each cell of the heatmap.",
+            placement = "right"
+          )
+        )
       ),
-      card(
-        card_header("Display settings"),
-        sliderInput(ns('plot_height'), label = 'Plot Height', min = 300, max = 2000, step = 100, value = 300),
-        sliderInput(ns('plot_width'), label = 'Plot Width', min = 300, max = 2000, step = 100, value = 600),
-        checkboxInput(ns("print_taxa"), label = "Taxa labels", value = TRUE),
-        checkboxInput(ns("print_sample"), label = "Sample labels", value = TRUE),
-        checkboxInput(ns("print_nb"), label = "Frequencies", value = FALSE),
-        selectInput(ns("color_map"), label = "Heatmap color palette", choices = "")
+
+      tags$hr(),
+
+      # Always-visible launch button placed AFTER the accordion
+      tooltip(
+        input_task_button(
+          ns("launch_heatmap"),
+          label = "Launch heatmap",
+          icon = bs_icon("play-fill"),
+          class = "btn-primary w-100",
+          label_busy = "Computing..."
+        ),
+        "Compute the heatmap with the current settings.",
+        placement = "top"
       )
     ),
-    uiOutput(ns("ui_sample_clustering")),
-    uiOutput(ns("ui_select_features")),
-    uiOutput(ns("ui_factor_annot_file")),
-    uiOutput(ns("ui_taxa_annot_file")),
-    uiOutput(ns("ui_fact_colors")),
-    uiOutput(ns("ui_taxa_colors")),
-    uiOutput(ns("ui_box_heatmap")),
-    uiOutput(ns("ui_selected_features"))
+
+    # ── Main content area ──
+    navset_card_underline(
+      id = ns("main_tabs"),
+      full_screen = TRUE,
+      title = "Heatmap results",
+
+      nav_panel(
+        title = "Heatmap",
+        icon = bs_icon("grid-3x3"),
+        downloadButton(ns("heatmap_download"), label = "Download plot"),
+        plotOutput(ns('heatmap_t'))
+      ),
+
+      nav_panel(
+        title = "Selected Features",
+        icon = bs_icon("table"),
+        uiOutput(ns("ui_selected_features"))
+      )
+    )
   )
 }
 
@@ -110,13 +229,6 @@ mod_heatmap_server <- function(id, r) {
     }
   })
   
-  output$ui_box_heatmap <- renderUI({
-    card(full_screen = TRUE, card_header("Heatmap"),
-        downloadButton(ns("heatmap_download"), label = "Download plot"),
-        plotOutput(ns('heatmap_t'))
-    )
-  })
-  
   output$ui_sample_clustering <- renderUI({
     req(input$clust_samp)
     if(is.null(phyloseq::phy_tree(r$phyloseq_filtered(), errorIfNULL = FALSE))){
@@ -124,34 +236,33 @@ mod_heatmap_server <- function(id, r) {
     }else{
       choice = list("euclidean", "bray", "jaccard", "unifrac", "wunifrac", "dpcoa")
     }
-    card(card_header("Sample clustering"),
-        selectInput(
-          ns("dist_method"),
-          label = "Distance method",
-          choices = choice,
-          selected = "bray"
-        ),
-        selectInput(
-          ns("clust_method"),
-          label = "Clustering method",
-          choices = c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"),
-          selected = "ward.D2"
-        )
+    tagList(
+      selectInput(
+        ns("dist_method"),
+        label = "Distance method",
+        choices = choice,
+        selected = "bray"
+      ),
+      selectInput(
+        ns("clust_method"),
+        label = "Clustering method",
+        choices = c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"),
+        selected = "ward.D2"
+      )
     )
   })
   
   output$ui_select_features <- renderUI({
     req(input$select_features)
-    card(card_header("Features selection"),
-        radioButtons(ns("selection_method"),
-                     label = "Selection method",
-                     inline = TRUE,
-                     choices = c("indicspecies", "abundance"),
-                     selected = "indicspecies")
-        ,
-        uiOutput(ns("ui_test_fact")),
-        uiOutput(ns("ui_pval_indicspecies")),
-        uiOutput(ns("ui_type_features"))
+    tagList(
+      radioButtons(ns("selection_method"),
+                   label = "Selection method",
+                   inline = TRUE,
+                   choices = c("indicspecies", "abundance"),
+                   selected = "indicspecies"),
+      uiOutput(ns("ui_test_fact")),
+      uiOutput(ns("ui_pval_indicspecies")),
+      uiOutput(ns("ui_type_features"))
     )
   })
   
@@ -460,22 +571,22 @@ mod_heatmap_server <- function(id, r) {
       return(res)
     }
   })
-  
+
   output$ui_selected_features <- renderUI({
     req(input$selection_method)
     if(input$selection_method == "indicspecies"){
-      card(card_header("Selected features"),
-          downloadButton(ns("table_download"), label = "Download table"),
-          DT::dataTableOutput(ns("feat"))
+      tagList(
+        downloadButton(ns("table_download"), label = "Download table"),
+        DT::dataTableOutput(ns("feat"))
       )
     }
   })
- 
+
   output$feat <- DT::renderDataTable({
     req(selection_features_results())
     selection_features_results()
   }, filter = "top", options = list(scrollX = TRUE))
-  
+
   observe({
     output$heatmap_t <- renderPlot({
       req(heatmap(), plot_height(), plot_width())
@@ -484,7 +595,7 @@ mod_heatmap_server <- function(id, r) {
       })
     }, height = plot_height(), width = plot_width())
   })
-  
+
   output$heatmap_download <- downloadHandler(
     filename = "heatmap.svg",
     content = function(file){
@@ -494,7 +605,7 @@ mod_heatmap_server <- function(id, r) {
       dev.off()
     }
   )
-  
+
   output$table_download <- downloadHandler(
     filename = "heatmap_table.csv",
     content = function(file){
