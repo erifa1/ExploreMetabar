@@ -54,7 +54,8 @@ On Ubuntu 20.04, install system dependencies first:
 apt-get update && apt-get install -y git-core libcurl4-openssl-dev libgit2-dev \
   libglpk-dev libgmp-dev libicu-dev libpng-dev libssl-dev libxml2-dev make \
   pandoc pandoc-citeproc zlib1g-dev libtiff-dev libjpeg-dev libbz2-dev \
-  libgmp3-dev software-properties-common
+  libgmp3-dev software-properties-common libgl1-mesa-dev libglpk-dev libglu1-mesa-dev \
+  libuv1-dev texlive
 ```
 
 **Windows**

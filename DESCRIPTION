@@ -85,9 +85,6 @@ Suggests:
 VignetteBuilder:
     knitr
 Remotes:
-    bioc::3.20/Biobase,
-    bioc::3.20/Biostrings,
-    bioc::3.20/phyloseq,
     HCBravoLab/metagenomeSeq,
     microbiome/microbiome,
     mixOmicsTeam/mixOmics,
