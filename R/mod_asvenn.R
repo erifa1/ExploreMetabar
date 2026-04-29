@@ -7,121 +7,86 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
+#' @importFrom bsicons bs_icon
 mod_asvenn_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    card(
-      card_header(class = "bg-info"),
-      "Select conditions to highlight shared taxa"
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Settings",
+      open = "desktop",
+      width = "350px",
+      htmltools::p(
+        "Select conditions to highlight shared taxa. Venn diagrams show ASV overlap across groups.",
+        style = "font-size: 0.9em; color: grey;"
+      ),
+      tags$hr(),
+      accordion(
+        id = ns("config_accordion"),
+        open = "Venn settings",
+        multiple = TRUE,
+        accordion_panel(
+          "Venn settings",
+          icon = bs_icon("diagram-2"),
+          selectInput(ns("Fact1"), label = "Select factor:", choices = ""),
+          uiOutput(ns("lvls1")),
+          numericInput(
+            ns("minAb"),
+            "Minimum raw abundance to detect a taxon in a group:",
+            value = 1, min = 1, max = NA
+          )
+        ),
+        accordion_panel(
+          "Shared taxa chart",
+          icon = bs_icon("bezier2"),
+          htmltools::p(
+            "Available after running the Venn diagram.",
+            style = "font-size: 0.9em; color: grey;"
+          ),
+          uiOutput(ns("ui_alluvial_ranks"))
+        )
+      ),
+      tags$hr(),
+      actionButton(
+        ns("go1"),
+        "Run / Update Venn",
+        icon = bs_icon("play-fill"),
+        class = "btn-primary w-100 btn-lg"
+      )
     ),
-
-    card(
-      card_header("Settings"),
-      selectInput(ns("Fact1"), label = "Select factor to test: ", choices = ""),
-      uiOutput(ns("lvls1")),
-      numericInput(ns("minAb"), "Minimum raw abundance to detect a taxa in group of samples:", 1, min = 1, max = NA),
-      actionButton(ns("go1"), "Run/Update ASVenn", icon = icon("play-circle"),
-                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
-    ),
-
-    card(
+    navset_card_underline(
+      title = "Results",
       full_screen = TRUE,
-      card_header("Venn Diagram classic"),
-      plotOutput(ns("venn2"), height = "800px")
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Venn Diagram VennR"),
-      imageOutput(ns("venn1"), width = "100%", height = "100%")
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Venn table"),
-      h3("Click on rows to generate boxplot displaying raw abundance of the taxa."),
-      DT::dataTableOutput(ns("tabvenn1")),
-      downloadButton(outputId = ns("otable_download"), label = "Download Table")
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Boxplot Chart (click on one taxa above)"),
-      plotly::plotlyOutput(ns('boxplot_chart'), width = '100%', height = '100%')
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Krona plot"),
-      uiOutput(ns("krona_select")),
-      uiOutput(ns("krona_exclud")),
-      uiOutput(ns("krona_glom")),
-      actionButton(ns("launch_krona"), "Generate Krona", icon = icon("play-circle"),
-                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469"),
-      htmlOutput(ns("krona_plot"))
+      nav_panel(
+        "Venn Classic",
+        icon = bs_icon("diagram-2"),
+        plotOutput(ns("venn2"), height = "600px")
+      ),
+      nav_panel(
+        "Venn VennR",
+        icon = bs_icon("bezier2"),
+        imageOutput(ns("venn1"), width = "100%", height = "600px")
+      ),
+      nav_panel(
+        "Table",
+        icon = bs_icon("table"),
+        htmltools::p("Click on a row to generate the boxplot for that taxon."),
+        DT::dataTableOutput(ns("tabvenn1")),
+        downloadButton(outputId = ns("otable_download"), label = "Download Table")
+      ),
+      nav_panel(
+        "Boxplot",
+        icon = bs_icon("bar-chart-line"),
+        plotly::plotlyOutput(ns("boxplot_chart"), width = "100%", height = "500px")
+      ),
+      nav_panel(
+        "Shared Taxa",
+        icon = bs_icon("bezier2"),
+        plotOutput(ns("alluvial_plot"), height = "600px")
+      )
     )
   )
-}
-
-
-plot_krona <- function(physeq,output,variable, trim=F){
-  # Check if KronaTools are installed.
-  if( system(command = "which ktImportText",
-             intern = FALSE,
-             ignore.stdout = TRUE)) {
-    stop("KronaTools are not installed. Please see https://github.com/marbl/Krona/wiki/KronaTools.")
-  }
-  if( is.null(tax_table(physeq)) ){
-    stop("No taxonomy table available.")
-  }
-  if( ! variable %in% colnames(sample_data(physeq))){
-    stop(paste(variable, "is not a variable in the sample data."))
-  }
-  if (trim == FALSE) {
-    spec.char<- grepl(" |\\(|\\)", as(sample_data(physeq),"data.frame")[,variable] )
-    if(sum(spec.char > 0 )){
-      message("The following lines contains spaces or brackets.")
-      print(paste(which(spec.char)))
-      stop("Use trim=TRUE to convert them automatically or convert manually before re-run")
-    }
-  }
-  # Melt the OTU table and merge associated metadata
-  df<-psmelt(physeq)
-  # Fetch only Abundance, Description and taxonomic rank names columns
-
-  phyla <- intersect(rank_names(physeq), colnames(df))
-  df<-df[ ,c("Abundance", variable, phyla) ]
-  # Make sure there are no spaces left
-  df[,2]<-gsub(" |\\(|\\)","",df[,2])
-  # Convert the field of interest as factor.
-  df[,2]<-as.factor(df[,2])
-  # Create a directory for krona files
-  dir.create(output)
-
-  # For each level of the Description variable
-  # Abundance and taxonomic assignations for each OTU are fetched
-  # and written to a file that would be processed by Krona.
-  for( lvl in levels(df[,2])){
-    write.table(
-      df[which(df[, 2] == lvl & df[,1] != 0), -2],
-      file = paste0(output,"/",lvl, "taxonomy.txt"),
-      sep = "\t",row.names = F,col.names = F,na = "",quote = F)
-  }
-  # Arguments for Krona command
-  # taxonomic file and their associated labels.
-  krona_args<-paste(output,"/",levels(df[,2]),
-                    "taxonomy.txt,",
-                    levels(df[,2]),
-                    sep = "", collapse = " ")
-  # Add html suffix to output
-  output<-paste(output,".html",sep = "")
-  # Execute Krona command
-  system(paste("ktImportText",
-               krona_args,
-               "-o", output,
-               sep = " "))
-  # Run the browser to visualise the output.
-  # browseURL(output)
 }
 
 
@@ -132,12 +97,11 @@ plot_krona <- function(physeq,output,variable, trim=F){
 #' @noRd
 #'
 #' @importFrom futile.logger flog.threshold
-#' @importFrom grid grid.draw
-#' @importFrom grDevices rainbow recordPlot replayPlot
+#' @importFrom grDevices rainbow
 #' @importFrom venn venn
-
 #' @importFrom nVennR plotVenn
 #' @import ggpolypath
+#' @import ggalluvial
 
 
 mod_asvenn_server <- function(id, r) {
@@ -165,26 +129,16 @@ mod_asvenn_server <- function(id, r) {
 
   })
 
-  output$krona_select <- renderUI({
-    req(input$lvls1)
-    checkboxGroupInput(ns('krona_select'), "Select your shared factors:", choices=input$lvls1, inline = TRUE)
+  output$ui_alluvial_ranks <- renderUI({
+    req(r$phyloseq_filtered())
+    ranks <- phyloseq::rank_names(r$phyloseq_filtered())
+    selectInput(
+      ns("alluvial_rank"),
+      label = "Represent taxa at rank:",
+      choices = ranks,
+      selected = ranks[ceiling(length(ranks) / 2)]
+    )
   })
-
-  output$krona_glom <- renderUI({
-    req(input$krona_select)
-    radioButtons(ns('krona_glom'), "Select if you want to agglomerate samples by factor or not:", choices = list('TRUE'=1, 'FALSE'=0), inline=TRUE, selected=1)
-  })
-
-  output$krona_exclud <- renderUI({
-    req(input$krona_select)
-    ch <- dplyr::setdiff(input$lvls1, input$krona_select)
-    checkboxGroupInput(ns('krona_exclud'), "Select your excluded factors:", choices=ch, inline = TRUE)
-  })
-
-
-  krona_dir <- file.path(tempdir(), "krona")
-  dir.create(krona_dir, showWarnings = FALSE, recursive = TRUE)
-  addResourcePath("krona_tmp", krona_dir)
 
   resVenn <- eventReactive(input$go1, {
     req(r$phyloseq_filtered(), input$lvls1)
@@ -301,66 +255,93 @@ mod_asvenn_server <- function(id, r) {
     get_boxplot()
   })
 
-  get_krona_plot <- reactive({
-    req(input$krona_select)
-    flog.info("Drawing krona...")
-    df <- resVenn()$v.table
+  get_alluvial_data <- reactive({
+    req(resVenn(), input$lvls1, input$alluvial_rank)
 
-    flog.info('Selected list: %s', paste(input$krona_select, collapse = ", "))
-    flog.info('Excluded list: %s', paste(input$krona_exclud, collapse = ", "))
+    vtab       <- resVenn()$v.table
+    level_cols <- intersect(input$lvls1, colnames(vtab))
 
-    if(length(input$krona_exclud) > 0){
-      df_ex <- dplyr::select(df, c('taxa', input$krona_exclud) )
-      df_ex$sum <- rowSums(select_if(df_ex, is.numeric ))
-      ex_asv <- rownames(dplyr::filter(df_ex, df_ex$sum >= 1))
-      df <- df[!(df$taxa %in% ex_asv),]
-      flog.info('Excluding %d', length(ex_asv))
-    }
-    df <- dplyr::select(df, c('taxa', input$krona_select))
+    # ASVs present in ALL selected levels → shared; rest → unique to their group(s)
+    shared_asvs <- vtab$taxa[
+      rowSums(vtab[, level_cols, drop = FALSE]) == length(level_cols)
+    ]
 
-    df$sum <- rowSums(select_if(df, is.numeric))
+    tax_at_rank <- as.data.frame(tax_table(r$phyloseq_filtered())) %>%
+      dplyr::select(all_of(input$alluvial_rank)) %>%
+      tibble::rownames_to_column("taxa") %>%
+      dplyr::rename(taxon = !!input$alluvial_rank)
 
-    dff <- dplyr::filter(df, df$sum == length(input$krona_select))
-    phy_obj <- phyloseq::phyloseq(otu_table(r$phyloseq_filtered()), tax_table(r$phyloseq_filtered()), sample_data(r$phyloseq_filtered()))
+    # Work with the full union of taxa across all selected levels
+    phy <- prune_taxa(vtab$taxa, r$phyloseq_filtered())
 
-    flog.info('prune_taxa...')
-    phy_obj <- prune_taxa(dff$taxa, phy_obj)
-    flog.info('prune_taxa done.')
+    rows <- dplyr::bind_rows(lapply(input$lvls1, function(lvl) {
+      keep    <- phyloseq::sample_data(phy)[[input$Fact1]] %in% lvl
+      phy_lvl <- prune_samples(keep, phy)
+      phy_lvl <- prune_samples(sample_sums(phy_lvl) > 0, phy_lvl)
+      if (phyloseq::nsamples(phy_lvl) == 0) return(NULL)
 
-    flog.info('prune_sample...')
-    tt <- r$sdat()[[input$Fact1]] %in% input$krona_select
-    phy_obj <- phyloseq::prune_samples(tt, phy_obj)
-    flog.info('prune_sample done.')
+      data.frame(
+        taxa      = taxa_names(phy_lvl),
+        abundance = taxa_sums(phy_lvl),
+        stringsAsFactors = FALSE
+      ) %>%
+        dplyr::mutate(
+          share_type = ifelse(taxa %in% shared_asvs, "shared", "unique")
+        ) %>%
+        dplyr::left_join(tax_at_rank, by = "taxa") %>%
+        dplyr::group_by(taxon, share_type) %>%
+        dplyr::summarise(abundance = sum(abundance), .groups = "drop") %>%
+        dplyr::mutate(
+          group       = lvl,
+          # shared alluvia use taxon as ID → ribbon flows across groups
+          # unique alluvia use a per-group ID → bar segment only, no ribbon
+          alluvium_id = ifelse(
+            share_type == "shared", taxon,
+            paste(taxon, lvl, "uniq", sep = "_")
+          )
+        ) %>%
+        dplyr::filter(abundance > 0)
+    }))
 
-    phy_obj <- prune_samples(sample_sums(phy_obj) > 0, phy_obj)
-    flog.info(phy_obj)
-    phy_obj@sam_data$sample.id <- rownames(sample_data(phy_obj))
-    flog.info("plot_krona...")
-    krona_output <- file.path(krona_dir, "krona")
-    if(input$krona_glom==1){
-      plot_krona(phy_obj, krona_output, variable = input$Fact1, trim=T)
-    }
-    else{
-      plot_krona(phy_obj, krona_output, variable = 'sample.id', trim=T)
-    }
-
-    flog.info('plot_krona done.')
-    return('krona_tmp/krona.html')
+    # Normalise to relative abundance (%) within each group
+    rows %>%
+      dplyr::group_by(group) %>%
+      dplyr::mutate(pct = abundance / sum(abundance) * 100) %>%
+      dplyr::ungroup()
   })
 
-  krona_reactive <- eventReactive(input$launch_krona, {
-    get_krona_plot()
-  })
+  output$alluvial_plot <- renderPlot({
+    req(get_alluvial_data())
+    df       <- get_alluvial_data()
+    df$group <- factor(df$group, levels = input$lvls1)
+    pal      <- r$taxa_colors()[[input$alluvial_rank]]
 
+    p <- ggplot2::ggplot(df,
+      ggplot2::aes(x = group, y = pct,
+                   stratum = taxon, alluvium = alluvium_id,
+                   fill = taxon, alpha = share_type, label = taxon)) +
+      ggalluvial::geom_alluvium(width = 1/3) +
+      ggalluvial::geom_stratum(width = 1/3, color = "white") +
+      ggplot2::geom_text(stat = "stratum", size = 3, check_overlap = TRUE) +
+      ggplot2::scale_alpha_manual(
+        values = c(shared = 0.9, unique = 0.3),
+        labels = c(shared = "Shared (all groups)", unique = "Group-specific"),
+        name   = NULL
+      ) +
+      ggplot2::theme_minimal(base_size = 13) +
+      ggplot2::labs(
+        x     = input$Fact1,
+        y     = "Relative abundance (%)",
+        title = paste("Taxa at rank:", input$alluvial_rank)
+      ) +
+      ggplot2::theme(legend.position = "right")
 
-  output$krona_plot <- renderUI({
-    flog.info(krona_reactive())
-    tags$iframe(
-      seamless="seamless",
-      src=krona_reactive(),
-      width="100%",
-      height=800
-    )
+    if (!is.null(pal)) {
+      p <- p + ggplot2::scale_fill_manual(
+        values = pal, na.value = "grey70", guide = "none"
+      )
+    }
+    p
   })
   })
 }
