@@ -19,57 +19,51 @@
 #' @import bsicons
 mod_alpha_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    # Info card
-    card(
-      full_screen = TRUE,
-      card_header(class = "bg-info"),
-      "Use the phyloseq object without performing the taxa merging step."
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Settings",
+      open = "desktop",
+      width = "350px",
+      htmltools::p(
+        "Use the phyloseq object without performing the taxa merging step.",
+        style = "font-size: 0.9em; color: grey;"
+      ),
+      tags$hr(),
+      uiOutput(ns('ui_alpha_factor')),
+      checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
+      actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg")
     ),
 
-    layout_sidebar(
-      # Sidebar: Settings
-      sidebar = card(
-        full_screen = FALSE,
-        card_header(bs_icon("gear"), "Settings"),
-        uiOutput(ns('ui_alpha_factor')),
-        checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
-        actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play"), class = "btn-primary w-100")
+    navset_card_underline(
+      title = "Alpha Indexes",
+      full_screen = TRUE,
+      nav_panel(
+        title = "Alpha indexes table",
+        icon = bs_icon("table"),
+        DT::dataTableOutput(ns("alphaout")),
+        downloadButton(outputId = ns("alpha_download"), label = "Download Table")
       ),
-
-      # Main content
-      card(
-        full_screen = TRUE,
-        card_header(bs_icon("table"), "Alpha Indexes"),
-
-        # Navset for tables
-        navset_card_underline(
-          nav_panel(
-            title = "Alpha indexes table",
-            DT::dataTableOutput(ns("alphaout")),
-            downloadButton(outputId = ns("alpha_download"), label = "Download Table")
-          ),
-          nav_panel(
-            title = "Alpha indexes by group",
-            DT::dataTableOutput(ns("alphagrp")),
-            downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table")
-          )
-        )
+      nav_panel(
+        title = "Alpha indexes by group",
+        icon = bs_icon("people"),
+        DT::dataTableOutput(ns("alphagrp")),
+        downloadButton(outputId = ns("alphagrp_download"), label = "Download group Table")
       ),
-
-      # Boxplot card (unchanged)
-      card(
-        full_screen = TRUE,
-        card_header(bs_icon("bar-chart"), "Boxplot"),
+      nav_panel(
+        title = "Boxplot",
+        icon = bs_icon("bar-chart"),
         radioButtons(ns("metrics"), "Choose one index:", inline = TRUE,
                      choices = list("Observed", "Chao1", "ACE", "Shannon", "Simpson", "InvSimpson"),
                      selected = c("Shannon")
         ),
         plotly::plotlyOutput(ns("boxplot"))
       ),
-
-      # Statistics and tests
-      uiOutput(ns('anovaBox'))
+      nav_panel(
+        title = "Statistics",
+        icon = bs_icon("calculator"),
+        uiOutput(ns('anovaBox'))
+      )
     )
   )
 }
@@ -96,15 +90,6 @@ mod_alpha_server <- function(id, r) {
   local_metadata <- make_local_metadata(factor_input, get_meta_col, r)
   isNumFactor   <- make_is_num_factor(get_meta_col, local_metadata)
   local_physeq  <- make_local_physeq(local_metadata, r)
-
-
-  observeEvent(r$tabs$tabselected, {
-    flog.info(paste0('tab - ', r$tabs$tabselected))
-    if(r$tabs$tabselected!='data_loading' && !isTruthy(r$phyloseq_filtered())){
-      shinyalert::shinyalert(title = "Oops", text="Phyloseq object not present. Return to input data and validate all steps.", type='error')
-      req(FALSE)
-    }
-  })
 
 
   observe({
@@ -263,30 +248,18 @@ mod_alpha_server <- function(id, r) {
 
   output$anovaBox <- renderUI({
     if(isNumFactor()){
-      card(
-        full_screen = TRUE,
-        card_header(bs_icon("calculator"), " Statistics and tests"),
+      tagList(
         h3("Linear regression model"),
-        card(
-          verbatimTextOutput(ns("alphalrm"))
-        )
+        verbatimTextOutput(ns("alphalrm"))
       )
-    }
-    else{
-      card(
-        full_screen = TRUE,
-        card_header(bs_icon("calculator"), "Statistics and tests"),
-        navset_card_underline(
-          nav_panel(
-            title = "ANOVA Results",
-            DT::dataTableOutput(ns("testalpha"))
-          ),
-          nav_panel(
-            title = "Post-hoc Tukey HSD Test",
-            DT::dataTableOutput(ns("boxstats")),
-            downloadButton(outputId = ns("boxtab_download"), label = "Download Tukey Table")
-          )
-        )
+    } else {
+      tagList(
+        h3("ANOVA Results"),
+        DT::dataTableOutput(ns("testalpha")),
+        tags$hr(),
+        h3("Post-hoc Tukey HSD Test"),
+        downloadButton(outputId = ns("boxtab_download"), label = "Download Tukey Table"),
+        DT::dataTableOutput(ns("boxstats"))
       )
     }
   })
