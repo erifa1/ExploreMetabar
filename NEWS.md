@@ -1,3 +1,22 @@
+# ExploreMetabar 3.0
+
+## UI overhaul
+* Full migration to **bslib Bootstrap 5**: all modules now use `layout_sidebar`, `navset_card_underline`, and `accordion` panels for a consistent, modern layout.
+
+## New features
+* sPLS-DA workflow (MixOmics module) restructured into three explicit stages: Initial exploration → Parameter tuning (ncomp + keepX) → Final model. Tuning results auto-fill the final stage inputs.
+
+## Bug fixes
+* Fixed NMDS screeplot crash in `mod_beta.R` (`return(p)` called outside branch where `p` was defined).
+* Fixed unifrac validation logic in `mod_beta.R` (wrong boolean operator blocked all metrics when no tree was present).
+* Fixed `req()` calls in `mod_alpha.R` passing reactive function objects instead of reactive values, bypassing NULL guards.
+* Fixed `updateSelectInput()` missing `session` argument in `mod_cluster.R`.
+
+## Internal changes
+* Switched all module roxygen tags from `@export` to `@noRd` per golem convention (module functions are not part of the public API).
+
+* Added missing Bioconductor packages (`Biobase`, `Biostrings`, `DESeq2`, `metagenomeSeq`, `metacoder`, `microbiome`, `mixOmics`, `reshape2`) to DESCRIPTION Imports.
+
 # ExploreMetabar 2.1.0
 
 ## Bug fixes
