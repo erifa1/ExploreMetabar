@@ -9,9 +9,10 @@ aggregate_top_taxa(x, top, level)
 \arguments{
 \item{x}{phyloseq object}
 
-\item{top}{Keep the top-n taxa, and merge the rest under the category 'Other'. Instead of top-n numeric this can also be a character vector listing the groups to combine.}
+\item{top}{Keep the top-n taxa, and merge the rest under the category
+'Other'. Can also be a character vector listing the groups to combine.}
 
-\item{level}{Summarization level (from ‘rank_names(pseq)’)}
+\item{level}{Summarization level (from 'rank_names(pseq)')}
 }
 \description{
 aggregate_top_taxa from microbiome package

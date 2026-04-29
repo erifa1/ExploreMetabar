@@ -349,11 +349,11 @@ mod_beta_server <- function(id, r) {
       validate(
         need(input$metrics %in% c('bray', 'jaccard'), 'Only bray distance supported for NMDS screeplot.')
       )
-      goeveg::dimcheckMDS(get_species_table(), distance = input$metrics, k=5)
-    } else{
+      return(goeveg::dimcheckMDS(get_species_table(), distance = input$metrics, k=5))
+    } else {
       p <- screeplot(ord())
+      return(p)
     }
-    return(p)
   })
 
 
@@ -464,7 +464,7 @@ mod_beta_server <- function(id, r) {
     flog.debug('physeq_dist(): metrics=%s, nsamples=%d',
                input$metrics, phyloseq::nsamples(local_physeq()))
       validate(
-        need(!input$metrics %in% c("unifrac", "wunifrac") & !is.null(local_physeq()@phy_tree),
+        need(!input$metrics %in% c("unifrac", "wunifrac") | !is.null(local_physeq()@phy_tree),
           message = 'Unifrac and wunifrac available if phylogenetic tree available.')
       )
 

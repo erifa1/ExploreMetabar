@@ -5,7 +5,7 @@
 \title{Barplots plotly}
 \usage{
 bars_fun(
-  data = data,
+  data,
   rank = "Genus",
   top = 10,
   Ord1 = NULL,
@@ -21,30 +21,35 @@ bars_fun(
 )
 }
 \arguments{
-\item{data}{a phyloseq object (output from decontam or generate_phyloseq)}
+\item{data}{a phyloseq object}
 
-\item{rank}{Taxonomy rank to merge features that have same taxonomy at a certain taxonomic rank (among rank_names(data), or 'ASV' for no glom)}
+\item{rank}{Taxonomy rank to merge features (among rank_names(data), or
+'ASV' for no glom)}
 
 \item{top}{Number of top taxa to plot}
 
-\item{Ord1}{Variable used to order sample (X axis) or split the barplot if split = TRUE}
+\item{Ord1}{Variable used to order samples (X axis) or split the barplot}
 
-\item{sample_labels}{If true, x axis labels are sample IDS, if false labels displayed are levels from Ord1 argument. Ignored if split = TRUE (FALSE)}
+\item{sample_labels}{If TRUE, x axis labels are sample IDs}
 
-\item{split}{if TRUE make a facet_wrap like grouped by Ord1 (default FALSE)}
+\item{split}{If TRUE, make a facet_wrap-like plot grouped by Ord1}
 
-\item{relative}{Plot relative (TRUE, default) or raw abundance plot (FALSE)}
+\item{split_sid_order}{If TRUE, keep sample IDs order from metadata in split}
 
-\item{autoorder}{Automatic ordering xaxis labels based on Ord1 factor levels with gtools::mixedorder function (TRUE).}
+\item{relative}{Plot relative (TRUE) or raw abundance (FALSE)}
 
-\item{ylab}{Y axis title ("Abundance")}
+\item{autoorder}{Automatic ordering of x axis labels with mixedsort}
 
-\item{outfile}{Output html file.}
+\item{ylab}{Y axis title}
 
-\item{pal}{A color palette.}
+\item{outfile}{Output html file (NULL to skip saving)}
+
+\item{verbose}{Print log messages}
+
+\item{pal}{A color palette}
 }
 \value{
-Returns barplots in an interactive plotly community plot
+An interactive plotly barplot
 }
 \description{
 Barplots plotly

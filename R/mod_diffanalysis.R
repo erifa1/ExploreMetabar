@@ -11,7 +11,7 @@
 #' @rdname mod_diffanalysis
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 #' @importFrom shiny NS tagList
 #' @importFrom bslib layout_sidebar sidebar accordion accordion_panel
 #'   navset_card_underline nav_panel card card_header tooltip
@@ -88,7 +88,7 @@ mod_diffanalysis_ui <- function(id){
         style = "margin: 1rem 0;",
         tooltip(
           actionButton(ns("launch_diff"), "Run Differential Analyses",
-                       icon = icon("play-circle"),
+                       icon = bs_icon("play-circle-fill"),
                        class = "btn-primary w-100 btn-lg"),
           "Runs DESeq2, MetaGenomeSeq and MetaCoder with the current settings.",
           placement = "top"
@@ -146,7 +146,7 @@ mod_diffanalysis_ui <- function(id){
 # Module Server
 
 #' @rdname mod_diffanalysis
-#' @export
+#' @noRd
 #' @keywords internal
 #' @import DESeq2
 #' @import metacoder

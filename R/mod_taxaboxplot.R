@@ -11,7 +11,7 @@
 #' @rdname mod_taxaboxplot
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 #' @importFrom plotly plotlyOutput
 #' @importFrom shiny NS tagList
 #' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
@@ -75,7 +75,7 @@ mod_taxaboxplot_ui <- function(id){
 # Module Server
 
 #' @rdname mod_taxaboxplot
-#' @export
+#' @noRd
 #' @keywords internal
 #' @importFrom plotly plot_ly renderPlotly
 #' @importFrom DT datatable

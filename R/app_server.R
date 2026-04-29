@@ -1,5 +1,4 @@
 #' @import shiny
-#' @import rhdf5
 #' @importFrom thematic thematic_shiny
 
 

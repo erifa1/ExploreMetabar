@@ -11,7 +11,7 @@
 #' @rdname mod_compo
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 #' @importFrom shiny NS tagList
 #' @importFrom plotly plotlyOutput
 #' @import bslib
@@ -70,7 +70,7 @@ mod_compo_ui <- function(id){
 # Module Server
 
 #' @rdname mod_compo
-#' @export
+#' @noRd
 #' @keywords internal
 #' @importFrom plotly renderPlotly
 #' @importFrom tidyr pivot_longer

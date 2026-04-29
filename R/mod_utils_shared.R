@@ -1,14 +1,3 @@
-#' Shared reactive utilities for ExploreMetabar modules
-#'
-#' Factory functions that create commonly-used reactives for modules that
-#' work with phyloseq metadata factors. Each function returns a reactive
-#' expression that can be used inside a module server.
-#'
-#' @noRd
-#' @import shiny
-#' @import dplyr
-#' @import tidyr
-
 #' Create a reactive that returns the metadata column name(s) for the selected factor(s)
 #'
 #' Handles single and multi-factor selection. When multiple factors are selected,

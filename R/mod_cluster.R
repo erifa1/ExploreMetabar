@@ -327,7 +327,7 @@ mod_cluster_server <- function(id, r) {
     })
 
     observe({
-      updateSelectInput(inputId = "clust_nb",
+      updateSelectInput(session, inputId = "clust_nb",
                         choices = 1:compute.k())
     })
 

@@ -11,7 +11,7 @@
 #' @rdname mod_alpha
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 #' @importFrom shiny NS tagList
 #' @importFrom plotly plotlyOutput
 #' @importFrom shinyalert shinyalert useShinyalert
@@ -71,7 +71,7 @@ mod_alpha_ui <- function(id){
 # Module Server
 
 #' @rdname mod_alpha
-#' @export
+#' @noRd
 #' @keywords internal
 #' @import phyloseq
 #' @importFrom DT renderDataTable
@@ -305,7 +305,7 @@ mod_alpha_server <- function(id, r) {
 
 
  output$boxstats <- DT::renderDataTable({
-   req(reacalpha)
+   req(reacalpha())
    LL = reacalpha()
    round_df(as.data.frame(LL$groups1), 4)
  }, filter="top", options = list(
@@ -317,7 +317,7 @@ mod_alpha_server <- function(id, r) {
  output$boxtab_download <- downloadHandler(
    filename = "alpha_boxplot_stats.csv",
    content = function(file) {
-     req(reacalpha)
+     req(reacalpha())
      LL = reacalpha()
      write.table(LL$groups1, file, sep="\t", col.names=NA)}
  )
