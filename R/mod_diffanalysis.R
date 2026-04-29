@@ -21,7 +21,7 @@ mod_diffanalysis_ui <- function(id){
   layout_sidebar(
     fillable = TRUE,
     sidebar = sidebar(
-      title = "🧬 Differential Analysis Setup",
+      title = "Settings",
       open = "desktop",
       width = "350px",
 
@@ -87,7 +87,7 @@ mod_diffanalysis_ui <- function(id){
       div(
         style = "margin: 1rem 0;",
         tooltip(
-          actionButton(ns("launch_diff"), "🚀 Run Differential Analyses",
+          actionButton(ns("launch_diff"), "Run Differential Analyses",
                        icon = icon("play-circle"),
                        class = "btn-primary w-100 btn-lg"),
           "Runs DESeq2, MetaGenomeSeq and MetaCoder with the current settings.",
@@ -127,14 +127,11 @@ mod_diffanalysis_ui <- function(id){
       nav_panel(
         "Merged — table",
         icon = bs_icon("layers"),
-        card(
-          card_header("Aggregate table"),
-          div(
-            downloadButton(outputId = ns("merge_download"), label = "Download Table"),
-            downloadButton(outputId = ns("fasta_download"), label = "Download FASTA")
-          ),
-          DT::dataTableOutput(ns("mergeTab"))
-        )
+        div(
+          downloadButton(outputId = ns("merge_download"), label = "Download Table"),
+          downloadButton(outputId = ns("fasta_download"), label = "Download FASTA")
+        ),
+        DT::dataTableOutput(ns("mergeTab"))
       ),
 
       nav_panel(
