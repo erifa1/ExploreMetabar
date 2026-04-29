@@ -18,6 +18,18 @@ app_server <- function(input, output,session) {
     r$tabs$tabselected <- input$tabs
   })
 
+  # Bounce user back to "Input Data" if they switch tabs before processing data.
+  observeEvent(input$tabs, {
+    if (input$tabs != "data_loading" && !isTRUE(r$data_ready())) {
+      bslib::nav_select(id = "tabs", selected = "data_loading")
+      showNotification(
+        "Please load and process data first via the Input Data tab.",
+        type = "warning",
+        duration = 5
+      )
+    }
+  }, ignoreInit = TRUE)
+
 
   # List the first level modules here
   mod_data_loading_server("data_loading_ui_1", r = r)

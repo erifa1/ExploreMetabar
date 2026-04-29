@@ -20,6 +20,7 @@ app_ui <- function() {
 
     # Bootstrap 5 theme with INRAE styling
     page_navbar(
+      id = "tabs",
       title = span(
         "Explore Metabar ",
         tags$small(
@@ -37,7 +38,7 @@ app_ui <- function() {
         warning = "#ed6e6c",
         danger = "#ed6e6c"
       ),
-      fillable = FALSE,
+      fillable = TRUE,
       window_title = NA,
 
       # Navigation items for each module
@@ -104,28 +105,14 @@ app_ui <- function() {
       # Navbar menu for external links
       nav_menu(
         title = "Links",
-        nav_panel(
-          title = "SK8",
-          href = "https://sk8.inrae.fr/",
-          target = "_blank"
-        ),
-        nav_panel(
-          title = bs_icon("code"),
-          "Source code",
-          href = "https://forge.inrae.fr/umrf/exploremetabar",
-          target = "_blank"
-        ),
-        nav_panel(
-          title = bs_icon("bug"),
-          "Issues",
-          href = "https://forge.inrae.fr/umrf/ExploreMetabar/-/issues",
-          target = "_blank"
-        )
+        nav_item(tags$a("SK8", href = "https://sk8.inrae.fr/", target = "_blank", class = "nav-link")),
+        nav_item(tags$a(bs_icon("code"), " Source code", href = "https://forge.inrae.fr/umrf/exploremetabar", target = "_blank", class = "nav-link")),
+        nav_item(tags$a(bs_icon("bug"), " Issues", href = "https://forge.inrae.fr/umrf/ExploreMetabar/-/issues", target = "_blank", class = "nav-link"))
       ),
 
       # Dark mode toggle
       nav_spacer(),
-      input_dark_mode()
+      nav_item(input_dark_mode())
     )
   )
 }
