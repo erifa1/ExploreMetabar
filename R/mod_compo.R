@@ -19,53 +19,49 @@
 
 mod_compo_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    # Info card
-    card(
-      full_screen = TRUE,
-      card_header(class = "bg-info"),
-      "Use the phyloseq object without performing the taxa merging step."
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Settings",
+      open = "desktop",
+      width = "350px",
+      htmltools::p(
+        "Use the phyloseq object without performing the taxa merging step.",
+        style = "font-size: 0.9em; color: grey;"
+      ),
+      tags$hr(),
+      selectInput(
+        ns("RankCompo"),
+        label = "Select rank to plot: ",
+        choices = ""
+      ),
+      shinyWidgets::pickerInput(
+        ns("Ord1"),
+        label = "Select one or more categorial variable to order/split samples (X axis): ",
+        choices = "",
+        multiple = TRUE
+      ),
+      numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
+      radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
+      selected = 1, inline = TRUE),
+      checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
+      actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg")
     ),
 
-    br(),
-
-    layout_sidebar(
-      # Settings sidebar
-      sidebar = card(
-        full_screen = FALSE,
-        card_header(bs_icon("gear"), " Settings"),
-        selectInput(
-          ns("RankCompo"),
-          label = "Select rank to plot: ",
-          choices = ""
-        ),
-        shinyWidgets::pickerInput(
-          ns("Ord1"),
-          label = "Select one or more categorial variable to order/split samples (X axis): ",
-          choices = "",
-          multiple = TRUE
-        ),
-        numericInput(ns("topTax"), "Number of top taxa to plot:", 10, min = 1, max = NA),
-        radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
-        selected = 1, inline = TRUE),
-        checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
-        actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play"))
+    navset_card_underline(
+      title = "Composition",
+      full_screen = TRUE,
+      nav_panel(
+        title = "Relative abundance",
+        icon = bs_icon("pie-chart"),
+        downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
+        plotlyOutput(ns("compo2"), height = "600px")
       ),
-
-      # Main navset for plots
-      navset_card_underline(
-        nav_panel(
-          title = "Relative abundance",
-          card_header(bs_icon("pie-chart")),
-          downloadButton(outputId = ns("DLcompo2"), label = "Download plot"),
-          plotlyOutput(ns("compo2"), height = "600px")
-        ),
-        nav_panel(
-          title = "Raw abundance",
-          card_header(bs_icon("bar-chart")),
-          downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
-          plotlyOutput(ns("compo1"), height = "600px")
-        )
+      nav_panel(
+        title = "Raw abundance",
+        icon = bs_icon("bar-chart"),
+        downloadButton(outputId = ns("DLcompo1"), label = "Download plot"),
+        plotlyOutput(ns("compo1"), height = "600px")
       )
     )
   )
