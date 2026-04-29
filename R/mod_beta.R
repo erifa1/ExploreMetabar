@@ -22,7 +22,7 @@ mod_beta_ui <- function(id){
   layout_sidebar(
     fillable = TRUE,
     sidebar = sidebar(
-      title = "🎯 Guided Ordination Workflow",
+      title = "Settings",
       open = "desktop",
       width = "350px",
       
@@ -44,18 +44,11 @@ mod_beta_ui <- function(id){
         accordion_panel(
           "Ordination Setup",
           icon = bs_icon("tablet"),
-          tooltip(
-            radioButtons(ns('ordi_type'), 'Type:',
-                         inline = TRUE,
-                         choices = c('Distance-based'),
-                         selected = 'Distance-based'),
-            "Distance-based ordination using dissimilarity matrices.",
-            placement = "right"
-          ),
           uiOutput(ns('ui_metrics')),
           tooltip(
             radioButtons(ns("ordination"), "Method:", inline = TRUE,
-                         choices = '', selected = ''),
+                         choices = c('PCOA', 'NMDS', 'dbRDA'),
+                         selected = 'PCOA'),
             "Choose ordination technique based on your data type and research question.",
             placement = "right"
           ),
@@ -65,7 +58,7 @@ mod_beta_ui <- function(id){
           div(
             style = "margin: 1.5rem 0;",
             tooltip(
-              actionButton(ns("launch_beta"), "🚀 Run Ordination Analysis", 
+              actionButton(ns("launch_beta"), "Run Ordination Analysis", 
                           icon = bs_icon("play-fill"), 
                           class = "btn-primary w-100 btn-lg"),
               "Computes ordination + tests. Progress shown below.",
@@ -231,28 +224,6 @@ mod_beta_server <- function(id, r) {
   moduleServer(id, function(input, output, session) {
   ns <- session$ns
 
-  # Status reactives for workflow value_boxes (minimal, no new deps)
-  output$status_type <- renderText({
-    if(isTruthy(input$ordi_type)) input$ordi_type else "Select type"
-  })
-  
-  output$status_method <- renderText({
-    if(isTruthy(input$ordination)) input$ordination else "Select method"
-  })
-  
-  output$status_ready <- renderText({
-    ready <- isTruthy(input$beta_factor) && 
-             isTruthy(input$ordination) && 
-             input$ordination != ""
-    if(ready) "Ready ✓" else "Complete setup"
-  })
-  
-  # Simple accordion hints (no shinyjs needed)
-  observeEvent(input$ordination, {
-    # Tooltip already guides users to relevant sections
-    NULL
-  })
-
   # ---- Shared reactives setup ----
   factor_input   <- reactive({ input$beta_factor })
   get_meta_col   <- make_get_meta_col(factor_input, r)
@@ -262,7 +233,6 @@ mod_beta_server <- function(id, r) {
 
   # ---- Dynamic UI: distance metric ----
   output$ui_metrics <- renderUI({
-    req(input$ordi_type)
     tooltip(
       radioButtons(ns("metrics"), "Distance metric:", inline = TRUE,
                    choices =c('Bray-Curtis' = 'bray', 'Jaccard' = 'jaccard', 
@@ -277,32 +247,30 @@ mod_beta_server <- function(id, r) {
   output$ui_constrain <- renderUI({
     req(input$ordination)
     if(input$ordination == 'dbRDA'){
-      tooltip(
-        card(card_header(bs_icon("calculator"), "dbRDA Constrained Model"),
-          htmltools::p(
-            class = "text-info",
-            "ℹ️ For dbRDA, the constrained model defines the explanatory variables ",
-            "of the ordination itself (model parameters shown as biplot vectors). ",
-            "This is distinct from envfit, which post-hoc maps environmental ",
-            "variables onto an unconstrained PCoA/NMDS plot."
-          ),
-          htmltools::p(
-            class = "text-warning",
-            '⚠️ Samples with missing values in selected env variables will be omitted.'
-          ),
-          tooltip(
-            radioButtons(inputId = ns('param_mode'),
-                         label = 'Parameter selection:',
-                         choices = c('Picker' = 'picker', 'Manual formula' = 'manual'),
-                         selected = 'picker'),
-            "Picker: Select variables for ~ formula. Manual: Write formula directly.",
-            placement = "right"
-          ),
-          uiOutput(ns('constr_select')),
-          verbatimTextOutput(ns('formula'))
+      tagList(
+        tags$strong(bs_icon("calculator"), " dbRDA Constrained Model"),
+        tags$hr(),
+        htmltools::p(
+          class = "text-info",
+          "ℹ️ For dbRDA, the constrained model defines the explanatory variables ",
+          "of the ordination itself (model parameters shown as biplot vectors). ",
+          "This is distinct from envfit, which post-hoc maps environmental ",
+          "variables onto an unconstrained PCoA/NMDS plot."
         ),
-        "dbRDA constrained axes from environmental formula. Vectors plotted when 'Env' selected.",
-        placement = "right"
+        htmltools::p(
+          class = "text-warning",
+          '⚠️ Samples with missing values in selected env variables will be omitted.'
+        ),
+        tooltip(
+          radioButtons(inputId = ns('param_mode'),
+                       label = 'Parameter selection:',
+                       choices = c('Picker' = 'picker', 'Manual formula' = 'manual'),
+                       selected = 'picker'),
+          "Picker: Select variables for ~ formula. Manual: Write formula directly.",
+          placement = "right"
+        ),
+        uiOutput(ns('constr_select')),
+        verbatimTextOutput(ns('formula'))
       )
     }
   })
@@ -342,15 +310,17 @@ mod_beta_server <- function(id, r) {
 
   # ---- Constrained formula builder (dbRDA only) ----
   get_constr_formula <- reactive({
-    req(input$param_mode)
-    if(input$param_mode == 'picker'){
-      if(length(input$constr_picker) == 0){
+    mode <- input$param_mode %||% 'picker'
+    if(mode == 'picker'){
+      if(is.null(input$constr_picker) || length(input$constr_picker) == 0){
         f <- 'spe ~ 1'
       } else {
         f <- paste0('spe ~ ', paste(input$constr_picker, collapse = ' + '))
       }
-    } else if(input$param_mode == 'manual'){
-      f <- input$constr_manual_formula
+    } else if(mode == 'manual'){
+      f <- input$constr_manual_formula %||% 'spe ~ 1'
+    } else {
+      f <- 'spe ~ 1'
     }
     flog.debug('get_constr_formula(): formula=%s', f)
     return(f)
@@ -373,8 +343,9 @@ mod_beta_server <- function(id, r) {
   # ---- Screeplot ----
   get_screeplot <- reactive({
     req(ord())
-    flog.debug('get_screeplot(): ordination=%s', input$ordination)
-    if(input$ordination == 'NMDS'){
+    ordination <- isolate(input$ordination)
+    flog.debug('get_screeplot(): ordination=%s', ordination)
+    if(ordination == 'NMDS'){
       validate(
         need(input$metrics %in% c('bray', 'jaccard'), 'Only bray distance supported for NMDS screeplot.')
       )
@@ -437,8 +408,9 @@ mod_beta_server <- function(id, r) {
       preselected <- intersect(c(input$beta_factor, input$beta_shape), all_cols)
       if(length(preselected) == 0) preselected <- NULL
 
-      card(
-        card_header(bs_icon("compass"), "VEGAN envfit (PCoA / NMDS)"),
+      tagList(
+        tags$strong(bs_icon("compass"), " VEGAN envfit (PCoA / NMDS)"),
+        tags$hr(),
         htmltools::p(
           class = "text-info",
           "ℹ️ Envfit post-hoc fits environmental vectors/factors onto an ",
@@ -478,22 +450,12 @@ mod_beta_server <- function(id, r) {
   output$ui_envfit_box_res <- renderUI({
     req(input$ordination)
     if(input$ordination %in% c('NMDS', 'PCOA')){
-      card(card_header("envfit results"),
+      tagList(
+        tags$strong("envfit results"),
         verbatimTextOutput(ns('envfit_res'))
       )
     }
   })
-
-  # ---- Ordination type observer ----
-  observeEvent(input$ordi_type, {
-    ch <- c('PCOA', 'NMDS', 'dbRDA')
-    updateRadioButtons(session,
-                       "ordination",
-                       choices = ch,
-                       inline = TRUE,
-                       selected = 'PCOA')
-  })
-
 
   # ---- Distance matrix computation ----
   physeq_dist <- eventReactive(input$launch_beta, {
@@ -538,8 +500,7 @@ mod_beta_server <- function(id, r) {
     req(input$ordination, local_physeq())
 
     flog.info('ord() starting...')
-    flog.debug('ord(): ordination=%s, metrics=%s', input$ordination,
-               if (input$ordi_type == 'Distance-based') input$metrics else 'N/A')
+    flog.debug('ord(): ordination=%s, metrics=%s', input$ordination, input$metrics)
     withProgress(message = 'Computing ordination...', min=0, max=10, value = 0,{
       setProgress(value = 4, detail = input$ordination)
       if(input$ordination == 'NMDS'){
@@ -592,10 +553,11 @@ mod_beta_server <- function(id, r) {
   get_sites_coord <- reactive({
     req(ord(), local_metadata(), get_meta_col())
     flog.info('get_sites_coord() starting...')
-    if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
+    ordination <- isolate(input$ordination)
+    if(ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
       nmds_coord <- vegan::scores(ord(), display='sites', correlation = TRUE) %>%
         as_tibble(rownames="sample.id")
-    } else if(input$ordination %in% c('CCA')){
+    } else if(ordination %in% c('CCA')){
       nmds_coord <- vegan::scores(ord(), display='sites', hill = TRUE) %>%
         as_tibble(rownames="sample.id")
     } else {
@@ -616,17 +578,18 @@ mod_beta_server <- function(id, r) {
   get_species_coord <- reactive({
     req(local_physeq(), ord(), r$rank_glom(), input$rank_color)
     flog.info('get_species_coord() starting...')
+    ordination <- isolate(input$ordination)
     flog.debug('get_species_coord(): ordination=%s, rank_glom=%s, rank_color=%s',
-               input$ordination, r$rank_glom(), input$rank_color)
-    if(input$ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
-      if(input$ordination %in% c('dbRDA') && input$metrics %in% c('unifrac', 'wunifrac')){
+               ordination, r$rank_glom(), input$rank_color)
+    if(ordination %in% c('PCA', 'RDA', 'PCOA', 'dbRDA')){
+      if(ordination %in% c('dbRDA') && input$metrics %in% c('unifrac', 'wunifrac')){
         nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', scalling = 2) %>% as_tibble(rownames=r$rank_glom())
       } else {
         nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', correlation = TRUE) %>% as_tibble(rownames=r$rank_glom())
       }
-    } else if(input$ordination %in% c('CCA')){
+    } else if(ordination %in% c('CCA')){
       nmds_coord <- vegan::scores(ord(), choices=c(1,2), display='specie', hill = TRUE) %>% as_tibble(rownames=r$rank_glom())
-    } else if(input$ordination %in% c('NMDS') && input$metrics %in% c('unifrac', 'wunifrac')){
+    } else if(ordination %in% c('NMDS') && input$metrics %in% c('unifrac', 'wunifrac')){
       spe <- veganifyOTU(local_physeq())
       spe <- vegan::decostand(spe, method = 'hell')
       res <- ord()
@@ -684,10 +647,11 @@ mod_beta_server <- function(id, r) {
 
 get_axis_names <- reactive({
   flog.info('get_axis_names() starting...')
-  
+  ordination <- isolate(input$ordination)
+
   # Safe fallback before ord() available
   if (is.null(ord())) {
-    fallback <- switch(input$ordination %||% "PCOA",
+    fallback <- switch(ordination %||% "PCOA",
       "NMDS" = c("MDS1", "MDS2"),
       "PCOA" = c("PC1", "PC2"),
       "RDA" = c("RDA1", "RDA2"),
@@ -698,14 +662,14 @@ get_axis_names <- reactive({
     flog.debug('get_axis_names(): ord NULL, fallback=%s', paste(fallback, collapse=', '))
     return(fallback)
   }
-  
+
   axes <- colnames(vegan::scores(ord(), display = 'sites'))
-  
+
   # Fallback defaults by ordination type
   if (length(axes) == 0) {
-    fallback <- switch(input$ordination,
+    fallback <- switch(ordination,
       "NMDS" = c("MDS1", "MDS2"),
-      "PCOA" = c("PC1", "PC2"), 
+      "PCOA" = c("PC1", "PC2"),
       "RDA" = c("RDA1", "RDA2"),
       "CCA" = c("CCA1", "CCA2"),
       "dbRDA" = c("dbRDA1", "dbRDA2"),
@@ -736,9 +700,10 @@ get_axis_names <- reactive({
     # Default plot_type safe
     plot_types <- input$plot_type %||% c("samples")
     
+    ordination <- isolate(input$ordination)
     flog.debug('base_plot(): plot_types=%s, axe_x=%s, axe_y=%s',
                paste(plot_types, collapse = ', '), axe_x, axe_y)
-               
+
     withProgress(message = 'Plotting...', min=0, max=10, value = 0,{
       p <- ggplot2::ggplot()
       if('samples' %in% input$plot_type){
@@ -782,7 +747,7 @@ get_axis_names <- reactive({
         }
       }
 
-      if(input$ordination == "PCOA"){
+      if(ordination == "PCOA"){
         eig1 <- eigenvals(ord())
         percent1 <- eig1/sum(eig1)*100
         p <- p + xlab(glue::glue("{input$axe_x} ({round(percent1[input$axe_x], 2)} %)")) +
@@ -803,7 +768,7 @@ get_axis_names <- reactive({
 
       if ('env' %in% input$plot_type){
         flog.info('base_plot() plotting env...')
-        if(input$ordination %in% c('RDA', 'CCA', 'dbRDA')){
+        if(ordination %in% c('RDA', 'CCA', 'dbRDA')){
           scr <- vegan::scores(ord())
           if(!is.null(scr$biplot)){
             en_coord_cont <- as.data.frame(scr$biplot)
@@ -822,7 +787,7 @@ get_axis_names <- reactive({
               geom_text(data = en_coord_cat, aes(x = !!sym(input$axe_x), y = !!sym(input$axe_y)),
                         label = row.names(en_coord_cat), colour = "navy", fontface = "bold")
           }
-        } else if(input$ordination %in% c('PCOA', 'NMDS')){
+        } else if(ordination %in% c('PCOA', 'NMDS')){
           if(is.null(input$envfit_param)){
             shinyalert::shinyalert(title = "Oops", text="You need to use ENVFIT module to use env type.", type='error')
             return(NULL)
