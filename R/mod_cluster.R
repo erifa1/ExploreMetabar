@@ -4,52 +4,92 @@
 #'
 #' @param id,input,output,session Internal parameters for {shiny}.
 #'
-#' @noRd 
+#' @noRd
 #'
-#' @importFrom shiny NS tagList 
+#' @importFrom shiny NS tagList
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
+#' @importFrom bsicons bs_icon
 
 mod_cluster_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    card(
-      card_header("Settings"),
-      radioButtons(ns("dist.meth"), "Choose distance method:", inline = TRUE,
-                   choices = '', selected = c("bray")),
-      radioButtons(ns("hclust.meth"), "Choose clustering method:", inline = TRUE,
-                   choices = c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"),
-                   selected = c("ward.D2")),
-      radioButtons(ns("k.meth"), "Choose optimal number of cluster method:", inline = TRUE,
-                   choices = c("silhouette", "pearson"), selected = c("silhouette")),
-      shinyWidgets::materialSwitch(inputId = ns("leaflabels"), label = "Leaf label", status = "info", value = TRUE),
-      shinyWidgets::materialSwitch(inputId = ns("branchcolor"), label = "Branch color based on cluster or metadata", status = "info"),
-      selectInput(ns("clust_fact1"), label = "Select metadata column to replace labels:", choices = ''),
-      actionButton(ns("launch_clust"), "Run Clustering", icon = icon("play-circle"),
-                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Configuration",
+      open = "desktop",
+      width = "350px",
+      htmltools::p(
+        "Hierarchical clustering of samples. Optimal cluster number is estimated automatically from the chosen method.",
+        style = "font-size: 0.9em; color: grey;"
+      ),
+      tags$hr(),
+      accordion(
+        id = ns("config_accordion"),
+        open = "Clustering settings",
+        multiple = TRUE,
+        accordion_panel(
+          "Clustering settings",
+          icon = bs_icon("diagram-3"),
+          radioButtons(ns("dist.meth"), "Distance method:", inline = TRUE,
+                       choices = '', selected = "bray"),
+          radioButtons(ns("hclust.meth"), "Clustering method:", inline = TRUE,
+                       choices = c("ward.D", "ward.D2", "single", "complete",
+                                   "average", "mcquitty", "median", "centroid"),
+                       selected = "ward.D2"),
+          radioButtons(ns("k.meth"), "Optimal k method:", inline = TRUE,
+                       choices = c("silhouette", "pearson"), selected = "silhouette"),
+          selectInput(ns("clust_fact1"), label = "Metadata column for labels:", choices = ''),
+          shinyWidgets::materialSwitch(ns("leaflabels"), label = "Show leaf labels",
+                                       status = "info", value = TRUE),
+          shinyWidgets::materialSwitch(ns("branchcolor"), label = "Color branches by metadata",
+                                       status = "info")
+        ),
+        accordion_panel(
+          "Cluster exploration",
+          icon = bs_icon("grid"),
+          htmltools::p(
+            "Available after running clustering.",
+            style = "font-size: 0.9em; color: grey;"
+          ),
+          selectInput(ns("clust_nb"), label = "Cluster number:", choices = 1),
+          numericRangeInput(ns("clstr_minAb"), "Taxa raw abundance range:",
+                            c(1, 1), width = NULL, separator = " to "),
+          selectInput(ns("clstr_rank_glom"), label = "Rank to merge taxonomy:",
+                      choices = '', selected = 1)
+        )
+      ),
+      tags$hr(),
+      actionButton(
+        ns("launch_clust"),
+        "Run Clustering",
+        icon = bs_icon("play-fill"),
+        class = "btn-primary w-100 btn-lg"
+      )
     ),
-
-    card(
+    navset_card_underline(
+      title = "Results",
       full_screen = TRUE,
-      card_header("Dendrogram"),
-      verbatimTextOutput(ns('nb_clstr')),
-      plotOutput(ns('dendro.plot'), height = "800px")
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Number of samples by cluster"),
-      plotOutput(ns('sample.by.clstr'))
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Heatmap & Multilevel pattern analysis"),
-      h3("Display heatmap of selected cluster"),
-      selectInput(ns("clust_nb"), label = "Select cluster number", choices = 1),
-      numericRangeInput(ns("clstr_minAb"), "Minimum taxa overall raw abundance:", c(1,1), width = NULL, separator = " to "),
-      selectInput(ns("clstr_rank_glom"), label = 'Select rank to merge taxonomy table', choices = '', selected = 1),
-      plotOutput(ns('subclstr_plot'), height = "600px"),
-      h3("Determine taxa specific to each cluster"),
-      verbatimTextOutput(ns('indicSpe'))
+      nav_panel(
+        "Dendrogram",
+        icon = bs_icon("diagram-3"),
+        verbatimTextOutput(ns("nb_clstr")),
+        plotOutput(ns("dendro.plot"), height = "700px")
+      ),
+      nav_panel(
+        "Samples by cluster",
+        icon = bs_icon("bar-chart"),
+        plotOutput(ns("sample.by.clstr"))
+      ),
+      nav_panel(
+        "Cluster heatmap",
+        icon = bs_icon("grid-3x3"),
+        plotOutput(ns("subclstr_plot"), height = "600px")
+      ),
+      nav_panel(
+        "Indicator species",
+        icon = bs_icon("star"),
+        verbatimTextOutput(ns("indicSpe"))
+      )
     )
   )
 }
@@ -183,12 +223,11 @@ mod_cluster_server <- function(id, r) {
       } else{
         p <- ct %>%
           group_by(clstr, fact) %>%
-          summarise(count = n()) %>% 
-          ggplot(aes(x=(fact), y=count, fill=fact)) +
-          geom_bar(stat="identity") +
-          facet_grid(. ~ clstr) +
-          theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
-          xlab("") + ylab("counts") + scale_fill_manual(values=r$factor_colors()[[input$clust_fact1]])
+          summarise(count = n(), .groups = "drop") %>%
+          ggplot(aes(x=as.factor(clstr), y=count, fill=fact)) +
+          geom_bar(stat="identity", position = "stack") +
+          xlab("Cluster number") + ylab("counts") +
+          scale_fill_manual(values=r$factor_colors()[[input$clust_fact1]])
       }
       return(p)
     })
