@@ -14,37 +14,61 @@
 #' @export
 #' @importFrom plotly plotlyOutput
 #' @importFrom shiny NS tagList
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
+#' @importFrom bsicons bs_icon
 mod_taxaboxplot_ui <- function(id){
   ns <- NS(id)
-  tagList(
-    card(
-      card_header(class = "bg-info"),
-      "This module performs a Kruskal\u2013Wallis test on each taxon for all factors. Note that this involves multiple testing; p-values are adjusted using the FDR method. For numerical factors, samples with zero abundance are omitted."
+  layout_sidebar(
+    fillable = TRUE,
+    sidebar = sidebar(
+      title = "Settings",
+      open = "desktop",
+      width = "350px",
+      htmltools::p(
+        "Kruskal\u2013Wallis test on each taxon for all factors. P-values adjusted using FDR. For numerical factors, samples with zero abundance are omitted.",
+        style = "font-size: 0.9em; color: grey;"
+      ),
+      tags$hr(),
+      accordion(
+        id = ns("config_accordion"),
+        open = "Test settings",
+        multiple = TRUE,
+        accordion_panel(
+          "Test settings",
+          icon = bs_icon("sliders"),
+          uiOutput(ns('ui_picker')),
+          uiOutput(ns('ui_radio_tests'))
+        )
+      ),
+      tags$hr(),
+      actionButton(
+        ns("go1"),
+        "Run Test / Correlation",
+        icon = bs_icon("play-fill"),
+        class = "btn-primary w-100 btn-lg"
+      )
     ),
-
-    card(
-      card_header("Settings"),
-      uiOutput(ns('ui_picker')),
-      uiOutput(ns('ui_radio_tests')),
-      actionButton(ns("go1"), "Run Test/Correlation", icon = icon("play-circle"),
-                   style="color: #fff; background-color: #3b9ef5; border-color: #1a4469")
-    ),
-
-    card(
+    navset_card_underline(
+      title = "Results",
       full_screen = TRUE,
-      card_header("Features"),
-      h3("Click on feature below to generate plot:"),
-      DT::dataTableOutput(ns("pvalout1"))
-    ),
-
-    card(
-      full_screen = TRUE,
-      card_header("Boxplot"),
-      checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
-      plotlyOutput(ns("boxplot1"))
-    ),
-
-    uiOutput(ns('ui_pair_test'))
+      nav_panel(
+        "Features",
+        icon = bs_icon("table"),
+        htmltools::p("Click on a feature below to generate the plot:"),
+        DT::dataTableOutput(ns("pvalout1"))
+      ),
+      nav_panel(
+        "Plot",
+        icon = bs_icon("bar-chart-line"),
+        checkboxInput(ns("order1"), label = "Automatic order factor", value = TRUE),
+        plotlyOutput(ns("boxplot1"))
+      ),
+      nav_panel(
+        "Pairwise Wilcox",
+        icon = bs_icon("calculator"),
+        uiOutput(ns('ui_pair_test'))
+      )
+    )
   )
 }
 
@@ -131,8 +155,7 @@ mod_taxaboxplot_server <- function(id, r) {
   
   output$ui_pair_test <- renderUI({
     if(! isNumFactor()){
-      card(card_header("Results of pairwise wilcox test"),
-          DT::dataTableOutput(ns("wilcoxDT")))
+      DT::dataTableOutput(ns("wilcoxDT"))
     }
   })
 
