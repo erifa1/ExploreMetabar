@@ -20,8 +20,9 @@ mod_data_loading_ui <- function(id){
   ns <- NS(id)
   tagList(
     layout_sidebar(
+      fillable = TRUE,
       sidebar = sidebar(
-        title = "Configuration",
+        title = "Settings",
         width = "350px",
         open = "desktop",
         accordion(
@@ -441,6 +442,7 @@ mod_data_loading_server <- function(id, r) {
 
     log_msg(paste0("[", Sys.time(), "] Pipeline complete!"))
     showNotification("Dataset ready!", type = "message", duration = 5)
+    r$data_ready(TRUE)
   }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
 
@@ -743,6 +745,9 @@ mod_data_loading_server <- function(id, r) {
   )
 
   # Saving variable for other modules.
+  # Flag flipped TRUE once "Process Data" pipeline completes; gates navigation.
+  r$data_ready <- reactiveVal(FALSE)
+
   # Raw object loaded from file.
   r$phyloseq_data <- reactive({
     req(r_values$phyobj_initial)
