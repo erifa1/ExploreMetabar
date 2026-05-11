@@ -14,3 +14,4 @@
 
 # one line test
 options(golem.app.prod = FALSE);golem::detach_all_attached();golem::document_and_reload();devtools::load_all(".");ExploreMetabar::run_app()
+pkgload::load_all();ExploreMetabar::run_app()

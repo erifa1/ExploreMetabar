@@ -85,15 +85,9 @@ Suggests:
 VignetteBuilder:
     knitr
 Remotes:
-    HCBravoLab/metagenomeSeq,
-    microbiome/microbiome,
-    mixOmicsTeam/mixOmics,
-    mikelove/DESeq2,
-    dreamRs/shinyWidgets,
-    grunwaldlab/metacoder,
-    vqf/nVennR,
     vmikk/metagMisc,
-    mikemc/speedyseq
+    mikemc/speedyseq,
+    vqf/nVennR
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.0.0
