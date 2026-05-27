@@ -13,5 +13,4 @@ ExploreMetabar.Rproj
 Dockerfile*
 .agents/
 .blackbox/
-TODO.md
 *.swp
