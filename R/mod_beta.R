@@ -725,24 +725,28 @@ get_axis_names <- reactive({
             data = sites_coord,
             mapping = shape_mapping,
             size = 5
-          ) +
-          scale_color_manual(
-            values = r$factor_colors()[[input$beta_factor]], 
-            drop = FALSE
-          ) +
-          ggnewscale::new_scale_color()
-        if(!isNumFactor()){
-          p <- p + 
-            stat_ellipse(
-              data = sites_coord, 
-              mapping = aes(x=!!sym(axe_x), y=!!sym(axe_y), 
-              group = !!sym(get_meta_col()), 
-              color = !!sym(get_meta_col()))
-            ) + 
+          )
+        if (isNumFactor()) {
+          p <- p + paletteer::scale_color_paletteer_c(
+            palette = r$numeric_palettes()[[input$beta_factor]]
+          ) + ggnewscale::new_scale_color()
+        } else {
+          p <- p +
             scale_color_manual(
-              values = r$factor_colors()[[input$beta_factor]], 
+              values = r$factor_colors()[[input$beta_factor]],
               drop = FALSE
-            ) + 
+            ) +
+            ggnewscale::new_scale_color() +
+            stat_ellipse(
+              data = sites_coord,
+              mapping = aes(x=!!sym(axe_x), y=!!sym(axe_y),
+              group = !!sym(get_meta_col()),
+              color = !!sym(get_meta_col()))
+            ) +
+            scale_color_manual(
+              values = r$factor_colors()[[input$beta_factor]],
+              drop = FALSE
+            ) +
             ggnewscale::new_scale_color()
         }
       }
@@ -840,6 +844,8 @@ get_axis_names <- reactive({
   # ---- Dispersion tests ----
   get_dispersion_res <- eventReactive(input$launch_beta,{
     req(physeq_dist(), get_meta_col())
+    validate(need(!isNumFactor(),
+                  "Dispersion test requires a categorical factor."))
     flog.info('get_dispersion_res() starting...')
     res <- vegan::betadisper(physeq_dist(), local_metadata()[,get_meta_col()])
     flog.info('get_dispersion_res() end.')

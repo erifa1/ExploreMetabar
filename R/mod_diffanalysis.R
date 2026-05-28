@@ -398,6 +398,8 @@ mod_diffanalysis_server <- function(id, r) {
         incProgress(amount = 0.1, message = 'Plotting tree...')
         obj$data$diff_table$log2_mean_ratio[obj$data$diff_table$wilcox_p_value > 0.05] <- 0
 
+        validate(need(!input$diff_factor %in% names(r$numeric_palettes()),
+                      "Metacoder heat tree requires a categorical factor."))
         plot <- heat_tree(obj,
                           node_label = taxon_names,
                           node_size = n_obs, # n_obs is a function that calculates, in this case, the number of OTUs per taxon
@@ -631,6 +633,8 @@ mod_diffanalysis_server <- function(id, r) {
         }
         flog.info('reacbarplot1 - ggplot2')
 
+        validate(need(!snap$factor %in% names(r$numeric_palettes()),
+                      "Bar plot requires a categorical factor."))
         p <- ggplot2::ggplot(data = TABbar, aes(x = reorder(tax, -abs(DESeqLFC)), y = DESeqLFC, fill = Condition ) ) +
                 geom_bar(stat="identity", alpha = 0.7) + ggtitle(glue("{snap$cond1} vs. {snap$cond2}")) + labs(x='Features') +
                 coord_flip() + theme_bw() +

@@ -186,9 +186,18 @@ mod_cluster_server <- function(id, r) {
 
     plot.dendro <- eventReactive(input$launch_clust,{
       dd <- as.dendrogram(compute.clust())
-      # browser()
-      # colours <- colourvalues::colour_values(r$sdat()[labels(dd),input$clust_fact1], palette="viridis")
-      colours <- r$factor_colors()[[input$clust_fact1]][r$sdat()[labels(dd),input$clust_fact1]]
+      fact_vals <- r$sdat()[labels(dd), input$clust_fact1]
+      if (input$clust_fact1 %in% names(r$numeric_palettes())) {
+        # numeric metadata: derive per-leaf colors from a continuous palette
+        pal_id <- r$numeric_palettes()[[input$clust_fact1]]
+        ramp <- paletteer::paletteer_c(palette = pal_id, n = 256L)
+        norm_vals <- (fact_vals - min(fact_vals, na.rm = TRUE)) /
+                     diff(range(fact_vals, na.rm = TRUE))
+        idx <- pmax(1L, pmin(256L, round(norm_vals * 255) + 1L))
+        colours <- as.character(ramp)[idx]
+      } else {
+        colours <- r$factor_colors()[[input$clust_fact1]][fact_vals]
+      }
       dd <- dendextend::color_labels(dd, col=colours)
       if(input$branchcolor){
         dd <- dendextend::color_branches(dd, col=colours)

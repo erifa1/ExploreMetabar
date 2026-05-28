@@ -224,6 +224,8 @@ mod_mixomics_server <- function(id, r) {
 
     list_colors <- reactive({
       req(r$factor_colors(), input$factor_spls_da)
+      validate(need(!input$factor_spls_da %in% names(r$numeric_palettes()),
+                    "sPLS-DA requires a categorical factor."))
       df_color <- r$factor_colors()[input$factor_spls_da][[1]]
       df_color <- df_color[levels(y())]
       return(df_color)

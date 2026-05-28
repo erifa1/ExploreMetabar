@@ -421,55 +421,57 @@ mod_heatmap_server <- function(id, r) {
   # taxa annotation colors
   taxa_colors <- reactive({
     req(input$taxa_annot, selected_data())
-    colors <- get_cat_colors(type = "taxa", list_fact = input$taxa_annot, phy_object = selected_data())
-    return(colors)
+    extract_modalities(selected_data(), input$taxa_annot, type = "taxa")
   })
-  
+
   annot_taxa_colors <- reactive({
     req(input$taxa_annot, r$taxa_colors(), taxa_colors())
     if(length(input$taxa_annot) == 0){
       annot <- NA
     }else{
       annot_colors <- r$taxa_colors()[input$taxa_annot]
-      annot <- lapply(1:length(input$taxa_annot), FUN = function(i){
-        annot_colors[[i]][lapply(taxa_colors()[[i]], FUN = as.character)[[1]]]
+      annot <- lapply(seq_along(input$taxa_annot), FUN = function(i){
+        annot_colors[[i]][as.character(taxa_colors()[[i]])]
       })
       names(annot) <- input$taxa_annot
     }
     return(annot)
   })
-  
-  
+
+
   # factor annotation colors
   modality_colors <- reactive({
     req(input$fact_annot, selected_data())
-    colors <- get_cat_colors(type = "fact", list_fact = input$fact_annot, phy_object = selected_data())
-    return(colors)
+    extract_modalities(selected_data(), input$fact_annot, type = "fact")
   })
 
   annot_fact_colors <- reactive({
-    req(input$fact_annot, r$factor_colors(), modality_colors(), agglom_normalized_data())
+    req(input$fact_annot, modality_colors(), agglom_normalized_data())
     if(length(input$fact_annot) == 0){
       annot <- NA
     }else{
       annot <- list()
       var_nb_na <- list()
-      for(i in 1:length(input$fact_annot)){
-        colors <- r$factor_colors()[input$fact_annot[i]]
-        modality <- lapply(modality_colors()[[i]], FUN = as.character)[[1]]
-        if(is.numeric(r$sdat()[, input$fact_annot[i]])){
-          result_colors <- paletteer::paletteer_c(colors[[1]], n = 30)
+      for(i in seq_along(input$fact_annot)){
+        var <- input$fact_annot[i]
+        modality <- as.character(modality_colors()[[i]])
+        if(is.numeric(r$sdat()[, var])){
+          req(r$numeric_palettes())
+          pal_id <- r$numeric_palettes()[[var]]
+          result_colors <- paletteer::paletteer_c(pal_id, n = 30)
           if(NA %in% modality){
-            var_values <- sample_data(agglom_normalized_data())[, input$fact_annot[i]]
-            var_nb_na[[input$fact_annot[i]]] <- sum(is.na(var_values))
+            var_values <- sample_data(agglom_normalized_data())[, var]
+            var_nb_na[[var]] <- sum(is.na(var_values))
           }
         }else{
+          req(r$factor_colors())
+          colors <- r$factor_colors()[var]
           result_colors <- colors[[1]][modality[!is.na(modality)]]
           if(NA %in% modality){
             result_colors["NA"] <- "#000000"
           }
         }
-        annot[[input$fact_annot[i]]] <- result_colors
+        annot[[var]] <- result_colors
       }
       if(length(var_nb_na) > 0){
         nb_na <- paste(sapply(1:length(var_nb_na), FUN = function(i){

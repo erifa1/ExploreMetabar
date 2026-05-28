@@ -47,6 +47,8 @@ The app is a navbar with 10 independent Shiny modules, all sharing a single `r =
 | Clustering | `mod_cluster.R` | Hierarchical clustering + dendrograms |
 | MixOmics | `mod_mixomics.R` | sPLS-DA multivariate analysis |
 
+An 11th module, `mod_color.R`, is mounted inside `mod_data_loading_ui` (in the "Colors" nav panel). It owns all color maps and writes the `r$factor_colors()` / `r$numeric_palettes()` / `r$taxa_colors()` reactives consumed by every plotting module. See "Color contract" below.
+
 ### Shared reactive state
 
 The `r` object is the backbone of the application:
@@ -56,6 +58,10 @@ The `r` object is the backbone of the application:
 - `r$data_ready()` — gating reactive; `TRUE` once the user has loaded and processed data in the Input Data tab
 - `r$tabs$tabselected` — tracks the active nav panel (set via an `observe` on `input$tabs`)
 - `r$fdata` — initialized to `NULL` in `reactiveValues`; populated by `mod_data_loading`
+- `r$factor_list()` — character vector of metadata variables whose column is **not** numeric (i.e. factors / characters). Populated by `mod_data_loading`.
+- `r$factor_colors()` — named list keyed by factor variable; each entry is a named character vector `c(<modality> = "#hex", ...)`. **Factors only** — numeric variables are not in this list.
+- `r$numeric_palettes()` — named list keyed by numeric metadata variable; each entry is a `"package::palette"` string accepted by `paletteer::paletteer_c`. Consumers that color by a numeric variable must read from here, not `r$factor_colors()`.
+- `r$taxa_colors()` — named list keyed by taxonomic rank; each entry is a named character vector `c(<taxon> = "#hex", ...)`.
 
 ### Navigation invariant
 
@@ -90,8 +96,21 @@ Heavy computations (ordinations, differential tests, permutation tests) are gate
 - `app_server.R` — wires all 10 module servers together with shared `r`
 - `phyloseq_extended_graphical_methods.R` — domain-specific plotting utilities (stacked bars, rarefaction curves)
 - `bars_fun.R` — bar plot generation helpers
-- `color_functions.R` — custom palette management
+- `color_helpers.R` — pure (Shiny-free) palette helpers used by `mod_color`
+- `mod_color.R` — server-only module that owns the color reactives and the "Colors" UI panel inside `mod_data_loading_ui`
 - `pairwise_adonis.R` — pairwise PERMANOVA utility used by `mod_beta`
+
+### Color contract
+
+`mod_color_server("color_ui_1", r = r)` is mounted as a nested module inside `mod_data_loading_server` and writes three reactives onto the shared `r`:
+
+- `r$factor_colors()` — categorical metadata variables only (named hex vector per variable).
+- `r$numeric_palettes()` — numeric metadata variables (`"package::palette"` string per variable). **Never** appears in `r$factor_colors()`.
+- `r$taxa_colors()` — taxonomic ranks (named hex vector per rank).
+
+When a consumer module colors a plot by a metadata variable that may be numeric, it must branch on `var %in% names(r$numeric_palettes())` (or equivalent) and wire `paletteer::scale_*_paletteer_c()` in the numeric path instead of `scale_*_manual(values = r$factor_colors()[[var]])`. Plots that are inherently categorical (Venn, stacked bars, sPLS-DA, pairwise differential contrasts) `validate(need(...))` upfront.
+
+CSV import/export uses long-format with columns `variable, modality, color`. Numeric assignments are rows with `variable = "__numeric__"` where `modality` is the variable name and `color` is a `package::palette` string.
 
 ## Visual Testing
 

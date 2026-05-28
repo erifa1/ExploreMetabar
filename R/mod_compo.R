@@ -120,6 +120,8 @@ mod_compo_server <- function(id, r) {
   compo <- eventReactive(input$go1, {
     flog.info('compo - Creating plots...')
     req(input$topTax, get_meta_col(), input$RankCompo, local_physeq())
+    validate(need(!get_meta_col() %in% names(r$numeric_palettes()),
+                  "Composition stacked bars require a categorical factor."))
 
     LL=list()
     Fdata <- local_physeq()

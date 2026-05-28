@@ -206,6 +206,8 @@ mod_asvenn_server <- function(id, r) {
 
   getPal <- reactive({
     req(input$Fact1, resVenn())
+    validate(need(!input$Fact1 %in% names(r$numeric_palettes()),
+                  "Venn diagram requires a categorical variable."))
     pal <- r$factor_colors()[[input$Fact1]]
     pal <- pal[names(pal) %in% names(resVenn()$TF)]
     if (is.null(pal)){

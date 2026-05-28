@@ -55,8 +55,6 @@ Imports:
     plotfunctions,
     plotly,
     purrr,
-    openxlsx,
-    readxl,
     reshape2,
     rlang,
     shiny,
