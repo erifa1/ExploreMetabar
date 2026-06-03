@@ -13,8 +13,7 @@
 #' @keywords internal
 #' @noRd
 #' @importFrom shiny NS tagList
-#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel
-#'   navset_card_underline nav_panel card card_header tooltip
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel card card_header tooltip
 #' @importFrom bsicons bs_icon
 mod_diffanalysis_ui <- function(id){
   ns <- NS(id)

@@ -749,16 +749,23 @@ g_legend<-function(a.gplot){
 #' @keywords internal
 extract_eigenvalue = function(ordination) UseMethod("extract_eigenvalue", ordination)
 # Default is to return NULL (e.g. for NMDS, or non-supported ordinations/classes).
+#' @exportS3Method
 extract_eigenvalue.default = function(ordination) NULL
 # for pcoa objects
+#' @exportS3Method
 extract_eigenvalue.pcoa = function(ordination) ordination$values$Relative_eig
 # for CCA objects
+#' @exportS3Method
 extract_eigenvalue.cca = function(ordination) c(ordination$CCA$eig, ordination$CA$eig)
 # for RDA objects
+#' @exportS3Method
 extract_eigenvalue.rda = function(ordination) c(ordination$CCA$eig, ordination$CA$eig)
 # for dpcoa objects
+#' @exportS3Method
 extract_eigenvalue.dpcoa = function(ordination) ordination$eig
 # for decorana (dca) objects
+#' @exportS3Method
 extract_eigenvalue.decorana = function(ordination) ordination$evals
 # for pca (edgePCA) objects
+#' @exportS3Method
 extract_eigenvalue.pca = function(ordination) ordination$values$Eigenvalues
