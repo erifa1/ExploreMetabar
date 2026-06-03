@@ -813,7 +813,7 @@ get_axis_names <- reactive({
           ggrepel::geom_text_repel(
             data = species_coord,
             aes(x = .xend, y = .yend, label = .data[[label_col]], color = .data[[input$rank_color]]),
-            size = 3, fontface = "italic", max.overlaps = 20, show.legend = FALSE
+            size = 5, fontface = "italic", max.overlaps = 20, show.legend = FALSE
           )
       }
 
