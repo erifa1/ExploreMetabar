@@ -118,7 +118,7 @@ Do not attempt to launch or visually test the app. Only verify syntax and logic 
 
 ## Testing
 
-The test suite is currently minimal: `tests/testthat/` contains only the default `test-golem-recommended.R` stub from `golem::use_recommended_tests()`. There are no module-level tests and no snapshot directory yet. When adding tests for a module, follow the standard `testServer()` pattern and load fixtures from `inst/data_test/`.
+`tests/testthat/` covers each module (`test-mod_*.R`), the shared reactive factories (`test-mod_utils_shared.R`), and a deploy guard (`test-renv-no-self-entry.R`), alongside the golem `test-golem-recommended.R` app-launch stub; shared mocks live in `helper-mock-r.R`. When adding tests for a module, follow the standard `testServer()` pattern and load fixtures from `inst/data_test/`.
 
 Test datasets for local development:
 - `inst/data_test/phy_test_numeric.rdata` — small object (24 KB)
@@ -140,14 +140,36 @@ When you add or update a dependency in `DESCRIPTION`:
 ```r
 pak::local_install_deps(dependencies = TRUE)   # install the new package(s)
 renv::snapshot()                                # rewrite renv.lock
-file.copy("renv.lock", "../explore-metabar/renv.lock", overwrite = TRUE)
 ```
+
+Do **not** hand-copy `renv.lock` into the deploy repo — `make release` (see *Releasing*) syncs it as part of every release. `renv.lock` must **not** contain an `ExploreMetabar` self-entry: `renv::snapshot()` omits the project package by design, and `tests/testthat/test-renv-no-self-entry.R` fails if one reappears (the deploy installs the package from a source clone at the release tag, not from the lockfile).
 
 Never add a CRAN-only package that duplicates functionality already provided by the Bioconductor ecosystem (e.g., prefer `phyloseq` transforms over reimplementing them).
 
+## Releasing a new version
+
+Releases are driven by one command, run from this repo's `master` with a clean tree:
+
+```bash
+make release VERSION=3.2.0
+```
+
+`make release` ([Makefile](Makefile)):
+1. bumps `Version:` in `DESCRIPTION` and `golem_version:` in `inst/golem-config.yml` (idempotent),
+2. commits and creates the annotated tag `v3.2.0`, then pushes `master` + the tag to forge,
+3. runs the `sync-deploy` target: copies `renv.lock` and pins `ARG EM_REF=v3.2.0` in the deploy repo's `Dockerfile`, then commits + pushes the deploy repo — which fires the SK8 build and auto-deploy.
+
+Add a `NEWS.md` section for the version first (the target warns if it is missing). The UI header and startup log read the version from `DESCRIPTION` via `packageVersion()`, so nothing else needs editing. `DEPLOY_REPO` defaults to `$HOME/git-repo/explore-metabar` and is overridable (`make release VERSION=… DEPLOY_REPO=…`).
+
 ## Deployment (sister repo)
 
-Deployment lives in a **separate repository** at `../explore-metabar/` — it holds the `Dockerfile` and `.gitlab-ci-sk8.yml` for the SK8 (INRAE) Shiny hosting platform. That Dockerfile builds on `rocker/r-ver:4.6.0`, installs `renv 1.2.2`, then runs `renv::restore()` against a copy of this repo's `renv.lock`. The two `renv.lock` files **must stay byte-identical** — sync after every `renv::snapshot()` (see command above). The local `Dockerfile` in this repo is obsolete and not used for SK8 deployment.
+Deployment lives in a **separate repository** at `$HOME/git-repo/explore-metabar` (`sk8/sk8-apps/tbi/explore-metabar` on forge) — it holds the `Dockerfile` and `.gitlab-ci-sk8.yml` for the SK8 (INRAE) Shiny hosting platform. SK8 has **no inbound trigger**: it rebuilds whenever a commit/tag is pushed to that repo (which `make release` does) and then auto-deploys (`MISE_A_JOUR_AUTOMATIQUE: "true"`).
+
+The deploy `Dockerfile` builds on `rocker/r-ver:4.6.0`, installs `renv 1.2.2`, then:
+1. **deps** — `renv::restore()` from the synced `renv.lock` (dependency tree only, **no** `ExploreMetabar` self-entry);
+2. **app** — `git clone`s this (public) repo at the tag in `ARG EM_REF` and `R CMD INSTALL`s from source. The tag — not the lockfile — is the single source of truth for the deployed version.
+
+Never hand-edit the deploy repo's `renv.lock` or `EM_REF`; `make release` writes both. SK8's CI also reads `renv.lock` for the R version and dependency cache. The local `Dockerfile` in this repo is obsolete and not used for SK8 deployment.
 
 ## Golem Conventions
 
