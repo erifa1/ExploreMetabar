@@ -33,6 +33,7 @@ Imports:
     ggplot2,
     ggpolypath,
     ggnewscale,
+    ggrepel,
     glue,
     goeveg,
     golem,

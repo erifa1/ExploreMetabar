@@ -218,6 +218,7 @@ make_picker_choices <- function(df, cols, show_na = FALSE) {
 #' @import gtools
 #' @import goeveg
 #' @import ggnewscale
+#' @importFrom ggrepel geom_text_repel
 #'
 #' @noRd
 mod_beta_server <- function(id, r) {
@@ -326,15 +327,26 @@ mod_beta_server <- function(id, r) {
     return(f)
   })
 
-  # ---- Dynamic UI: taxa rank selector ----
+  # ---- Dynamic UI: taxa rank selector + top-N contributors ----
   output$ui_taxa_rank <- renderUI({
     req(input$ordination, local_physeq())
     if(input$ordination %in% c('NMDS', 'PCOA', 'dbRDA', 'CCA', 'RDA')){
-      selectInput(
-       ns("rank_color"),
-       label = "Select rank to color taxa points: ",
-       choices = rank_names(local_physeq()),
-       selected = rank_names(local_physeq())[length(rank_names(local_physeq()))]
+      tagList(
+        selectInput(
+         ns("rank_color"),
+         label = "Select rank to color taxa arrows: ",
+         choices = rank_names(local_physeq()),
+         selected = rank_names(local_physeq())[length(rank_names(local_physeq()))]
+        ),
+        tooltip(
+          numericInput(
+            ns("n_top_taxa"),
+            label = "Top N contributing taxa:",
+            value = 10, min = 1, step = 1
+          ),
+          "Keep only the N taxa with the largest score vectors (strongest contribution) on the displayed axes.",
+          placement = "right"
+        )
       )
     }
   })
@@ -761,13 +773,48 @@ get_axis_names <- reactive({
       if ('taxa' %in% input$plot_type){
         flog.info('base_plot() plotting taxa...')
         species_coord <- get_species_coord()
-        if(r$rank_glom() == 'ASV'){
-          taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames="ASV") %>% select(ASV) %>% pull
-        } else{
-          taxa <- tax_table(local_physeq()) %>% as.data.frame() %>% as_tibble(rownames=r$rank_glom()) %>% select(r$rank_glom()) %>% pull
-        }
+        rank_id <- r$rank_glom()
+        n_top   <- input$n_top_taxa %||% 10
+        # Label arrows with the taxon name: the agglomeration rank already holds
+        # a name, except when glommed at ASV level — then fall back to the
+        # chosen color rank so labels read as taxa, not ASV ids.
+        label_col <- if(rank_id == 'ASV') input$rank_color else rank_id
+
+        # Keep the N most contributing taxa: rank by the length of their score
+        # vector in the displayed plane (sqrt(x^2 + y^2)).
+        species_coord <- species_coord %>%
+          dplyr::mutate(.norm = sqrt(.data[[axe_x]]^2 + .data[[axe_y]]^2)) %>%
+          dplyr::arrange(dplyr::desc(.norm)) %>%
+          utils::head(n_top)
+
+        validate(need(nrow(species_coord) > 0, "No taxa scores available for this ordination."))
+
+        # Biplot scaling: stretch taxa vectors to roughly fill the sample cloud
+        # so the arrows are readable alongside the sample points.
+        sites_coord <- get_sites_coord()
+        denom_x <- max(abs(species_coord[[axe_x]]))
+        denom_y <- max(abs(species_coord[[axe_y]]))
+        multiplier <- if(denom_x > 0 && denom_y > 0){
+          min(max(abs(sites_coord[[axe_x]])) / denom_x,
+              max(abs(sites_coord[[axe_y]])) / denom_y) * 0.8
+        } else 1
+        species_coord <- species_coord %>%
+          dplyr::mutate(.xend = .data[[axe_x]] * multiplier,
+                        .yend = .data[[axe_y]] * multiplier)
+
         p <- p +
-          geom_point(data = species_coord, aes(x=!!sym(axe_x), y=!!sym(axe_y), color=.data[[input$rank_color]], taxa = taxa)) + scale_color_manual(values=r$taxa_colors()[[input$rank_color]], drop = FALSE)
+          geom_segment(
+            data = species_coord,
+            aes(x = 0, y = 0, xend = .xend, yend = .yend, color = .data[[input$rank_color]]),
+            arrow = grid::arrow(length = grid::unit(0.02, "npc")),
+            linewidth = 0.6, alpha = 0.8
+          ) +
+          scale_color_manual(values = r$taxa_colors()[[input$rank_color]], drop = FALSE) +
+          ggrepel::geom_text_repel(
+            data = species_coord,
+            aes(x = .xend, y = .yend, label = .data[[label_col]], color = .data[[input$rank_color]]),
+            size = 3, fontface = "italic", max.overlaps = 20, show.legend = FALSE
+          )
       }
 
       if ('env' %in% input$plot_type){
