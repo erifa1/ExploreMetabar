@@ -3,7 +3,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14610142.svg)](https://doi.org/10.5281/zenodo.4317187)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![R ≥ 4.4.3](https://img.shields.io/badge/R-%E2%89%A54.4.3-blue.svg)](https://cran.r-project.org/)
+[![R ≥ 4.6.0](https://img.shields.io/badge/R-%E2%89%A54.6.0-blue.svg)](https://cran.r-project.org/)
 
 Interactive Shiny application for exploring metabarcoding (16S, ITS) data.
 
@@ -21,10 +21,10 @@ ExploreMetabar takes a [phyloseq](https://joey711.github.io/phyloseq/) object as
 
 | Module | Key methods |
 |---|---|
-| **Data Loading** | Phyloseq filtering, normalization (TSS, CLR, VST, Hellinger), metadata editing, color scheme upload |
+| **Data Loading** | Phyloseq filtering, normalization (TSS, CLR, VST, Hellinger), metadata editing, color management (factor colors, numeric palettes, per-taxon colors) with CSV import/export |
 | **Composition** | Stacked bar plots by taxonomic rank, top-N taxa, group merging |
 | **Alpha Diversity** | Observed, Chao1, ACE, Shannon, Simpson, InvSimpson · ANOVA/Tukey · linear regression |
-| **Beta Diversity** | PCoA, NMDS, dbRDA · Bray-Curtis, Jaccard, UniFrac · PERMANOVA, pairwise Adonis, betadisper, envfit |
+| **Beta Diversity** | PCoA, NMDS, dbRDA · Bray-Curtis, Jaccard, UniFrac · PERMANOVA, pairwise Adonis, betadisper, envfit · top-N taxa contribution arrows |
 | **Taxa Boxplots** | Kruskal-Wallis, pairwise Wilcoxon, Pearson/Spearman/Kendall · FDR correction |
 | **Heatmap** | Hierarchical clustering · TSS, CLR, VST, Hellinger, log10 normalization · metadata annotations |
 | **Differential Analysis** | DESeq2, metagenomeSeq, MetaCoder heat trees · consensus table across methods |
@@ -44,7 +44,7 @@ ExploreMetabar expects an **RData file containing a phyloseq object named `data`
 
 ## Installation
 
-R 4.4.3 or higher is required.
+R 4.6.0 or higher is required (the dependency tree is pinned to R 4.6.0 / Bioconductor 3.23 via `renv.lock`).
 
 **Linux (recommended)**
 
@@ -87,7 +87,7 @@ sudo docker run -it -p 3838:3838 erifa1/exploremetabar:latest
 
 ## Citation
 
-Etienne RIFA, & Sebastien Theil. (2025). ExploreMetabar: v3.0, https://forge.inrae.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317187
+Etienne RIFA, & Sebastien Theil. (2025). ExploreMetabar: v3.1.0, https://forge.inrae.fr/umrf/exploremetabar. Zenodo. https://doi.org/10.5281/zenodo.4317187
 
 ## License
 

@@ -2,11 +2,21 @@
 #' @import bslib
 #' @importFrom bsicons bs_icon
 #' @importFrom base64enc dataURI
+#' @importFrom brand.yml read_brand_yml
 
+# `brand.yml` is only a Suggests of bslib, but bslib delegates all `_brand.yml`
+# parsing to it, so it is a hard runtime dependency of this app. The importFrom
+# above declares that (and keeps R CMD check's dependency note quiet).
 
-SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), package='ExploreMetabar'))
+SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), package='ExploreMetabar'), mime="image/png")
 UCAimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'uca2.png'), package='ExploreMetabar'))
 MIGimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'migale2.png'), package='ExploreMetabar'))
+# White INRAE logo for the (teal) navbar; mime must be set so the SVG renders.
+INRAEimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'inrae-logo-white.svg'), package='ExploreMetabar'), mime="image/svg+xml")
+
+# INRAE branding lives in inst/_brand.yml so it ships with the installed
+# package; bslib reads colors + typography from it (single source of truth).
+brand_path <- system.file("_brand.yml", package = "ExploreMetabar")
 
 description <- read.dcf(system.file("DESCRIPTION", package = "ExploreMetabar"))
 package_name <- description[1, "Package"]
@@ -28,15 +38,12 @@ app_ui <- function() {
           style = "opacity: 0.7;"
         )
       ),
+      # flatly base, with colors + typography driven by inst/_brand.yml
+      # (single source of truth; falls back to plain flatly if file missing).
       theme = bs_theme(
         version = 5,
         preset = "flatly",
-        primary = "#00a3a6",
-        secondary = "#423089",
-        success = "#9dc544",
-        info = "#9ed6e3",
-        warning = "#ed6e6c",
-        danger = "#ed6e6c"
+        brand = if (nzchar(brand_path)) brand_path else FALSE
       ),
       fillable = TRUE,
       window_title = NA,
@@ -102,16 +109,30 @@ app_ui <- function() {
         mod_mixomics_ui("mixomics_1")
       ),
 
-      # Navbar menu for external links
-      nav_menu(
-        title = "Links",
-        nav_item(tags$a("SK8", href = "https://sk8.inrae.fr/", target = "_blank", class = "nav-link")),
-        nav_item(tags$a(bs_icon("code"), " Source code", href = "https://forge.inrae.fr/umrf/exploremetabar", target = "_blank", class = "nav-link")),
-        nav_item(tags$a(bs_icon("bug"), " Issues", href = "https://forge.inrae.fr/umrf/ExploreMetabar/-/issues", target = "_blank", class = "nav-link"))
-      ),
+      # External links + INRAE branding, pushed to the right edge
+      nav_spacer(),
+      nav_item(tags$a(
+        tags$img(src = SK8img, alt = "SK8", height = "32px"),
+        href = "https://sk8.inrae.fr/", target = "_blank",
+        class = "nav-link py-1", title = "SK8 hosting platform (home)"
+      )),
+      nav_item(tags$a(
+        bs_icon("git"), " Source",
+        href = "https://forge.inrae.fr/umrf/exploremetabar", target = "_blank",
+        class = "nav-link", title = "GitLab repository"
+      )),
+      nav_item(tags$a(
+        bs_icon("bug"), " Issues",
+        href = "https://forge.inrae.fr/umrf/ExploreMetabar/-/issues", target = "_blank",
+        class = "nav-link", title = "Report an issue on GitLab"
+      )),
+      nav_item(tags$a(
+        tags$img(src = INRAEimg, alt = "INRAE", height = "32px"),
+        href = "https://www.inrae.fr", target = "_blank",
+        class = "nav-link py-1", title = "INRAE"
+      )),
 
       # Dark mode toggle
-      nav_spacer(),
       nav_item(input_dark_mode())
     )
   )

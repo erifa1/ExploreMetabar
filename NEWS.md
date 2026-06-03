@@ -1,3 +1,18 @@
+# ExploreMetabar 3.1.0
+
+## New features
+* **Color management module (`mod_color`)**: a dedicated "Colors" panel centralizes every plot color. Assign per-modality colors for categorical metadata, continuous palettes for numeric metadata, and per-taxon colors for each taxonomic rank. Schemes can be exported and re-imported as long-format CSV.
+* **Beta diversity**: ordination plots now overlay the top-N taxa contributions as labelled arrows.
+* **Branding via `_brand.yml`**: theme colors and typography are driven by a single `inst/_brand.yml` (bslib `brand` integration). The navbar now carries the INRAE logo and external links (SK8, source code, issues) pushed to the right edge.
+
+## Internal changes
+* Color logic extracted into pure, Shiny-free helpers (`color_helpers.R`) consumed by `mod_color`; plotting modules read the shared `r$factor_colors()`, `r$numeric_palettes()`, and `r$taxa_colors()` reactives.
+* Fixed numeric / high-cardinality variable handling in color assignment.
+* Added a `testthat` suite covering the alpha, beta, cluster, color, composition, data-loading, differential-analysis, heatmap, mixomics, taxa-boxplot, and shared-utils modules.
+
+## Cleanup
+* Removed obsolete scratch files (`inst/old_files/`, `inst/test/`), a duplicate test fixture in `data-raw/`, and the unused `ranks_ref` dataset (dropped `LazyData`).
+
 # ExploreMetabar 3.0
 
 ## UI overhaul

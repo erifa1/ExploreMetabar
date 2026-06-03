@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 3.0
+Version: 3.1.0
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
@@ -14,6 +14,7 @@ Imports:
     base64enc,
     Biobase,
     Biostrings,
+    brand.yml,
     broom,
     bsicons,
     bslib,
@@ -88,5 +89,4 @@ Remotes:
     mikemc/speedyseq,
     vqf/nVennR
 Encoding: UTF-8
-LazyData: true
 Config/roxygen2/version: 8.0.0
