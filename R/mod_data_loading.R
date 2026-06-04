@@ -259,6 +259,65 @@ merge_table <- function(rank, table){
 }
 
 
+#' Correct sample-metadata column types
+#'
+#' Best-effort type repair for a sample-metadata data frame. Character/factor
+#' columns whose values are really *decimal* numbers — including French
+#' decimal-comma notation (`"3,5"`) and (non-breaking) space thousand
+#' separators (`"1 000,5"`) — are converted to numeric; the remaining
+#' non-numeric character columns are declared factors.
+#'
+#' Integer-only text columns (e.g. coded grouping variables `"1","2","3"`) are
+#' deliberately **kept categorical** (turned into factors): conversion to
+#' numeric only happens when at least one value carries a decimal separator, so
+#' a coded group is never silently turned into a continuous variable. Columns
+#' already numeric/logical, and `exclude_cols` (sample identifiers), are left
+#' untouched.
+#'
+#' @param metadata A data frame (typically `phyloseq::sample_data` coerced to a
+#'   data frame).
+#' @param exclude_cols Column names never coerced (sample identifiers).
+#'
+#' @return `metadata` with corrected column types, carrying a `"coercions"`
+#'   attribute: a character vector describing each change (length 0 if nothing
+#'   changed).
+#' @noRd
+coerce_metadata_types <- function(metadata, exclude_cols = "sample.id") {
+  changes <- character(0)
+  cols <- setdiff(names(metadata), exclude_cols)
+
+  for (col in cols) {
+    x <- metadata[[col]]
+    if (is.numeric(x) || is.logical(x)) next     # already typed, leave as-is
+
+    xc <- trimws(as.character(x))
+    xc[xc == ""] <- NA
+    non_na <- !is.na(xc)
+    if (!any(non_na)) next                        # nothing to infer from
+
+    # French-locale numeric candidate: drop (thousand) spaces, comma -> dot.
+    cand <- gsub("[[:space:]]", "", xc)
+    cand <- gsub("[   ]", "", cand)   # nbsp / narrow / thin spaces
+    cand <- gsub(",", ".", cand, fixed = TRUE)
+    num <- suppressWarnings(as.numeric(cand))
+
+    all_numeric <- all(!is.na(num[non_na]))
+    has_decimal <- any(grepl("[.,]", xc[non_na]))
+
+    if (all_numeric && has_decimal) {
+      metadata[[col]] <- num
+      changes <- c(changes, sprintf("'%s': text -> numeric (decimal)", col))
+    } else if (is.character(x)) {
+      metadata[[col]] <- as.factor(x)
+      changes <- c(changes, sprintf("'%s': character -> factor", col))
+    }
+  }
+
+  attr(metadata, "coercions") <- changes
+  metadata
+}
+
+
 
 
 #' data_loading Server Function
@@ -361,7 +420,24 @@ mod_data_loading_server <- function(id, r) {
       sdat <- sdat %>% dplyr::mutate(sample.id = sample_names(phyobj), .before = 1)
     }
     sdat <- sdat %>% select(where(~ n_distinct(.) > 1))
-    
+
+    # Repair column types: French decimal-comma numerics -> numeric, remaining
+    # categorical character columns -> factor (sample.id is left untouched).
+    sdat <- coerce_metadata_types(sdat, exclude_cols = "sample.id")
+    coercions <- attr(sdat, "coercions")
+    if (length(coercions)) {
+      flog.info(paste0("Metadata type coercion: ", paste(coercions, collapse = "; ")))
+      showNotification(
+        ui = tagList(
+          tags$b("Metadata column types corrected:"),
+          tags$ul(lapply(coercions, tags$li))
+        ),
+        id = "metadata_type_coercion",
+        type = "warning",
+        duration = 8
+      )
+    }
+
     for(i in seq(1, 3, 2)){
       if(!is.null(input[[paste("combin", i+1, sep = "_")]])){
         sdat <- combine_columns_sdat(metadata = sdat, list_columns = c(input[[paste("combin", i, sep = "_")]], input[[paste("combin", i+1, sep = "_")]]))

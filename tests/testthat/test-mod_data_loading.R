@@ -11,6 +11,75 @@ test_that("mod_data_loading_ui returns a tag list", {
   expect_s3_class(ui, c("shiny.tag", "shiny.tag.list"), exact = FALSE)
 })
 
+# coerce_metadata_types is the pure, Shiny-free metadata type-repair helper.
+# Contract (see ?coerce_metadata_types): decimal-bearing text -> numeric
+# (French decimal comma included), all other non-numeric character -> factor,
+# integer-only codes deliberately kept categorical, sample.id untouched.
+test_that("coerce_metadata_types: French decimal comma -> numeric", {
+  df <- data.frame(
+    sample.id = c("s1", "s2", "s3"),
+    ph        = c("6,5", "7,1", "6,8"),   # comma decimals (read as character)
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_type(out$ph, "double")
+  expect_equal(out$ph, c(6.5, 7.1, 6.8))
+  expect_true(any(grepl("'ph'.*numeric", attr(out, "coercions"))))
+})
+
+test_that("coerce_metadata_types: dot decimals and space thousand-separators parse", {
+  df <- data.frame(
+    dot       = c("6.5", "7.1", "6.8"),
+    thousands = c("1 000,5", "2 500,0", "3 750,25"),
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_equal(out$dot, c(6.5, 7.1, 6.8))
+  expect_equal(out$thousands, c(1000.5, 2500.0, 3750.25))
+})
+
+test_that("coerce_metadata_types: integer-only text stays categorical (factor)", {
+  df <- data.frame(
+    replicate = c("1", "2", "3", "1"),    # coded group, no decimal separator
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_s3_class(out$replicate, "factor")
+  expect_false(is.numeric(out$replicate))
+})
+
+test_that("coerce_metadata_types: plain character -> factor, numerics & sample.id untouched", {
+  df <- data.frame(
+    sample.id = c("12", "13", "14"),       # numeric-looking id: must stay text
+    group     = c("ctrl", "treat", "ctrl"),
+    age       = c(23, 45, 31),             # already numeric
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_type(out$sample.id, "character")  # excluded from coercion
+  expect_s3_class(out$group, "factor")
+  expect_true(is.numeric(out$age))
+})
+
+test_that("coerce_metadata_types: NA / blanks preserved when converting to numeric", {
+  df <- data.frame(
+    weight = c("1,5", NA, "", "2,5"),
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_equal(out$weight, c(1.5, NA, NA, 2.5))
+})
+
+test_that("coerce_metadata_types: no changes yields empty coercions attribute", {
+  df <- data.frame(
+    a = c(1.0, 2.0),                       # numeric
+    b = factor(c("x", "y")),               # already factor
+    stringsAsFactors = FALSE
+  )
+  out <- coerce_metadata_types(df)
+  expect_length(attr(out, "coercions"), 0L)
+})
+
 test_that("mod_data_loading_server: phyloseq_data loads the default fixture when no upload", {
   # The fixture is bundled with the installed package; if it's not installed
   # yet (e.g. running tests in source tree), skip rather than fail.
