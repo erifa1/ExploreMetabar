@@ -370,6 +370,15 @@ mod_diffanalysis_server <- function(id, r) {
         psobj <- phyloseq::transform_sample_counts(local_physeq(), normf)
 
         incProgress(amount = 0.2, message = 'Zeroing low counts...')
+        # metacoder::parse_phyloseq() (v0.3.9) references a bare `ranks_ref`
+        # symbol that lives in metacoder's lazy-data env, which is *not* on its
+        # namespace lookup chain. It only resolves when metacoder is attached
+        # via library() (we only import it), so the bare lookup falls through to
+        # .GlobalEnv. Seed it there so parse_phyloseq finds it. See git history:
+        # data/ranks_ref.rda was an earlier, deploy-broken attempt at this.
+        if (!exists("ranks_ref", envir = .GlobalEnv, inherits = FALSE)) {
+          utils::data("ranks_ref", package = "metacoder", envir = .GlobalEnv)
+        }
         flog.info('metacoder - parse_phyloseq')
         obj <- metacoder::parse_phyloseq(psobj, class_regex = "(.*)", class_key = "taxon_name")
         flog.info('metacoder - zero_low_counts')
