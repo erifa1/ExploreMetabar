@@ -28,6 +28,13 @@ app_ui <- function() {
     # Leave this function for adding external resources
     golem_add_external_resources(),
 
+    # App-wide "computing" cue: Shiny's built-in busy-indicator page pulse
+    # (a thin animated bar that sweeps across the top while the session is
+    # recalculating). Spinners are disabled so we keep only the top sweep;
+    # its look is themed in inst/app/www/style.css via the --shiny-pulse-*
+    # custom properties. Shiny renders it at z-index 9999, above the navbar.
+    useBusyIndicators(spinners = FALSE, pulse = TRUE),
+
     # Bootstrap 5 theme with INRAE styling
     page_navbar(
       id = "tabs",
@@ -130,10 +137,7 @@ app_ui <- function() {
         tags$img(src = INRAEimg, alt = "INRAE", height = "32px"),
         href = "https://www.inrae.fr", target = "_blank",
         class = "nav-link py-1", title = "INRAE"
-      )),
-
-      # Dark mode toggle
-      nav_item(input_dark_mode())
+      ))
     )
   )
 }

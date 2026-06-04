@@ -1,32 +1,31 @@
 /* App-wide "computing" cue.
  *
- * Shiny adds the `shiny-busy` class to <html> whenever any output or reactive
- * is recalculating (this covers every heavy compute: PERMANOVA, DESeq2,
- * MixOmics tuning, ordinations, ...). We surface a thin animated bar pinned to
- * the top of the viewport so the user always sees that work is in progress.
+ * Shiny adds the `shiny-busy` class to <html> whenever the session is busy
+ * recalculating (this covers every heavy synchronous compute: PERMANOVA,
+ * DESeq2, MixOmics tuning, ordinations, ...). We surface that with Shiny's
+ * built-in "busy indicators" page pulse: a thin animated bar that sweeps
+ * across the top of the viewport. It is enabled in app_ui.R via
+ * `useBusyIndicators(spinners = FALSE, pulse = TRUE)`.
  *
- * It is deliberately NON-BLOCKING: `pointer-events: none` means it never
- * intercepts clicks, so the UI stays responsive and the bar simply disappears
- * on trivial recomputes. The colour is the INRAE brand primary (#00a3a6,
- * matching inst/_brand.yml). The per-launch `input_task_button`s handle the
- * stronger "disable the button while it runs" protection.
+ * Why the built-in pulse instead of a hand-rolled bar: Shiny renders the pulse
+ * at z-index 9999, so it sits *above* the teal INRAE navbar it overlaps. The
+ * previous custom `html.shiny-busy::after` bar used z-index 2000 and was
+ * painted behind the navbar, so it stayed invisible.
+ *
+ * We only restyle it here through the documented CSS custom properties: a
+ * brand sweep (white core + INRAE secondary purple #423089) that stays clearly
+ * visible against the teal navbar (#00a3a6). The per-launch `input_task_button`s
+ * still handle the stronger "disable the button while it runs" protection.
  */
-html.shiny-busy::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  z-index: 2000;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, #00a3a6, transparent);
-  background-size: 50% 100%;
-  background-repeat: no-repeat;
-  animation: em-busy-slide 1s linear infinite;
-}
-
-@keyframes em-busy-slide {
-  from { background-position: -50% 0; }
-  to   { background-position: 150% 0; }
+:root {
+  --shiny-pulse-height: 4px;
+  --shiny-pulse-speed: 1.2s;
+  --shiny-pulse-background: linear-gradient(
+    120deg,
+    transparent,
+    #ffffff,
+    #423089,
+    #ffffff,
+    transparent
+  );
 }
