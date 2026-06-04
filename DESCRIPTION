@@ -1,6 +1,6 @@
 Package: ExploreMetabar
 Title: ExploreMetabar
-Version: 3.1.2
+Version: 3.1.3
 Authors@R: c(
     person("Etienne", "Rifa", , "etienne.rifa@inrae.fr", role = c("cre", "aut")),
     person("Sebastien", "Theil", , "sebastien.theil@inrae.fr", role = "aut")
