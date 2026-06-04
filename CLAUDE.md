@@ -146,6 +146,8 @@ Do **not** hand-copy `renv.lock` into the deploy repo — `make release` (see *R
 
 Never add a CRAN-only package that duplicates functionality already provided by the Bioconductor ecosystem (e.g., prefer `phyloseq` transforms over reimplementing them).
 
+`vegan` is pinned to **2.7-1** (`renv.lock` + `DESCRIPTION` upper bound `vegan (<= 2.7-1)`): **2.7-3 causes glibc heap corruption (`malloc(): invalid next size`) in `adonis2`/`pairwiseAdonis` under R 4.6**, crashing the R process during PERMANOVA (Beta diversity tab). Do not bump it. `tests/testthat/test-renv-vegan-pin.R` fails if the lockfile re-pins 2.7-3.
+
 ## Releasing a new version
 
 Releases are driven by one command, run from this repo's `master` with a clean tree:

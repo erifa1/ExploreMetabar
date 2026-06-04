@@ -68,7 +68,7 @@ Imports:
     thematic,
     tibble,
     tidyr,
-    vegan,
+    vegan (<= 2.7-1),
     venn,
     nVennR,
     VennDiagram,

@@ -894,7 +894,11 @@ get_axis_names <- reactive({
     validate(need(!isNumFactor(),
                   "Dispersion test requires a categorical factor."))
     flog.info('get_dispersion_res() starting...')
-    res <- vegan::betadisper(physeq_dist(), local_metadata()[,get_meta_col()])
+    dist <- physeq_dist()
+    # Group vector ordered to the distance-matrix samples by name (betadisper
+    # pairs the grouping to the dissimilarities positionally).
+    groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
+    res <- vegan::betadisper(dist, groups)
     flog.info('get_dispersion_res() end.')
     return(res)
   })
@@ -916,15 +920,27 @@ get_axis_names <- reactive({
   })
 
   # ---- PERMANOVA (adonis) ----
+  # adonis2 pairs the LHS distance matrix to the RHS `data` rows *by position*,
+  # so align both to the distance-matrix sample order (by name) and drop any
+  # sample with a missing value in a model term -- subsetting the distance
+  # matrix to the same samples so the two never disagree in size or order.
   get_adonis_res <- eventReactive(input$launch_beta, {
-    req(physeq_dist(), get_formula(), ord())
+    req(physeq_dist(), get_formula(), get_meta_col(), ord())
     flog.info('get_adonis_res() starting...')
     flog.debug('get_adonis_res(): formula=%s', get_formula())
-    dist <- physeq_dist()
-    mdata <- local_metadata()
-    mdata$Depth <- sample_sums(r$phyloseq_filtered())
-    mdata <- mdata %>% filter(!is.na(get_meta_col()))
-    flog.debug('get_adonis_res(): nsamples=%d after NA filtering', nrow(mdata))
+    dist  <- physeq_dist()
+    samp  <- attr(dist, "Labels")
+    mdata <- local_metadata()[samp, , drop = FALSE]
+    # Sequencing-depth covariate, matched to each sample by name (not position).
+    mdata$Depth <- sample_sums(r$phyloseq_filtered())[samp]
+    term_vars <- intersect(c("Depth", get_meta_col(), input$beta_shape), colnames(mdata))
+    keep <- samp[stats::complete.cases(mdata[, term_vars, drop = FALSE])]
+    flog.debug('get_adonis_res(): %d of %d samples kept after dropping NA terms',
+               length(keep), length(samp))
+    validate(need(length(keep) >= 3,
+                  "Not enough samples with complete data for the selected PERMANOVA terms."))
+    dist  <- stats::as.dist(as.matrix(dist)[keep, keep])
+    mdata <- mdata[keep, , drop = FALSE]
     res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
     flog.info('get_adonis_res() end.')
     return(data.frame(res))
@@ -932,10 +948,16 @@ get_axis_names <- reactive({
 
   get_pairwise_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_meta_col(), local_metadata())
+    validate(need(!isNumFactor(),
+                  "Pairwise PERMANOVA requires a categorical factor."))
+    dist <- physeq_dist()
+    # Group vector ordered to the distance-matrix samples by name, so the
+    # `factors %in% ...` row selection inside pairwise.adonis stays aligned.
+    groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
     flog.info('get_pairwise_res() starting...')
     flog.debug('get_pairwise_res(): factor=%s, nsamples=%d',
-               get_meta_col(), nrow(local_metadata()))
-    res <- pairwise.adonis(physeq_dist(), local_metadata()[,get_meta_col()], p.adjust.m = "fdr")
+               get_meta_col(), length(groups))
+    res <- pairwise.adonis(dist, groups, p.adjust.m = "fdr")
     flog.info('get_pairwise_res() end.')
     return(res)
   })
