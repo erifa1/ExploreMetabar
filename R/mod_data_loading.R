@@ -72,7 +72,16 @@ mod_data_loading_ui <- function(id){
           accordion_panel(
             "Taxa filtering",
             icon = bs_icon("filter"),
-            datamods::filter_data_ui(ns("filtering_taxo"), max_height = "400px")
+            datamods::filter_data_ui(ns("filtering_taxo"), max_height = "400px"),
+            tooltip(
+              actionButton(
+                ns("apply_taxa_filter"),
+                label = "Apply taxa filter",
+                icon = bs_icon("check2-circle"),
+                class = "btn-outline-secondary w-100 mt-2"
+              ),
+              "Optional. Process Data keeps all taxa; click to restrict the dataset to the taxa selected above."
+            )
           ),
 
           accordion_panel(
@@ -264,7 +273,13 @@ merge_table <- function(rank, table){
 mod_data_loading_server <- function(id, r) {
   moduleServer(id, function(input, output, session) {
   ns <- session$ns
-  r_values <- reactiveValues(phyobj_initial=NULL, phyobj_sub_samples=NULL, phyobj_norm=NULL, phyobj_taxglom=NULL, phyobj_final=NULL, phyobj_tmp=NULL)
+  r_values <- reactiveValues(phyobj_initial = NULL)
+
+  # `final` holds the user-facing filtered object: processed() optionally refined
+  # by the manual taxa filter. It is a reactiveVal — never a stale one-shot
+  # snapshot — so the taxa filter (calibrated on the post-subset table) can update
+  # it after the browser round-trip without re-running the heavy pipeline.
+  final <- reactiveVal(NULL)
 
   ###Filtering metadata
 
@@ -327,7 +342,6 @@ mod_data_loading_server <- function(id, r) {
     if(is.null(refseq(r_values$phyobj_initial, errorIfNULL=FALSE)) ){
       showNotification("No refseq in object.", type="error", duration = 3)
     }
-    r_values$phyobj_tmp <- r_values$phyobj_initial
     return(r_values$phyobj_initial)
   })
 
@@ -366,27 +380,6 @@ mod_data_loading_server <- function(id, r) {
   }
 
 
-  subset_samples <- reactive({
-    req(r_values$phyobj_initial, res_filter$filtered)
-    filt_sdata <- res_filter$filtered()
-    physeq0 <- r_values$phyobj_initial
-
-    flog.info('subset samples() starting...')
-    flog.info(paste0('number of samples before ', phyloseq::nsamples(physeq0)))
-    if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
-      shinyalert(title = "Oops", text="Sample names do not match with names in metadata. Check the phyloseq object.", type='error')
-      return()
-    }
-    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id),physeq0)
-    physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq)>0, physeq)
-
-    flog.info(paste0('number of samples after',phyloseq::nsamples(physeq)))
-    rownames(filt_sdata) <- filt_sdata  %>% pull('sample.id')
-    sample_data(physeq) <- filt_sdata
-    r_values$phyobj_sub_samples <- r_values$phyobj_tmp <- physeq
-
-  })
-
   # Pipeline log
   pipeline_log <- reactiveVal("")
   log_msg <- function(msg) {
@@ -397,32 +390,66 @@ mod_data_loading_server <- function(id, r) {
     cat(pipeline_log())
   })
 
-  # ── Single "Process Data" pipeline ──
-  observeEvent(input$process_data, {
+  # ── Heavy pipeline, gated behind the "Process Data" button ──
+  # subset samples -> drop empty taxa -> agglomerate -> abundance/prevalence filter.
+  # Returns a single phyloseq object. The manual taxa filter is applied separately
+  # (via `final`), so this stage never reads the lagging datamods taxa-filter
+  # widgets — which is what previously dropped taxa using stale, full-dataset
+  # slider thresholds.
+  processed <- eventReactive(input$process_data, {
+    req(r_values$phyobj_initial, res_filter$filtered, input$rank_glom)
     pipeline_log("")
     log_msg(paste0("[", Sys.time(), "] Pipeline started"))
 
-    log_msg("Step 1/4: Subsetting samples...")
-    subset_samples()
-    log_msg(paste0("  -> ", phyloseq::nsamples(r_values$phyobj_sub_samples), " samples retained"))
+    filt_sdata <- res_filter$filtered()
+    physeq0 <- r_values$phyobj_initial
 
-    log_msg("Step 2/4: Taxonomy agglomeration & filtering...")
-    glom_taxo()
-    launch_filters()
-    log_msg(paste0("  -> ", phyloseq::ntaxa(r_values$phyobj_taxglom), " taxa after glom + filters"))
+    # --- Step 1: subset samples, drop now-empty taxa (matches microViz::ps_filter) ---
+    log_msg("Step 1/3: Subsetting samples...")
+    flog.info('subset samples() starting...')
+    flog.info(paste0('number of samples before ', phyloseq::nsamples(physeq0)))
+    if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
+      shinyalert(title = "Oops", text = "Sample names do not match with names in metadata. Check the phyloseq object.", type = 'error')
+      return(NULL)
+    }
+    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id), physeq0)
+    physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq) > 0, physeq)
+    flog.info(paste0('number of samples after ', phyloseq::nsamples(physeq)))
+    rownames(filt_sdata) <- filt_sdata %>% pull('sample.id')
+    sample_data(physeq) <- filt_sdata
+    log_msg(paste0("  -> ", phyloseq::nsamples(physeq), " samples, ", phyloseq::ntaxa(physeq), " taxa retained"))
 
-    log_msg("Step 3/4: Taxa subsetting...")
-    subset_taxa()
-    log_msg(paste0("  -> ", phyloseq::ntaxa(r_values$phyobj_final), " taxa retained"))
+    # --- Step 2: agglomerate to the chosen rank (ASV = no-op) ---
+    log_msg("Step 2/3: Taxonomy agglomeration & filtering...")
+    withProgress({
+      if(input$rank_glom != 'ASV'){
+        physeq <- speedyseq::tax_glom(physeq, input$rank_glom)
+        taxa_names(physeq) <- tax_table(physeq)[, input$rank_glom]
+      }
+    }, message = 'Agglomerating taxonomy…')
 
-    log_msg("Step 4/4: Normalization...")
-    normalize()
-    log_msg(paste0("  -> Method: ", c("Raw", "TSS", "CLR", "VST")[as.integer(input$norm_method) + 1]))
+    # --- Step 3: abundance + prevalence filtering ---
+    # phyloseq_filter_taxa_tot_fraction uses a strict '>' (frac is exclusive); at
+    # frac = 0 it merely re-drops the empty taxa already removed above (no-op).
+    physeq <- metagMisc::phyloseq_filter_taxa_tot_fraction(physeq, frac = input$minAb)
+    physeq <- metagMisc::phyloseq_filter_prevalence(physeq, prev.trh = input$minPrev)
+    if(input$rank_glom != 'ASV'){
+      tax_table(physeq) <- tax_table(physeq)[, 1:match(input$rank_glom, rank_names(physeq))]
+    }
+    log_msg(paste0("  -> ", phyloseq::ntaxa(physeq), " taxa after glom + filters"))
+    showNotification("Filter taxonomy done...", type = "message", duration = 1)
+    physeq
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
+  # A fresh processed object resets the manual taxa filter to "keep all" (the
+  # default, matching microViz). The user can refine it afterwards via the
+  # "Apply taxa filter" button, once the table is calibrated on the subset.
+  observeEvent(processed(), {
+    final(processed())
     log_msg(paste0("[", Sys.time(), "] Pipeline complete!"))
     showNotification("Dataset ready!", type = "message", duration = 5)
     r$data_ready(TRUE)
-  }, ignoreNULL = TRUE, ignoreInit = TRUE)
+  }, ignoreNULL = TRUE)
 
 
   observe({
@@ -433,79 +460,43 @@ mod_data_loading_server <- function(id, r) {
   })
 
 
+  # minAb / minPrev sliders are calibrated on the loaded object (they are *inputs*
+  # to processed(), set before clicking Process Data) — not on a pipeline
+  # intermediate, which previously created a mutable-cursor dependency.
   observe({
+    req(phyloseq_data())
     flog.info('updating minAb numericInput...')
-    updateAutonumericInput(session, 
+    updateAutonumericInput(session,
                            'minAb',
-                           paste0("Minimum taxa overall percent abundance (max: ", 
-                                  round(max(microbiome::abundances(r_values$phyobj_tmp, transform = 'compositional'))), "):"),
+                           paste0("Minimum taxa overall percent abundance (max: ",
+                                  round(max(microbiome::abundances(phyloseq_data(), transform = 'compositional'))), "):"),
                            value = 0,
-                           options = list(maximumValue = 1, 
+                           options = list(maximumValue = 1,
                                           minimumValue = 0))
   })
 
 
   observe({
+    req(phyloseq_data())
     flog.info('updating minPrev numericInput...')
-    updateAutonumericInput(session, 
+    updateAutonumericInput(session,
                            'minPrev',
-                           paste0("Minimum taxa prevalence in percent of samples (min:", 
-                                  round(min(microbiome::prevalence(r_values$phyobj_tmp)),4), 
-                                  " max:", 
-                                  round(max(microbiome::prevalence(r_values$phyobj_tmp)),4),")"),
+                           paste0("Minimum taxa prevalence in percent of samples (min:",
+                                  round(min(microbiome::prevalence(phyloseq_data())),4),
+                                  " max:",
+                                  round(max(microbiome::prevalence(phyloseq_data())),4),")"),
                            value = 0,
-                           options = list(maximumValue = 1, 
+                           options = list(maximumValue = 1,
                                           minimumValue = 0))
   })
-
-
-  glom_taxo <- reactive({
-    req(input$rank_glom, r_values$phyobj_sub_samples)
-    flog.info('filter_taxonomy...')
-    tmp <- r_values$phyobj_sub_samples
-    withProgress({
-      if(input$rank_glom != 'ASV'){
-        tmp <- speedyseq::tax_glom(tmp, input$rank_glom)
-        FGnames <- tax_table(tmp)[,input$rank_glom]
-        # nnames <- paste(substr(FGnames, 1, 50), taxa_names(tmp), sep="_")
-        taxa_names(tmp) <- FGnames
-      }
-    showNotification("Taxonomy agglomeration done...", type="message", duration = 1)
-    }, message = 'Agglomerating taxonomy…')
-    r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
-    flog.info('done.')
-  })
-
-
-  launch_filters <- reactive({
-    req(input$minAb, input$minPrev, input$rank_glom, r_values$phyobj_sub_samples)
-    require('phyloseq')
-    tmp <- r_values$phyobj_taxglom0
-    tmp <- metagMisc::phyloseq_filter_taxa_tot_fraction(tmp, frac = input$minAb)
-    tmp <- metagMisc::phyloseq_filter_prevalence(tmp, prev.trh = input$minPrev)
-
-    if(input$rank_glom != 'ASV'){
-      tax_table(tmp) <- tax_table(tmp)[,1:match(input$rank_glom, rank_names(tmp))]
-    }
-
-    flog.info('glom object')
-
-    r_values$phyobj_taxglom <- r_values$phyobj_tmp <- tmp
-
-    flog.info('filter_taxonomy done.')
-    showNotification("Filter taxonomy done...", type="message", duration = 1)
-  })
-
-
-  # Individual step handlers removed — pipeline runs via "Process Data" button
 
 
   render_taxonomy_table <- reactive({
     withProgress({
-      req(r_values$phyobj_tmp, input$rank_glom)
+      req(processed(), input$rank_glom)
       flog.info('render_taxonomy_table fun')
 
-      phyloseq_obj <- r_values$phyobj_tmp
+      phyloseq_obj <- processed()
       rnames <- phyloseq::rank_names(phyloseq_obj)
       if(input$rank_glom=="ASV"){
         rank1 = rnames[length(rnames)]
@@ -568,27 +559,7 @@ mod_data_loading_server <- function(id, r) {
   }, filter="top", options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
 
 
-  subset_taxa <- reactive({
-    withProgress({
-      req(r_values$phyobj_taxglom, res_filter_taxo$filtered)
-      flog.info('subset_taxa fun')
-      filttax <- res_filter_taxo$filtered()
-      selected <- filttax[,1]
-
-      # selected <- render_taxonomy_table()[input$taxonomy_table_rows_all, 1]
-      phy_obj <- prune_taxa(selected, r_values$phyobj_taxglom)
-      r_values$phyobj_final <- phy_obj
-      r_values$phyobj_tmp <- phy_obj
-      flog.info('subset_taxa fun done.')
-      # phy_obj
-
-    }, message = "Subset taxonomy, please wait...")
-  })
-
-
-  # subset_taxo button handler removed — handled by pipeline
-
-  ## Filter taxo
+  ## Filter taxo — calibrated on processed() so default slider ranges keep all taxa.
 
   res_filter_taxo <- datamods::filter_data_server(
     id = "filtering_taxo",
@@ -599,9 +570,11 @@ mod_data_loading_server <- function(id, r) {
     name = reactive("tax_table"),
     vars = reactive({
       req(render_taxonomy_table())
-      s_names <- phyloseq::sample_names(r_values$phyobj_tmp)
+      s_names <- phyloseq::sample_names(processed())
       col_names <- colnames(render_taxonomy_table())
-      filt <- dplyr::setdiff(col_names, s_names)
+      # Exclude per-sample abundance columns and the DNA `sequences` column — a
+      # sequence-as-filter-widget is meaningless and very heavy in datamods.
+      filt <- dplyr::setdiff(col_names, c(s_names, "sequences"))
     return(filt)
     }),
     widget_num = "slider",
@@ -613,12 +586,32 @@ mod_data_loading_server <- function(id, r) {
     res_filter_taxo$filtered()
   }, options = list(pageLength = 10, scrollX = TRUE))
 
+  # Manual taxa refinement: prune processed() to the taxa surviving the (now
+  # correctly calibrated) datamods taxa filter. A dedicated button keeps the heavy
+  # normalization off the slider-drag path and avoids reading a stale snapshot.
+  observeEvent(input$apply_taxa_filter, {
+    req(processed())
+    withProgress({
+      filttax <- res_filter_taxo$filtered()
+      selected <- intersect(as.character(filttax[[1]]), phyloseq::taxa_names(processed()))
+      final(phyloseq::prune_taxa(selected, processed()))
+      flog.info(paste0('apply_taxa_filter -> ', length(selected), ' taxa'))
+      log_msg(paste0("Manual taxa filter applied -> ", length(selected), " taxa retained"))
+      showNotification(paste0(length(selected), " taxa retained after manual filter."), type = "message", duration = 3)
+    }, message = "Subset taxonomy, please wait...")
+  }, ignoreInit = TRUE)
 
 
 
-  normalize <- reactive({
-    req(r_values$phyobj_final, input$norm_method)
-    FGdata <- r_values$phyobj_final
+
+  # Normalization is gated on final() (which changes only on Process Data or an
+  # explicit manual taxa-filter apply), so heavy VST is not re-run when the user
+  # merely toggles the Normalization radio — honouring the eventReactive
+  # performance pattern. norm_method is read at trigger time, matching the
+  # original behaviour where normalization ran inside the Process-Data handler.
+  normalized <- eventReactive(final(), {
+    req(final(), input$norm_method)
+    FGdata <- final()
 
     if(input$norm_method == 0){
       FNGdata <- FGdata
@@ -645,19 +638,18 @@ mod_data_loading_server <- function(id, r) {
       },message = "VST normalization, please wait...")
     }
     showNotification("Dataset ready !", type="message", duration = 5)
-    r_values$phyobj_norm <- FNGdata
+    FNGdata
   })
-
-  # norm button handler removed — handled by pipeline
 
 
   output$phy_after <- renderPrint({
-    print(r_values$phyobj_tmp)
+    req(final())
+    print(final())
   })
 
   output$phy_norm <- renderPrint({
-    req(r_values$phyobj_norm)
-    print(r_values$phyobj_norm)
+    req(normalized())
+    print(normalized())
   })
 
 
@@ -682,24 +674,24 @@ mod_data_loading_server <- function(id, r) {
   output$filt_otable_download <- downloadHandler(
     filename = "filt_asv_table.csv",
     content = function(file) {
-      req(r_values$phyobj_final)
-      write.table(merge_table(input$rank_glom, r_values$phyobj_final), file, sep="\t", row.names=FALSE)
+      req(final())
+      write.table(merge_table(input$rank_glom, final()), file, sep="\t", row.names=FALSE)
     }
   )
 
   output$filt_norm_otable_download <- downloadHandler(
     filename = "filt_norm_asv_table.csv",
     content = function(file) {
-      req(r_values$phyobj_norm)
-      write.table(merge_table(input$rank_glom, r_values$phyobj_norm), file, sep="\t", row.names=FALSE)
+      req(normalized())
+      write.table(merge_table(input$rank_glom, normalized()), file, sep="\t", row.names=FALSE)
     }
   )
 
   output$filt_rdata_download <- downloadHandler(
     filename = "filt_robject.rdata",
     content = function(file) {
-      req(r_values$phyobj_final)
-      data = r_values$phyobj_final
+      req(final())
+      data = final()
       save(data, file = file)
     }
   )
@@ -707,8 +699,8 @@ mod_data_loading_server <- function(id, r) {
   output$filt_rdata_norm_download  <- downloadHandler(
     filename = "filt_norm_robject.rdata",
     content = function(file) {
-      req(r_values$phyobj_norm)
-      data = r_values$phyobj_norm
+      req(normalized())
+      data = normalized()
       save(data, file = file)
     }
   )
@@ -716,9 +708,9 @@ mod_data_loading_server <- function(id, r) {
   output$filt_refseq_download <- downloadHandler(
     filename = "filt_ref-seq.fasta",
     content = function(file) {
-      req(r_values$phyobj_final)
-      if(!is.null(refseq(r_values$phyobj_final, errorIfNULL=FALSE))){
-        Biostrings::writeXStringSet(refseq(r_values$phyobj_final), file)
+      req(final())
+      if(!is.null(refseq(final(), errorIfNULL=FALSE))){
+        Biostrings::writeXStringSet(refseq(final()), file)
       }else(showNotification("FASTA Download failed. No refseq in object.", type="error", duration = 5))
     }
   )
@@ -736,16 +728,15 @@ mod_data_loading_server <- function(id, r) {
 
   # final filtered object
   r$phyloseq_filtered <- reactive({
-    req(r_values$phyobj_final)
-    r_values$phyobj_final
+    req(final())
+    final()
   })
 
 
   # final filtered object normalize
   r$phyloseq_filtered_norm <- reactive({
-    req(r_values$phyobj_norm)
-    r_values$phyobj_norm
-    # r_values$phyobj_initial #dev
+    req(normalized())
+    normalized()
   })
 
   r$norm_method <- reactive({
@@ -759,8 +750,8 @@ mod_data_loading_server <- function(id, r) {
 
   # Export metadata
   r$sdat <- reactive({
-    req(r_values$phyobj_final)
-    sdat <- sample_data(r_values$phyobj_final)
+    req(final())
+    sdat <- sample_data(final())
     sdat <- sdat[,which(unlist(lapply(sdat, function(x)!all(is.na(x))))),with=F]
     sdat <- as(sdat, "data.frame")
     if(! 'sample.id' %in% colnames(sdat)){
@@ -770,7 +761,7 @@ mod_data_loading_server <- function(id, r) {
   })
 
   r$var_list <- reactive({
-    req(r_values$phyobj_final, r$sdat)
+    req(final(), r$sdat)
     sdat <- r$sdat()
     var_list <- colnames(sdat)
     # if('sample.id' %in% var_list){
