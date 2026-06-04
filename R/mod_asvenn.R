@@ -72,13 +72,13 @@ mod_asvenn_ui <- function(id){
       nav_panel(
         "Table",
         icon = bs_icon("table"),
-        htmltools::p("Click on a row to generate the boxplot for that taxon."),
         DT::dataTableOutput(ns("tabvenn1")),
         downloadButton(outputId = ns("otable_download"), label = "Download Table")
       ),
       nav_panel(
         "Boxplot",
         icon = bs_icon("bar-chart-line"),
+        htmltools::p("Click on a row in the Table tab to generate the boxplot for that taxon."),
         plotly::plotlyOutput(ns("boxplot_chart"), width = "100%", height = "500px")
       ),
       nav_panel(
@@ -141,6 +141,11 @@ mod_asvenn_server <- function(id, r) {
     )
   })
 
+  # The rank selectInput lives in a collapsed accordion panel (display:none),
+  # which Shiny would otherwise suspend — leaving input$alluvial_rank NULL and
+  # the Shared Taxa plot blank until the panel is manually expanded.
+  outputOptions(output, "ui_alluvial_ranks", suspendWhenHidden = FALSE)
+
   resVenn <- eventReactive(input$go1, {
     req(r$phyloseq_filtered(), input$lvls1)
     flog.info('compute Venn diagram...')
@@ -193,7 +198,13 @@ mod_asvenn_server <- function(id, r) {
     req(resVenn)
     outfile <- tempfile(fileext='.svg')
     nVennR::plotVenn(resVenn()$TF, showPlot = T, labelRegions = T, systemShow=F, outFile = outfile, setColors = getPal())
-    list(src = normalizePath(outfile), width = "100%", height = "100%")
+    list(
+      src = normalizePath(outfile),
+      contentType = "image/svg+xml",
+      # nVennR writes a square SVG; object-fit keeps its 1:1 aspect ratio
+      # inside the wide/short container instead of stretching it horizontally.
+      style = "display:block; width:100%; height:100%; object-fit:contain; margin:0 auto;"
+    )
   })
   
   
