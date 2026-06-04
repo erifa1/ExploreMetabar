@@ -382,7 +382,7 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('metacoder - parse_phyloseq')
         obj <- metacoder::parse_phyloseq(psobj, class_regex = "(.*)", class_key = "taxon_name")
         flog.info('metacoder - zero_low_counts')
-        obj$data$otu_table <- metacoder::zero_low_counts(obj, "otu_table", min_count = 1000, use_total = TRUE)
+        obj$data$otu_table <- metacoder::zero_low_counts(obj, "otu_table", min_count = 1000, use_total = TRUE, cols = obj$data$sample_data$sample_id)
         no_reads <- rowSums(obj$data$otu_table[, obj$data$sample_data$sample_id]) == 0
         flog.info('metacoder - filter_obs')
         obj <- metacoder::filter_obs(obj, "otu_table", ! no_reads, drop_taxa = TRUE)
@@ -393,7 +393,10 @@ mod_diffanalysis_server <- function(id, r) {
         obj$data$tax_abund <- metacoder::calc_taxon_abund(obj, "otu_table",  cols = obj$data$sample_data$sample_id)
         obj$data$tax_abund$total <- rowSums(obj$data$tax_abund[, -1]) # -1 = taxon_id column
         flog.info('metacoder - calc_n_samples')
-        obj$data$n_samples <- metacoder::calc_n_samples(obj,data="tax_abund")
+        # cols = sample_id, otherwise calc_n_samples auto-detects all numeric
+        # columns and counts the manually-added `total` column as a sample,
+        # triggering metacoder's "groups without cols" NOTE and an off-by-one.
+        obj$data$n_samples <- metacoder::calc_n_samples(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id)
 
 
         incProgress(amount = 0.4, message = 'Comparing groups...')
@@ -409,7 +412,12 @@ mod_diffanalysis_server <- function(id, r) {
 
         validate(need(!input$diff_factor %in% names(r$numeric_palettes()),
                       "Metacoder heat tree requires a categorical factor."))
-        plot <- heat_tree(obj,
+        # heat_tree() labels via ggfittext, which warns "Ignoring unknown
+        # aesthetics: xmin/xmax/ymin/ymax" under current ggplot2. The aesthetics
+        # come from metacoder internals we can't change, so mute only that
+        # message and let any other warnings through.
+        plot <- withCallingHandlers(
+          heat_tree(obj,
                           node_label = taxon_names,
                           node_size = n_obs, # n_obs is a function that calculates, in this case, the number of OTUs per taxon
                           node_color = log2_mean_ratio, # A column from `obj$data$diff_table`
@@ -417,7 +425,13 @@ mod_diffanalysis_server <- function(id, r) {
                           node_size_axis_label = "ASV count",
                           node_color_axis_label = "log2_mean_ratio",
                           layout = "davidson-harel", # The primary layout algorithm
-                          initial_layout = "reingold-tilford") # The layout algorithm that initializes node locations
+                          initial_layout = "reingold-tilford"), # The layout algorithm that initializes node locations
+          warning = function(w) {
+            if (grepl("Ignoring unknown aesthetics", conditionMessage(w))) {
+              invokeRestart("muffleWarning")
+            }
+          }
+        )
       }
       }, message = "Performing metacoder...", min = 0, max = 1)
     return_obj <- list(table = table, heat_tree = plot)
