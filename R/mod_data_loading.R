@@ -637,7 +637,6 @@ mod_data_loading_server <- function(id, r) {
         FNGdata <- FGdata; FNGdata@otu_table@.Data <- otableVST
       },message = "VST normalization, please wait...")
     }
-    showNotification("Dataset ready !", type="message", duration = 5)
     FNGdata
   })
 
