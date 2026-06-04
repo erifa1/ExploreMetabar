@@ -471,7 +471,7 @@ mod_data_loading_server <- function(id, r) {
         taxa_names(tmp) <- FGnames
       }
     showNotification("Taxonomy agglomeration done...", type="message", duration = 1)
-    }, message = 'Processing, please wait.')
+    }, message = 'Agglomerating taxonomy…')
     r_values$phyobj_taxglom0 <- r_values$phyobj_tmp <- tmp
     flog.info('done.')
   })
@@ -554,7 +554,7 @@ mod_data_loading_server <- function(id, r) {
       flog.info('render_taxonomy_table done.')
       showNotification("Render taxonomy table ...", type="message", duration = 1)
       return(FTAB)
-    },message = "Processing, please wait...")
+    },message = "Building taxonomy table…")
 
   })
 

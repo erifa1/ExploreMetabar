@@ -45,7 +45,7 @@ mod_compo_ui <- function(id){
       radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
       selected = 1, inline = TRUE),
       checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
-      actionButton(ns("go1"), "Run Composition Plot", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg")
+      input_task_button(ns("go1"), "Run Composition Plot", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg", label_busy = "Computing…")
     ),
 
     navset_card_underline(
@@ -142,7 +142,7 @@ mod_compo_server <- function(id, r) {
 
       LL
 
-    }, message="Processing, please wait...")
+    }, message="Building composition bar plots…")
 
   })
 

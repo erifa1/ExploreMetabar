@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel input_task_button
 #' @importFrom bsicons bs_icon
 
 mod_cluster_ui <- function(id){
@@ -59,11 +59,12 @@ mod_cluster_ui <- function(id){
         )
       ),
       tags$hr(),
-      actionButton(
+      input_task_button(
         ns("launch_clust"),
         "Run Clustering",
         icon = bs_icon("play-fill"),
-        class = "btn-primary w-100 btn-lg"
+        class = "btn-primary w-100 btn-lg",
+        label_busy = "Computing…"
       )
     ),
     navset_card_underline(
@@ -153,25 +154,27 @@ mod_cluster_server <- function(id, r) {
 
     compute.k <- eventReactive(input$launch_clust, {
       req(r$phyloseq_filtered_norm(), compute.dist(), compute.clust())
-      if(input$k.meth == "silhouette"){
-        Si <- numeric(nrow(t(otu_table(r$phyloseq_filtered_norm()))))
-        for (k in 2:(nrow(t(otu_table(r$phyloseq_filtered_norm()))) -1)){
-          sil <- cluster::silhouette(cutree(compute.clust(), k = k), compute.dist())
-          Si[k] <- summary(sil)$avg.width
+      withProgress(message = "Finding optimal cluster count…", {
+        if(input$k.meth == "silhouette"){
+          Si <- numeric(nrow(t(otu_table(r$phyloseq_filtered_norm()))))
+          for (k in 2:(nrow(t(otu_table(r$phyloseq_filtered_norm()))) -1)){
+            sil <- cluster::silhouette(cutree(compute.clust(), k = k), compute.dist())
+            Si[k] <- summary(sil)$avg.width
+          }
+          k.best <- which.max(Si)
         }
-        k.best <- which.max(Si)
-      }
-      if(input$k.meth == "pearson"){
-        kt <- data.frame(k=2:nrow(t(otu_table(r$phyloseq_filtered_norm()))), r=0)
-        for (i in 2:(nrow(t(otu_table(r$phyloseq_filtered_norm())))-1)){
-          gr <- cutree(compute.clust(), i)
-          veg <- as.data.frame(as.factor(gr))
-          distgr <- cluster::daisy(veg, "gower")
-          mt <- cor(compute.dist(), distgr, method = "pearson")
-          kt[i,2] <- mt
+        if(input$k.meth == "pearson"){
+          kt <- data.frame(k=2:nrow(t(otu_table(r$phyloseq_filtered_norm()))), r=0)
+          for (i in 2:(nrow(t(otu_table(r$phyloseq_filtered_norm())))-1)){
+            gr <- cutree(compute.clust(), i)
+            veg <- as.data.frame(as.factor(gr))
+            distgr <- cluster::daisy(veg, "gower")
+            mt <- cor(compute.dist(), distgr, method = "pearson")
+            kt[i,2] <- mt
+          }
+          k.best <- which.max(kt$r)
         }
-        k.best <- which.max(kt$r)
-      }
+      })
       return(k.best)
     })
 
@@ -185,6 +188,7 @@ mod_cluster_server <- function(id, r) {
     })
 
     plot.dendro <- eventReactive(input$launch_clust,{
+      withProgress(message = "Drawing dendrogram…", {
       dd <- as.dendrogram(compute.clust())
       fact_vals <- r$sdat()[labels(dd), input$clust_fact1]
       if (input$clust_fact1 %in% names(r$numeric_palettes())) {
@@ -213,7 +217,7 @@ mod_cluster_server <- function(id, r) {
       } else{
         plot(dd, leaflab="none", horiz = TRUE)
       }
-
+      })
 
     })
 
@@ -225,9 +229,10 @@ mod_cluster_server <- function(id, r) {
 
 
     plot.sample.by.clstr <- eventReactive(input$launch_clust, {
+      withProgress(message = "Plotting cluster composition…", {
       ct <- compute.cutree()
       if(is.numeric(ct$fact)){
-        p <- ct %>% ggplot(aes(x=as.factor(clstr), y=fact, fill=as.factor(clstr))) + 
+        p <- ct %>% ggplot(aes(x=as.factor(clstr), y=fact, fill=as.factor(clstr))) +
           geom_boxplot() + xlab('Cluster number') + ylab(input$clust_fact1)
       } else{
         p <- ct %>%
@@ -238,6 +243,7 @@ mod_cluster_server <- function(id, r) {
           xlab("Cluster number") + ylab("counts") +
           scale_fill_manual(values=r$factor_colors()[[input$clust_fact1]])
       }
+      })
       return(p)
     })
 

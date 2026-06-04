@@ -32,7 +32,7 @@ mod_alpha_ui <- function(id){
       tags$hr(),
       uiOutput(ns('ui_alpha_factor')),
       checkboxInput(ns("checkbox1"), label = "Automatic order factor", value = TRUE),
-      actionButton(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg")
+      input_task_button(ns("launch_alpha"), "Run Alpha Diversity", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg", label_busy = "Computing…")
     ),
 
     navset_card_underline(

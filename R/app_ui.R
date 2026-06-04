@@ -146,6 +146,8 @@ golem_add_external_resources <- function(){
 
   tags$head(
     golem::activate_js(),
-    golem::favicon()
+    golem::favicon(),
+    # App-wide non-blocking "computing" bar (keyed on Shiny's shiny-busy class).
+    tags$link(rel = "stylesheet", type = "text/css", href = "www/style.css")
   )
 }

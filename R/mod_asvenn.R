@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel
+#' @importFrom bslib layout_sidebar sidebar accordion accordion_panel navset_card_underline nav_panel input_task_button
 #' @importFrom bsicons bs_icon
 mod_asvenn_ui <- function(id){
   ns <- NS(id)
@@ -48,11 +48,12 @@ mod_asvenn_ui <- function(id){
         )
       ),
       tags$hr(),
-      actionButton(
+      input_task_button(
         ns("go1"),
         "Run / Update Venn",
         icon = bs_icon("play-fill"),
-        class = "btn-primary w-100 btn-lg"
+        class = "btn-primary w-100 btn-lg",
+        label_busy = "Computing…"
       )
     ),
     navset_card_underline(
@@ -148,39 +149,42 @@ mod_asvenn_server <- function(id, r) {
       req(FALSE)
     }
     else{
-      res <- list()
-      TFdata <- list()
-      TFtax <- tibble(taxa = character(), taxo = character())
+      withProgress(message = "Computing Venn overlaps…", {
+        res <- list()
+        TFdata <- list()
+        TFtax <- tibble(taxa = character(), taxo = character())
 
-      for(lvl in input$lvls1){
-        flog.info(lvl)
-        keep <- sample_data(r$phyloseq_filtered())[[input$Fact1]] %in% lvl
-        data.tmp <- prune_samples(keep, r$phyloseq_filtered())
-        sp_data <- prune_taxa(taxa_sums(data.tmp) > 0, data.tmp)
+        for(lvl in input$lvls1){
+          flog.info(lvl)
+          keep <- sample_data(r$phyloseq_filtered())[[input$Fact1]] %in% lvl
+          data.tmp <- prune_samples(keep, r$phyloseq_filtered())
+          sp_data <- prune_taxa(taxa_sums(data.tmp) > 0, data.tmp)
 
-        abund_to_zero = function(x){
-          x[x < input$minAb] <- 0
-          return(x)
+          abund_to_zero = function(x){
+            x[x < input$minAb] <- 0
+            return(x)
+          }
+          sp_data <- transform_sample_counts(sp_data, fun = abund_to_zero)
+          sp_data <- prune_taxa(taxa_sums(sp_data) > 0, sp_data)
+
+          TT = cbind(otu_table(sp_data),tax_table(sp_data))
+
+          TFdata[[lvl]] <- TT
+          TFtax <- dplyr::full_join(TFtax, as_tibble(cbind(taxa = row.names(TT), taxo =  as.character(apply(TT[,colnames(tax_table(sp_data))], 1, paste, collapse=";") ) )), by = c("taxa", "taxo"))
+          row.names(TFtax[[lvl]]) = TFtax[[lvl]][,1]
+          incProgress(1/length(input$lvls1), detail = lvl)
         }
-        sp_data <- transform_sample_counts(sp_data, fun = abund_to_zero)
-        sp_data <- prune_taxa(taxa_sums(sp_data) > 0, sp_data)
 
-        TT = cbind(otu_table(sp_data),tax_table(sp_data))
-
-        TFdata[[lvl]] <- TT
-        TFtax <- dplyr::full_join(TFtax, as_tibble(cbind(taxa = row.names(TT), taxo =  as.character(apply(TT[,colnames(tax_table(sp_data))], 1, paste, collapse=";") ) )), by = c("taxa", "taxo"))
-        row.names(TFtax[[lvl]]) = TFtax[[lvl]][,1]
-      }
-
-      TF <- sapply(TFdata, row.names, simplify = FALSE)
-      names(TF) = input$lvls1
-      res$TF <- TF
-      all_taxa <- unique(unlist(TF))
-      mtab <- sapply(TF, function(x) as.integer(all_taxa %in% x))
-      rownames(mtab) <- all_taxa
-      v.table <- as_tibble(mtab, rownames = "taxa")
-      v.table <- full_join(v.table, TFtax, by = 'taxa')
-      res$v.table <- v.table
+        TF <- sapply(TFdata, row.names, simplify = FALSE)
+        names(TF) = input$lvls1
+        res$TF <- TF
+        all_taxa <- unique(unlist(TF))
+        mtab <- sapply(TF, function(x) as.integer(all_taxa %in% x))
+        rownames(mtab) <- all_taxa
+        v.table <- as_tibble(mtab, rownames = "taxa")
+        v.table <- full_join(v.table, TFtax, by = 'taxa')
+        res$v.table <- v.table
+      })
       return(res)
     }
   })

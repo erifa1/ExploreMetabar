@@ -1,16 +1,32 @@
-.sidebar {
-  color: #FFF;
+/* App-wide "computing" cue.
+ *
+ * Shiny adds the `shiny-busy` class to <html> whenever any output or reactive
+ * is recalculating (this covers every heavy compute: PERMANOVA, DESeq2,
+ * MixOmics tuning, ordinations, ...). We surface a thin animated bar pinned to
+ * the top of the viewport so the user always sees that work is in progress.
+ *
+ * It is deliberately NON-BLOCKING: `pointer-events: none` means it never
+ * intercepts clicks, so the UI stays responsive and the bar simply disappears
+ * on trivial recomputes. The colour is the INRAE brand primary (#00a3a6,
+ * matching inst/_brand.yml). The per-launch `input_task_button`s handle the
+ * stronger "disable the button while it runs" protection.
+ */
+html.shiny-busy::after {
+  content: "";
   position: fixed;
-  width: 230px;
-  white-space: nowrap;
-  overflow: visible;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2000;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #00a3a6, transparent);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: em-busy-slide 1s linear infinite;
 }
 
-.main-header {
-  position: fixed;
-  width:100%;
-}
-
-.content {
-  padding-top: 60px;
+@keyframes em-busy-slide {
+  from { background-position: -50% 0; }
+  to   { background-position: 150% 0; }
 }

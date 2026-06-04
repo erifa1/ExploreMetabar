@@ -11,7 +11,7 @@
 #' @importFrom DT dataTableOutput renderDataTable JS
 #' @importFrom plotly plot_ly
 #' @importFrom plotly add_trace
-#' @importFrom bslib navset_card_underline nav_panel accordion accordion_panel
+#' @importFrom bslib navset_card_underline nav_panel accordion accordion_panel input_task_button
 #' @import PCAmixdata
 #' @import shinycustomloader
 #' @import shinyWidgets
@@ -58,9 +58,10 @@ mod_beta_ui <- function(id){
           div(
             style = "margin: 1.5rem 0;",
             tooltip(
-              actionButton(ns("launch_beta"), "Run Ordination Analysis", 
-                          icon = bs_icon("play-fill"), 
-                          class = "btn-primary w-100 btn-lg"),
+              input_task_button(ns("launch_beta"), "Run Ordination Analysis",
+                          icon = bs_icon("play-fill"),
+                          class = "btn-primary w-100 btn-lg",
+                          label_busy = "Computing…"),
               "Computes ordination + tests. Progress shown below.",
               placement = "top"
             )
@@ -893,13 +894,15 @@ get_axis_names <- reactive({
     req(physeq_dist(), get_meta_col())
     validate(need(!isNumFactor(),
                   "Dispersion test requires a categorical factor."))
-    flog.info('get_dispersion_res() starting...')
-    dist <- physeq_dist()
-    # Group vector ordered to the distance-matrix samples by name (betadisper
-    # pairs the grouping to the dissimilarities positionally).
-    groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
-    res <- vegan::betadisper(dist, groups)
-    flog.info('get_dispersion_res() end.')
+    withProgress(message = "Computing dispersion (betadisper)…", {
+      flog.info('get_dispersion_res() starting...')
+      dist <- physeq_dist()
+      # Group vector ordered to the distance-matrix samples by name (betadisper
+      # pairs the grouping to the dissimilarities positionally).
+      groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
+      res <- vegan::betadisper(dist, groups)
+      flog.info('get_dispersion_res() end.')
+    })
     return(res)
   })
 
@@ -926,23 +929,25 @@ get_axis_names <- reactive({
   # matrix to the same samples so the two never disagree in size or order.
   get_adonis_res <- eventReactive(input$launch_beta, {
     req(physeq_dist(), get_formula(), get_meta_col(), ord())
-    flog.info('get_adonis_res() starting...')
-    flog.debug('get_adonis_res(): formula=%s', get_formula())
-    dist  <- physeq_dist()
-    samp  <- attr(dist, "Labels")
-    mdata <- local_metadata()[samp, , drop = FALSE]
-    # Sequencing-depth covariate, matched to each sample by name (not position).
-    mdata$Depth <- sample_sums(r$phyloseq_filtered())[samp]
-    term_vars <- intersect(c("Depth", get_meta_col(), input$beta_shape), colnames(mdata))
-    keep <- samp[stats::complete.cases(mdata[, term_vars, drop = FALSE])]
-    flog.debug('get_adonis_res(): %d of %d samples kept after dropping NA terms',
-               length(keep), length(samp))
-    validate(need(length(keep) >= 3,
-                  "Not enough samples with complete data for the selected PERMANOVA terms."))
-    dist  <- stats::as.dist(as.matrix(dist)[keep, keep])
-    mdata <- mdata[keep, , drop = FALSE]
-    res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
-    flog.info('get_adonis_res() end.')
+    withProgress(message = "Computing PERMANOVA (adonis2)…", {
+      flog.info('get_adonis_res() starting...')
+      flog.debug('get_adonis_res(): formula=%s', get_formula())
+      dist  <- physeq_dist()
+      samp  <- attr(dist, "Labels")
+      mdata <- local_metadata()[samp, , drop = FALSE]
+      # Sequencing-depth covariate, matched to each sample by name (not position).
+      mdata$Depth <- sample_sums(r$phyloseq_filtered())[samp]
+      term_vars <- intersect(c("Depth", get_meta_col(), input$beta_shape), colnames(mdata))
+      keep <- samp[stats::complete.cases(mdata[, term_vars, drop = FALSE])]
+      flog.debug('get_adonis_res(): %d of %d samples kept after dropping NA terms',
+                 length(keep), length(samp))
+      validate(need(length(keep) >= 3,
+                    "Not enough samples with complete data for the selected PERMANOVA terms."))
+      dist  <- stats::as.dist(as.matrix(dist)[keep, keep])
+      mdata <- mdata[keep, , drop = FALSE]
+      res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
+      flog.info('get_adonis_res() end.')
+    })
     return(data.frame(res))
   })
 
@@ -950,15 +955,17 @@ get_axis_names <- reactive({
     req(physeq_dist(), get_meta_col(), local_metadata())
     validate(need(!isNumFactor(),
                   "Pairwise PERMANOVA requires a categorical factor."))
-    dist <- physeq_dist()
-    # Group vector ordered to the distance-matrix samples by name, so the
-    # `factors %in% ...` row selection inside pairwise.adonis stays aligned.
-    groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
-    flog.info('get_pairwise_res() starting...')
-    flog.debug('get_pairwise_res(): factor=%s, nsamples=%d',
-               get_meta_col(), length(groups))
-    res <- pairwise.adonis(dist, groups, p.adjust.m = "fdr")
-    flog.info('get_pairwise_res() end.')
+    withProgress(message = "Computing pairwise PERMANOVA…", {
+      dist <- physeq_dist()
+      # Group vector ordered to the distance-matrix samples by name, so the
+      # `factors %in% ...` row selection inside pairwise.adonis stays aligned.
+      groups <- local_metadata()[attr(dist, "Labels"), get_meta_col()]
+      flog.info('get_pairwise_res() starting...')
+      flog.debug('get_pairwise_res(): factor=%s, nsamples=%d',
+                 get_meta_col(), length(groups))
+      res <- pairwise.adonis(dist, groups, p.adjust.m = "fdr")
+      flog.info('get_pairwise_res() end.')
+    })
     return(res)
   })
 
@@ -989,6 +996,21 @@ get_axis_names <- reactive({
     flog.info('dfdisper() end.')
     return(df1)
   })
+
+  # ---- Eager test population ----
+  # Force PERMANOVA / pairwise / dispersion to compute on Run, inside the
+  # input_task_button "Computing…" window, instead of silently the first time the
+  # user opens the (hidden) PERMANOVA / Dispersion tabs. Each eventReactive caches,
+  # so subsequent tab navigation just reads the result. Wrapped in try() because
+  # get_pairwise_res()/get_dispersion_res() validate() on factor type and sample
+  # count; those conditions still surface gracefully when the output renders.
+  observeEvent(input$launch_beta, {
+    req(physeq_dist())
+    try(get_adonis_res(),     silent = TRUE)   # req(ord()) pulls the ordination too
+    try(get_pairwise_res(),   silent = TRUE)
+    try(get_dispersion_res(), silent = TRUE)
+    try(dfdisper(),           silent = TRUE)
+  }, ignoreInit = TRUE)
 
   output$dispersionPlot <- renderPlotly({
    df1 <- dfdisper()

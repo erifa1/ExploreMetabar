@@ -43,9 +43,10 @@ mod_mixomics_ui <- function(id){
           uiOutput(ns("ui_nb_feat_initial")),
           div(
             style = "margin: 1rem 0;",
-            actionButton(ns("launch_initial"), "Run initial sPLS-DA",
+            input_task_button(ns("launch_initial"), "Run initial sPLS-DA",
                          icon = bs_icon("play-fill"),
-                         class = "btn-primary w-100")
+                         class = "btn-primary w-100",
+                         label_busy = "Running…")
           )
         ),
 
@@ -62,9 +63,10 @@ mod_mixomics_ui <- function(id){
                       choices = c("BER", "overall")),
           div(
             style = "margin: 1rem 0;",
-            actionButton(ns("launch_tune"), "Tune parameters",
+            input_task_button(ns("launch_tune"), "Tune parameters",
                          icon = bs_icon("gear-fill"),
-                         class = "btn-secondary w-100")
+                         class = "btn-secondary w-100",
+                         label_busy = "Tuning…")
           ),
           uiOutput(ns("ui_tune_results"))
         ),
@@ -78,9 +80,10 @@ mod_mixomics_ui <- function(id){
           uiOutput(ns("ui_nb_feat_final")),
           div(
             style = "margin: 1rem 0;",
-            actionButton(ns("launch_final"), "Run final sPLS-DA",
+            input_task_button(ns("launch_final"), "Run final sPLS-DA",
                          icon = bs_icon("play-fill"),
-                         class = "btn-success w-100")
+                         class = "btn-success w-100",
+                         label_busy = "Running…")
           )
         ),
 
