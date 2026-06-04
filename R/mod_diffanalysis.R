@@ -119,12 +119,6 @@ mod_diffanalysis_ui <- function(id){
       ),
 
       nav_panel(
-        "MetaCoder — heat tree",
-        icon = bs_icon("diagram-3"),
-        plotOutput(ns("plot_metacoder"), height = "1000px")
-      ),
-
-      nav_panel(
         "Merged — table",
         icon = bs_icon("layers"),
         div(
@@ -138,6 +132,15 @@ mod_diffanalysis_ui <- function(id){
         "Merged — barplot",
         icon = bs_icon("bar-chart-line"),
         plotlyOutput(ns("barplot1"), height = "800px")
+      ),
+
+      nav_panel(
+        "Merged — heat tree",
+        icon = bs_icon("diagram-3"),
+        div(
+          downloadButton(outputId = ns("merged_heattree_download"), label = "Download plot")
+        ),
+        plotOutput(ns("plot_merged_heattree"), height = "1000px")
       )
     )
   )
@@ -361,7 +364,6 @@ mod_diffanalysis_server <- function(id, r) {
              wilcox_p_value = wilcox.test(abund_1, abund_2)$p.value)
       }
       table <- NULL
-      plot  <- NULL
       if( isNumFactor()){
         table <- NULL
       } else{
@@ -405,36 +407,9 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('metacoder - wilcox_p_value')
         obj$data$diff_table$wilcox_p_value <- p.adjust(obj$data$diff_table$wilcox_p_value, method = "fdr")
         table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
-
-        flog.info('metacoder - heat_tree')
-        incProgress(amount = 0.1, message = 'Plotting tree...')
-        obj$data$diff_table$log2_mean_ratio[obj$data$diff_table$wilcox_p_value > 0.05] <- 0
-
-        validate(need(!input$diff_factor %in% names(r$numeric_palettes()),
-                      "Metacoder heat tree requires a categorical factor."))
-        # heat_tree() labels via ggfittext, which warns "Ignoring unknown
-        # aesthetics: xmin/xmax/ymin/ymax" under current ggplot2. The aesthetics
-        # come from metacoder internals we can't change, so mute only that
-        # message and let any other warnings through.
-        plot <- withCallingHandlers(
-          heat_tree(obj,
-                          node_label = taxon_names,
-                          node_size = n_obs, # n_obs is a function that calculates, in this case, the number of OTUs per taxon
-                          node_color = log2_mean_ratio, # A column from `obj$data$diff_table`
-                          node_color_range = c(r$factor_colors()[[input$diff_factor]][[input$Cond2]], "gray", r$factor_colors()[[input$diff_factor]][[input$Cond1]]), # The color palette used
-                          node_size_axis_label = "ASV count",
-                          node_color_axis_label = "log2_mean_ratio",
-                          layout = "davidson-harel", # The primary layout algorithm
-                          initial_layout = "reingold-tilford"), # The layout algorithm that initializes node locations
-          warning = function(w) {
-            if (grepl("Ignoring unknown aesthetics", conditionMessage(w))) {
-              invokeRestart("muffleWarning")
-            }
-          }
-        )
       }
       }, message = "Performing metacoder...", min = 0, max = 1)
-    return_obj <- list(table = table, heat_tree = plot)
+    return_obj <- list(table = table)
       return(return_obj)
     })
 
@@ -477,11 +452,6 @@ mod_diffanalysis_server <- function(id, r) {
     output$mtcoderTab <- DT::renderDataTable({
       round_df(as.data.frame(mtcoderDA()$table), 4)
     }, filter="top", options = list(scrollX = TRUE))
-
-
-    output$plot_metacoder <- renderPlot({
-      mtcoderDA()$heat_tree
-    })
 
 
     mergeList <- reactive({
@@ -674,6 +644,89 @@ mod_diffanalysis_server <- function(id, r) {
     output$barplot1 <- renderPlotly({
         reacbarplot1()
     })
+
+
+    # Heat-tree view of the same merged consensus table as the barplot.
+    # Builds a metacoder taxmap straight from TABf's taxonomy columns via
+    # parse_tax_data() (no parse_phyloseq, so no `ranks_ref` workaround needed)
+    # and colours nodes by DESeqLFC, sized by feature count.
+    reac_merged_heattree <- reactive({
+      req(mergeList(), input$Nmeth, input$minAb, input$Nfeat)
+      validate(need(!snap$factor %in% names(r$numeric_palettes()),
+                    "Merged heat tree requires a categorical factor."))
+      flog.info("reac_merged_heattree")
+
+      TABf  <- mergeList()$TABf
+      ttax  <- mergeList()$ttax
+
+      # Identical filtering to reacbarplot1 so tree and barplot share features.
+      TABbar <- TABf[TABf$sumMethods >= input$Nmeth, ]
+      TABbar <- TABbar[TABbar$MeanRelAbcond1 >= input$minAb |
+                       TABbar$MeanRelAbcond2 >= input$minAb, ]
+      TABbar <- tail(TABbar[order(abs(TABbar$DESeqLFC)), ], input$Nfeat)
+      validate(need(nrow(TABbar) > 0,
+                    "No features to plot with the current Plot Options filters."))
+
+      # Build a taxmap from the merged table's taxonomy columns. Drop ranks
+      # that are entirely NA in the filtered subset (tax_glom case), then
+      # placeholder remaining NA/"" so lineages stay well-formed and unrelated
+      # features don't collapse mid-lineage.
+      tax_cols <- colnames(ttax)
+      keep <- vapply(tax_cols, function(cn) !all(is.na(TABbar[[cn]])), logical(1))
+      tax_cols <- tax_cols[keep]
+      tax_input <- TABbar[, c(tax_cols, "DESeqLFC")]
+      tax_input[tax_cols] <- lapply(tax_input[tax_cols], function(v) {
+        v <- as.character(v); v[is.na(v) | v == ""] <- "unknown"; v
+      })
+
+      obj <- metacoder::parse_tax_data(tax_input, class_cols = tax_cols,
+                                       named_by_rank = TRUE)
+
+      # Aggregate the per-feature DESeqLFC to each node (mean of descendant
+      # features); obj$obs() is recursive, so internal nodes average all
+      # features beneath them while leaves keep their own value.
+      obj$data$taxon_lfc <- data.frame(
+        taxon_id = obj$taxon_ids(),
+        mean_lfc = vapply(obj$obs("tax_data"),
+                          function(i) mean(obj$data$tax_data$DESeqLFC[i], na.rm = TRUE),
+                          numeric(1))
+      )
+
+      # heat_tree() labels via ggfittext, which warns "Ignoring unknown
+      # aesthetics: xmin/xmax/ymin/ymax" under current ggplot2 (metacoder
+      # internals we can't change). Mute only that, like the metacoder tab.
+      withCallingHandlers(
+        heat_tree(obj,
+                  node_label = taxon_names,
+                  node_size  = n_obs,
+                  node_color = mean_lfc,
+                  node_color_range = c(r$factor_colors()[[snap$factor]][[snap$cond2]],
+                                       "gray",
+                                       r$factor_colors()[[snap$factor]][[snap$cond1]]),
+                  node_size_axis_label  = "Feature count",
+                  node_color_axis_label = "DESeq2 log2FoldChange",
+                  layout = "davidson-harel",
+                  initial_layout = "reingold-tilford"),
+        warning = function(w) {
+          if (grepl("Ignoring unknown aesthetics", conditionMessage(w)))
+            invokeRestart("muffleWarning")
+        }
+      )
+    })
+
+    output$plot_merged_heattree <- renderPlot({
+      reac_merged_heattree()
+    })
+
+    output$merged_heattree_download <- downloadHandler(
+      filename = "merged_heat_tree.svg",
+      content = function(file){
+        req(reac_merged_heattree())
+        grDevices::svg(filename = file, width = 12, height = 12)
+        print(reac_merged_heattree())
+        dev.off()
+      }
+    )
 
   })
 }
