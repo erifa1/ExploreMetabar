@@ -40,6 +40,29 @@ test_that("mod_compo_server computes both raw and relative plots when go1 fires"
   )
 })
 
+test_that("mod_compo_server splits into per-group panels when radio1 = 2", {
+  shiny::testServer(
+    mod_compo_server,
+    args = list(r = mock_r()),
+    expr = {
+      session$setInputs(
+        Ord1            = "modalite",
+        RankCompo       = "Genus",
+        topTax          = 5,
+        radio1          = "2",        # splitted groups
+        autoorder1      = TRUE,
+        show_sample_ids = FALSE,      # exercise the hidden-tick-labels path
+        go1             = 1
+      )
+      LL <- compo()
+      expect_type(LL, "list")
+      expect_named(LL, c("p1", "p2"))
+      expect_s3_class(LL$p1, "plotly")
+      expect_s3_class(LL$p2, "plotly")
+    }
+  )
+})
+
 test_that("mod_compo_server merges samples when radio1 = 3", {
   shiny::testServer(
     mod_compo_server,

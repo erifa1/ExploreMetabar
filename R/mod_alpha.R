@@ -1,3 +1,88 @@
+# Internal helpers (pure, Shiny-free) ------------------------------------------
+
+# Tukey box-whisker statistics for a numeric vector. Uses quantile type 7
+# (plotly's "linear" method) and whiskers that extend to the most extreme value
+# within 1.5*IQR of the quartiles. Returns the five values plotly needs to draw
+# a box from precomputed stats (so the hover shows each value once instead of
+# duplicating min/max with the fences).
+box_whisker_stats <- function(v) {
+  v <- v[is.finite(v)]
+  if (length(v) == 0) {
+    return(list(q1 = NA_real_, median = NA_real_, q3 = NA_real_,
+                lowerfence = NA_real_, upperfence = NA_real_))
+  }
+  q <- stats::quantile(v, probs = c(0.25, 0.5, 0.75), type = 7, names = FALSE)
+  iqr <- q[3] - q[1]
+  list(
+    q1 = q[1], median = q[2], q3 = q[3],
+    lowerfence = min(v[v >= q[1] - 1.5 * iqr]),
+    upperfence = max(v[v <= q[3] + 1.5 * iqr])
+  )
+}
+
+# Significance stars from a p-value (vectorised).
+p_to_stars <- function(p) {
+  ifelse(p < 0.001, "***",
+         ifelse(p < 0.01, "**",
+                ifelse(p < 0.05, "*", "ns")))
+}
+
+# Build plotly shapes + annotations for pairwise significance brackets.
+#   levels  : ordered factor levels (== x-axis category order)
+#   sig_df  : Tukey rows (cols `comparison`, `p adj`) already filtered to p<0.05
+#   ymax    : max data value (bracket baseline)
+#   yrange  : data spread, used to size the vertical stacking step
+# Comparisons are matched against level *pairs* rather than split on "-" so that
+# level names containing "-" still resolve correctly. Returns shapes (one path
+# per bracket), annotations (stars per bracket) and ytop (y headroom).
+make_sig_brackets <- function(levels, sig_df, ymax, yrange) {
+  empty <- list(shapes = list(), annotations = list(), ytop = ymax)
+  if (is.null(sig_df) || nrow(sig_df) == 0) return(empty)
+
+  step <- 0.08 * yrange
+  if (!is.finite(step) || step <= 0) step <- 0.08 * abs(ymax)
+  if (!is.finite(step) || step <= 0) step <- 1
+  tick <- 0.35 * step
+
+  pairs <- list()
+  for (k in seq_len(nrow(sig_df))) {
+    comp <- as.character(sig_df$comparison[k])
+    found <- NULL
+    for (i in seq_along(levels)) {
+      for (j in seq_along(levels)) {
+        if (i == j) next
+        if (identical(comp, paste0(levels[i], "-", levels[j]))) { found <- c(i, j); break }
+      }
+      if (!is.null(found)) break
+    }
+    if (is.null(found)) next
+    pairs[[length(pairs) + 1]] <- list(
+      i = min(found) - 1L, j = max(found) - 1L, p = sig_df[["p adj"]][k]
+    )
+  }
+  if (length(pairs) == 0) return(empty)
+
+  shapes <- vector("list", length(pairs))
+  annotations <- vector("list", length(pairs))
+  for (k in seq_along(pairs)) {
+    pr <- pairs[[k]]
+    h <- ymax + k * step
+    shapes[[k]] <- list(
+      type = "path",
+      path = sprintf("M %d,%f L %d,%f L %d,%f L %d,%f",
+                     pr$i, h - tick, pr$i, h, pr$j, h, pr$j, h - tick),
+      xref = "x", yref = "y", line = list(color = "black", width = 1)
+    )
+    annotations[[k]] <- list(
+      x = (pr$i + pr$j) / 2, y = h, text = p_to_stars(pr$p),
+      showarrow = FALSE, xref = "x", yref = "y",
+      yanchor = "bottom", font = list(size = 14)
+    )
+  }
+  list(shapes = shapes, annotations = annotations,
+       ytop = ymax + (length(pairs) + 1) * step)
+}
+
 # Module UI
 
 #' @title   mod_alpha_ui and mod_alpha_server
@@ -57,6 +142,7 @@ mod_alpha_ui <- function(id){
                      choices = list("Observed", "Chao1", "ACE", "Shannon", "Simpson", "InvSimpson"),
                      selected = c("Shannon")
         ),
+        checkboxInput(ns("show_stats"), "Show statistics on plot (ANOVA + pairwise)", value = TRUE),
         plotly::plotlyOutput(ns("boxplot"))
       ),
       nav_panel(
@@ -218,15 +304,99 @@ mod_alpha_server <- function(id, r) {
     flog.info('renderPloty...')
     withProgress(message = 'Rendering plot...', min=0, max=10, value = 0,{
       dt <- boxtab()
-      if(is.numeric(dt[,get_meta_col()])){
-        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
-                     color = as.formula(glue("~{get_meta_col()}")), type = 'scatter')
-      } else{
-        p <- plot_ly(dt, x = as.formula(glue("~{get_meta_col()}")), y = as.formula(glue("~{input$metrics}")),
-                     color = as.formula(glue("~{get_meta_col()}")), type = 'box', colors = r$factor_colors()[[input$Fact1]])
+      metric <- input$metrics
+      mcol <- get_meta_col()
+      show_stats <- isTRUE(input$show_stats)
+
+      # ---- numeric factor: scatter (no boxplot / no pairwise) ----
+      if (is.numeric(dt[, mcol])) {
+        p <- plot_ly(dt, x = as.formula(glue("~{mcol}")), y = as.formula(glue("~{metric}")),
+                     color = as.formula(glue("~{mcol}")), type = 'scatter', mode = 'markers')
+        title_txt <- metric
+        if (show_stats) {
+          sub <- tryCatch({
+            fs <- alpha_lm()$fstatistic
+            sprintf("Linear model: F(%d,%d) = %.2f, p = %.3g",
+                    as.integer(fs[2]), as.integer(fs[3]), fs[1],
+                    stats::pf(fs[1], fs[2], fs[3], lower.tail = FALSE))
+          }, error = function(e) NULL)
+          if (!is.null(sub)) title_txt <- paste0(metric, "<br><sub>", sub, "</sub>")
+        }
+        return(
+          p %>% layout(title = list(text = title_txt), margin = list(t = 60),
+                       yaxis = list(title = glue('{metric}'))) %>%
+            config(toImageButtonOptions = list(format = "svg"))
+        )
       }
-      p %>% layout(title=input$metrics, yaxis = list(title = glue('{input$metrics}')), barmode = 'stack') %>%
-        config(toImageButtonOptions = list(format = "svg"))
+
+      # ---- categorical factor: boxplot from precomputed quartiles ----
+      # Drawing the box from precomputed stats (no raw y) makes the hover show
+      # each value once, fixing the min/max == fence duplication that plotly.js
+      # 2.25.2 cannot avoid for data-driven boxes.
+      dt[[mcol]] <- factor(dt[[mcol]])
+      lvls <- levels(dt[[mcol]])
+
+      stats_df <- do.call(rbind, lapply(lvls, function(g) {
+        s <- box_whisker_stats(dt[[metric]][dt[[mcol]] == g])
+        data.frame(grp = g, q1 = s$q1, median = s$median, q3 = s$q3,
+                   lowerfence = s$lowerfence, upperfence = s$upperfence,
+                   stringsAsFactors = FALSE)
+      }))
+      stats_df$grp <- factor(stats_df$grp, levels = lvls)
+
+      p <- plot_ly(stats_df, x = ~grp, q1 = ~q1, median = ~median, q3 = ~q3,
+                   lowerfence = ~lowerfence, upperfence = ~upperfence,
+                   type = "box", color = ~grp, colors = r$factor_colors()[[input$Fact1]])
+
+      # Precomputed boxes draw no points, so overlay the outliers explicitly.
+      idx <- match(as.character(dt[[mcol]]), as.character(stats_df$grp))
+      out_idx <- dt[[metric]] < stats_df$lowerfence[idx] | dt[[metric]] > stats_df$upperfence[idx]
+      out_idx[is.na(out_idx)] <- FALSE
+      if (any(out_idx)) {
+        od <- dt[out_idx, , drop = FALSE]
+        p <- p %>% plotly::add_markers(
+          x = as.character(od[[mcol]]), y = od[[metric]],
+          marker = list(color = "black", size = 6),
+          text = paste0(od$sample.id, ": ", round(od[[metric]], 3)),
+          hoverinfo = "text", showlegend = FALSE, inherit = FALSE
+        )
+      }
+
+      # ---- optional ANOVA subtitle + pairwise significance brackets ----
+      yvals <- dt[[metric]][is.finite(dt[[metric]])]
+      ymax <- max(yvals); ymin <- min(yvals); yrange <- ymax - ymin
+      title_txt <- metric
+      brackets <- list(shapes = list(), annotations = list(), ytop = ymax)
+      if (show_stats) {
+        res <- tryCatch({
+          rc <- reacalpha()
+          aov_df <- as.data.frame(rc$aov1[[1]])
+          rn <- trimws(rownames(aov_df))
+          fi <- match(mcol, rn); ri <- match("Residuals", rn)
+          sub <- sprintf("ANOVA (%s): F(%d,%d) = %.2f, p = %.3g", mcol,
+                         as.integer(aov_df[["Df"]][fi]), as.integer(aov_df[["Df"]][ri]),
+                         aov_df[["F value"]][fi], aov_df[["Pr(>F)"]][fi])
+          sig <- rc$groups1[rc$groups1[["p adj"]] < 0.05, , drop = FALSE]
+          list(sub = sub, br = make_sig_brackets(lvls, sig, ymax, yrange))
+        }, error = function(e) {
+          flog.info(paste("alpha stats overlay skipped:", conditionMessage(e))); NULL
+        })
+        if (!is.null(res)) {
+          title_txt <- paste0(metric, "<br><sub>", res$sub, "</sub>")
+          brackets <- res$br
+        }
+      }
+
+      yaxis_cfg <- list(title = glue('{metric}'))
+      if (length(brackets$shapes) > 0) {
+        yaxis_cfg$range <- c(ymin - 0.05 * yrange, brackets$ytop + 0.05 * yrange)
+      }
+      p %>% layout(
+        title = list(text = title_txt), margin = list(t = 60),
+        xaxis = list(categoryorder = "array", categoryarray = lvls),
+        yaxis = yaxis_cfg,
+        shapes = brackets$shapes, annotations = brackets$annotations
+      ) %>% config(toImageButtonOptions = list(format = "svg"))
     })
   })
 

@@ -9,7 +9,7 @@ bars_fun(
   rank = "Genus",
   top = 10,
   Ord1 = NULL,
-  sample_labels = FALSE,
+  sample_labels = TRUE,
   split = FALSE,
   split_sid_order = FALSE,
   relative = TRUE,
@@ -30,7 +30,9 @@ bars_fun(
 
 \item{Ord1}{Variable used to order samples (X axis) or split the barplot}
 
-\item{sample_labels}{If TRUE, x axis labels are sample IDs}
+\item{sample_labels}{If TRUE, show sample-ID tick labels on the x axis; if
+FALSE, hide them (group membership is still conveyed by the colour strip in
+default mode and by the facet label in split mode)}
 
 \item{split}{If TRUE, make a facet_wrap-like plot grouped by Ord1}
 
