@@ -602,12 +602,28 @@ mod_data_loading_server <- function(id, r) {
     ps
   })
 
+  # Layer the abundance + prevalence thresholds on top of tax_glom_obj(), in the
+  # same order as processed(), so the taxonomy preview is WYSIWYG of what Process
+  # Data will keep. Kept as a separate (cheap) reactive so moving the minAb /
+  # minPrev sliders re-runs only these two taxa filters, never the heavy
+  # tax_glom. Sliders default to 0 (autonumericInput initial value), at which
+  # both filters are no-ops — so the preview is unchanged until a slider moves.
+  tax_preview_obj <- reactive({
+    req(tax_glom_obj())
+    ps <- tax_glom_obj()
+    minAb <- if(is.null(input$minAb)) 0 else input$minAb
+    minPrev <- if(is.null(input$minPrev)) 0 else input$minPrev
+    ps <- metagMisc::phyloseq_filter_taxa_tot_fraction(ps, frac = minAb)
+    ps <- metagMisc::phyloseq_filter_prevalence(ps, prev.trh = minPrev)
+    ps
+  })
+
   render_taxonomy_table <- reactive({
     withProgress({
-      req(tax_glom_obj(), input$rank_glom)
+      req(tax_preview_obj(), input$rank_glom)
       flog.info('render_taxonomy_table fun')
 
-      phyloseq_obj <- tax_glom_obj()
+      phyloseq_obj <- tax_preview_obj()
       rnames <- phyloseq::rank_names(phyloseq_obj)
       if(input$rank_glom=="ASV"){
         rank1 = rnames[length(rnames)]
