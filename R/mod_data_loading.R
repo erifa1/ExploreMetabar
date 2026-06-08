@@ -251,8 +251,10 @@ merge_table <- function(rank, table){
       dplyr::rename(asvname = rowname)
     FTAB = as.data.frame(joinGlom2)
   }else{
-    showNotification("No refseq in object.", type="error", duration = 3)
-    dplyr::rename(joinGlom, asvname = rowname)
+    if(is.null(refseq(table, errorIfNULL=FALSE))){
+      showNotification("No refseq in object.", type="error", duration = 3)
+    }
+    joinGlom <- dplyr::rename(joinGlom, asvname = rowname)
     FTAB = as.data.frame(joinGlom)
   }
   return(FTAB)
@@ -318,6 +320,50 @@ coerce_metadata_types <- function(metadata, exclude_cols = "sample.id") {
 }
 
 
+#' Subset samples and agglomerate a phyloseq object
+#'
+#' Pure (Shiny-free) core shared by the live taxonomy preview and the committed
+#' pipeline. Optionally prunes to `keep_samples` (dropping now-empty taxa), then
+#' agglomerates to `rank` (renaming taxa to the rank value); `rank = "ASV"` skips
+#' agglomeration. Kept separate from `abund_prev_filter()` so callers can re-run
+#' the cheap abundance/prevalence step without repeating this heavy one.
+#'
+#' @param ps A phyloseq object.
+#' @param keep_samples Character vector of sample names to keep, or `NULL` for all.
+#' @param rank Taxonomic rank to agglomerate to, or `"ASV"` for no agglomeration.
+#' @return The subset, agglomerated phyloseq object.
+#' @noRd
+glom_physeq <- function(ps, keep_samples = NULL, rank = "ASV") {
+  if (!is.null(keep_samples) && any(phyloseq::sample_names(ps) %in% keep_samples)) {
+    ps <- phyloseq::prune_samples(keep_samples, ps)
+    ps <- phyloseq::prune_taxa(phyloseq::taxa_sums(ps) > 0, ps)
+  }
+  if (rank != "ASV") {
+    ps <- speedyseq::tax_glom(ps, rank)
+    phyloseq::taxa_names(ps) <- phyloseq::tax_table(ps)[, rank]
+  }
+  ps
+}
+
+#' Abundance + prevalence filtering of a phyloseq object
+#'
+#' Pure (Shiny-free) wrapper over the two `metagMisc` taxa filters, in the order
+#' used by the committed pipeline. Both thresholds default to `0`, which is a
+#' no-op (`phyloseq_filter_taxa_tot_fraction` uses a strict `>`), so the object
+#' is returned unchanged apart from re-dropping any empty taxa.
+#'
+#' @param ps A phyloseq object.
+#' @param minAb Minimum overall fractional abundance (`frac`).
+#' @param minPrev Minimum prevalence (`prev.trh`).
+#' @return The filtered phyloseq object.
+#' @noRd
+abund_prev_filter <- function(ps, minAb = 0, minPrev = 0) {
+  ps <- metagMisc::phyloseq_filter_taxa_tot_fraction(ps, frac = minAb)
+  ps <- metagMisc::phyloseq_filter_prevalence(ps, prev.trh = minPrev)
+  ps
+}
+
+
 
 
 #' data_loading Server Function
@@ -344,7 +390,6 @@ mod_data_loading_server <- function(id, r) {
 
   res_filter <- datamods::filter_data_server(
     id = "filtering",
-    # data = data,
     data = reactive({
       req(sdat_initial())
       if(is.null(updated_data())){
@@ -381,7 +426,7 @@ mod_data_loading_server <- function(id, r) {
     id = "vars",
     data = reactive({
         req(sdat_initial())
-        sdat_initial()  #data()
+        sdat_initial()
     })
   )
 
@@ -473,42 +518,38 @@ mod_data_loading_server <- function(id, r) {
   # widgets — which is what previously dropped taxa using stale, full-dataset
   # slider thresholds.
   processed <- eventReactive(input$process_data, {
-    req(r_values$phyobj_initial, res_filter$filtered, input$rank_glom)
+    req(r_values$phyobj_initial, res_filter$filtered(), input$rank_glom)
     pipeline_log("")
     log_msg(paste0("[", Sys.time(), "] Pipeline started"))
 
     filt_sdata <- res_filter$filtered()
     physeq0 <- r_values$phyobj_initial
+    keep <- as.vector(filt_sdata$sample.id)
 
-    # --- Step 1: subset samples, drop now-empty taxa (matches microViz::ps_filter) ---
+    # --- Step 1+2: subset samples (drop now-empty taxa) + agglomerate ---
+    # Shared with the live preview via glom_physeq(). The sample-name guard and
+    # the metadata injection below are committed-pipeline-only steps.
     log_msg("Step 1/3: Subsetting samples...")
     flog.info('subset samples() starting...')
     flog.info(paste0('number of samples before ', phyloseq::nsamples(physeq0)))
-    if(!any(sample_names(physeq0) %in% as.vector(filt_sdata$sample.id))){
+    if(!any(sample_names(physeq0) %in% keep)){
       shinyalert(title = "Oops", text = "Sample names do not match with names in metadata. Check the phyloseq object.", type = 'error')
       return(NULL)
     }
-    physeq <- phyloseq::prune_samples(as.vector(filt_sdata$sample.id), physeq0)
-    physeq <- phyloseq::prune_taxa(phyloseq::taxa_sums(physeq) > 0, physeq)
+    log_msg("Step 2/3: Taxonomy agglomeration & filtering...")
+    physeq <- withProgress(
+      glom_physeq(physeq0, keep_samples = keep, rank = input$rank_glom),
+      message = 'Subsetting & agglomerating…'
+    )
     flog.info(paste0('number of samples after ', phyloseq::nsamples(physeq)))
+    # Inject the cleaned/filtered metadata (glom preserves samples, so the order
+    # relative to agglomeration does not matter).
     rownames(filt_sdata) <- filt_sdata %>% pull('sample.id')
     sample_data(physeq) <- filt_sdata
     log_msg(paste0("  -> ", phyloseq::nsamples(physeq), " samples, ", phyloseq::ntaxa(physeq), " taxa retained"))
 
-    # --- Step 2: agglomerate to the chosen rank (ASV = no-op) ---
-    log_msg("Step 2/3: Taxonomy agglomeration & filtering...")
-    withProgress({
-      if(input$rank_glom != 'ASV'){
-        physeq <- speedyseq::tax_glom(physeq, input$rank_glom)
-        taxa_names(physeq) <- tax_table(physeq)[, input$rank_glom]
-      }
-    }, message = 'Agglomerating taxonomy…')
-
-    # --- Step 3: abundance + prevalence filtering ---
-    # phyloseq_filter_taxa_tot_fraction uses a strict '>' (frac is exclusive); at
-    # frac = 0 it merely re-drops the empty taxa already removed above (no-op).
-    physeq <- metagMisc::phyloseq_filter_taxa_tot_fraction(physeq, frac = input$minAb)
-    physeq <- metagMisc::phyloseq_filter_prevalence(physeq, prev.trh = input$minPrev)
+    # --- Step 3: abundance + prevalence filtering (frac = 0 is a no-op) ---
+    physeq <- abund_prev_filter(physeq, minAb = input$minAb, minPrev = input$minPrev)
     if(input$rank_glom != 'ASV'){
       tax_table(physeq) <- tax_table(physeq)[, 1:match(input$rank_glom, rank_names(physeq))]
     }
@@ -581,25 +622,20 @@ mod_data_loading_server <- function(id, r) {
   # intersect against taxa_names(processed()) valid.
   tax_glom_obj <- reactive({
     req(phyloseq_data(), input$rank_glom)
-    ps <- phyloseq_data()
-
-    # Track the live sample selection (drop now-empty taxa, like processed()).
+    # Track the live sample selection (glom_physeq drops now-empty taxa).
     filt_sdata <- res_filter$filtered()
-    if(!is.null(filt_sdata) && "sample.id" %in% colnames(filt_sdata)){
-      keep <- as.vector(filt_sdata$sample.id)
-      if(any(sample_names(ps) %in% keep)){
-        ps <- phyloseq::prune_samples(keep, ps)
-        ps <- phyloseq::prune_taxa(phyloseq::taxa_sums(ps) > 0, ps)
-      }
-    }
+    keep <- if(!is.null(filt_sdata) && "sample.id" %in% colnames(filt_sdata)){
+      as.vector(filt_sdata$sample.id)
+    } else NULL
 
-    if(input$rank_glom != 'ASV'){
-      withProgress({
-        ps <- speedyseq::tax_glom(ps, input$rank_glom)
-        taxa_names(ps) <- tax_table(ps)[, input$rank_glom]
-      }, message = 'Agglomerating taxonomy…')
+    if(input$rank_glom == 'ASV'){
+      glom_physeq(phyloseq_data(), keep_samples = keep, rank = 'ASV')
+    } else {
+      withProgress(
+        glom_physeq(phyloseq_data(), keep_samples = keep, rank = input$rank_glom),
+        message = 'Agglomerating taxonomy…'
+      )
     }
-    ps
   })
 
   # Layer the abundance + prevalence thresholds on top of tax_glom_obj(), in the
@@ -610,12 +646,9 @@ mod_data_loading_server <- function(id, r) {
   # both filters are no-ops — so the preview is unchanged until a slider moves.
   tax_preview_obj <- reactive({
     req(tax_glom_obj())
-    ps <- tax_glom_obj()
     minAb <- if(is.null(input$minAb)) 0 else input$minAb
     minPrev <- if(is.null(input$minPrev)) 0 else input$minPrev
-    ps <- metagMisc::phyloseq_filter_taxa_tot_fraction(ps, frac = minAb)
-    ps <- metagMisc::phyloseq_filter_prevalence(ps, prev.trh = minPrev)
-    ps
+    abund_prev_filter(tax_glom_obj(), minAb = minAb, minPrev = minPrev)
   })
 
   render_taxonomy_table <- reactive({
@@ -666,7 +699,7 @@ mod_data_loading_server <- function(id, r) {
         dplyr::rename(asvname = rowname)
         FTAB = as.data.frame(joinGlom2, stringsAsFactors = TRUE)
       }else{
-        dplyr::rename(joinGlom, asvname = rowname)
+        joinGlom <- dplyr::rename(joinGlom, asvname = rowname)
         FTAB = as.data.frame(joinGlom, stringsAsFactors = TRUE)
       }
       flog.info('render_taxonomy_table done.')
@@ -674,6 +707,19 @@ mod_data_loading_server <- function(id, r) {
       return(FTAB)
     },message = "Building taxonomy table…")
 
+  })
+
+  # Taxonomy "meta" columns = taxonomy ranks + asvname + RawAbundanceSum/RawFreq,
+  # i.e. every column except the per-sample abundance columns and the DNA
+  # `sequences` column. Shared by the datamods filter (a sequence/per-sample
+  # filter widget is meaningless and very heavy) and the rendered table (which
+  # would otherwise be hundreds of columns wide).
+  taxo_meta_cols <- reactive({
+    req(render_taxonomy_table())
+    dplyr::setdiff(
+      colnames(render_taxonomy_table()),
+      c(phyloseq::sample_names(phyloseq_data()), "sequences")
+    )
   })
 
   ## Filter taxo — calibrated on the loaded object (tax_glom_obj) so the table
@@ -686,22 +732,17 @@ mod_data_loading_server <- function(id, r) {
       render_taxonomy_table()
     }),
     name = reactive("tax_table"),
-    vars = reactive({
-      req(render_taxonomy_table())
-      s_names <- phyloseq::sample_names(phyloseq_data())
-      col_names <- colnames(render_taxonomy_table())
-      # Exclude per-sample abundance columns and the DNA `sequences` column — a
-      # sequence-as-filter-widget is meaningless and very heavy in datamods.
-      filt <- dplyr::setdiff(col_names, c(s_names, "sequences"))
-    return(filt)
-    }),
+    vars = taxo_meta_cols,
     widget_num = "slider",
     widget_date = "slider",
     label_na = "Missing"
   )
 
   output$table_taxoFILT <- DT::renderDT({
-    res_filter_taxo$filtered()
+    df <- res_filter_taxo$filtered()
+    req(df)
+    # Show only the taxonomy meta columns — drop per-sample abundances + sequences.
+    df[, intersect(taxo_meta_cols(), colnames(df)), drop = FALSE]
   }, options = list(pageLength = 10, scrollX = TRUE))
 
   # Manual taxa refinement: prune processed() to the taxa surviving the (now
@@ -878,12 +919,9 @@ mod_data_loading_server <- function(id, r) {
   })
 
   r$var_list <- reactive({
-    req(final(), r$sdat)
+    req(final(), r$sdat())
     sdat <- r$sdat()
     var_list <- colnames(sdat)
-    # if('sample.id' %in% var_list){
-    #   var_list <- sort(var_list[! var_list %in% 'sample.id'])
-    # }
     return(var_list)
   })
   

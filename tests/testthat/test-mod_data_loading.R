@@ -80,6 +80,51 @@ test_that("coerce_metadata_types: no changes yields empty coercions attribute", 
   expect_length(attr(out, "coercions"), 0L)
 })
 
+# glom_physeq() / abund_prev_filter() are the pure filter helpers shared by the
+# live taxonomy preview (tax_glom_obj/tax_preview_obj) and the committed
+# pipeline (processed()). Keeping them in sync is the whole point of the dedup.
+test_that("glom_physeq: ASV + no sample filter is a no-op", {
+  phy <- load_test_phyloseq()
+  out <- glom_physeq(phy, keep_samples = NULL, rank = "ASV")
+  expect_equal(phyloseq::ntaxa(out), phyloseq::ntaxa(phy))
+  expect_equal(phyloseq::nsamples(out), phyloseq::nsamples(phy))
+})
+
+test_that("glom_physeq: sample subset keeps those samples and drops emptied taxa", {
+  phy <- load_test_phyloseq()
+  keep <- phyloseq::sample_names(phy)[1:5]
+  out <- glom_physeq(phy, keep_samples = keep, rank = "ASV")
+  expect_equal(phyloseq::nsamples(out), length(keep))
+  expect_setequal(phyloseq::sample_names(out), keep)
+  expect_lte(phyloseq::ntaxa(out), phyloseq::ntaxa(phy))   # empties dropped
+  expect_true(all(phyloseq::taxa_sums(out) > 0))
+})
+
+test_that("glom_physeq: non-ASV rank yields one taxon per rank value, taxa renamed", {
+  phy <- load_test_phyloseq()
+  tt <- as.vector(phyloseq::tax_table(phy)[, "Phylum"])
+  expected <- length(unique(tt[!is.na(tt)]))   # tax_glom default NArm = TRUE
+  out <- glom_physeq(phy, keep_samples = NULL, rank = "Phylum")
+  expect_equal(phyloseq::ntaxa(out), expected)
+  # taxa renamed to their Phylum value
+  expect_setequal(phyloseq::taxa_names(out),
+                  as.vector(phyloseq::tax_table(out)[, "Phylum"]))
+})
+
+test_that("abund_prev_filter: 0/0 thresholds are a no-op", {
+  phy <- load_test_phyloseq()
+  base <- glom_physeq(phy, keep_samples = NULL, rank = "ASV")
+  out <- abund_prev_filter(base, minAb = 0, minPrev = 0)
+  expect_equal(phyloseq::ntaxa(out), phyloseq::ntaxa(base))
+})
+
+test_that("abund_prev_filter: a positive prevalence threshold can only drop taxa", {
+  phy <- load_test_phyloseq()
+  base <- glom_physeq(phy, keep_samples = NULL, rank = "ASV")
+  out <- abund_prev_filter(base, minAb = 0, minPrev = 0.5)
+  expect_lte(phyloseq::ntaxa(out), phyloseq::ntaxa(base))
+})
+
 test_that("mod_data_loading_server: phyloseq_data loads the default fixture when no upload", {
   # The fixture is bundled with the installed package; if it's not installed
   # yet (e.g. running tests in source tree), skip rather than fail.
