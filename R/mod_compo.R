@@ -124,6 +124,12 @@ mod_compo_server <- function(id, r) {
     validate(need(!get_meta_col() %in% names(r$numeric_palettes()),
                   "Composition stacked bars require a categorical factor."))
 
+    if (input$radio1 == 2) {
+      n_groups <- length(unique(stats::na.omit(local_metadata()[[get_meta_col()]])))
+      validate(need(n_groups >= 2,
+                    "A split plot needs at least two groups, but the selected variable has only one. Choose 'Default' or 'Merge samples', or pick a variable with several groups."))
+    }
+
     LL=list()
     Fdata <- local_physeq()
 

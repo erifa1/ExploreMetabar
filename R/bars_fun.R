@@ -202,7 +202,7 @@ bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
         barmode = "stack"
       )
 
-    for (i in 2:length(ord_levels)) {
+    for (i in seq_along(ord_levels)[-1]) {
       p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]] <- list(
         title = panel_label(ord_levels[i]),
         showticklabels = isTRUE(sample_labels)
