@@ -945,7 +945,10 @@ get_axis_names <- reactive({
                     "Not enough samples with complete data for the selected PERMANOVA terms."))
       dist  <- stats::as.dist(as.matrix(dist)[keep, keep])
       mdata <- mdata[keep, , drop = FALSE]
-      res <- vegan::adonis2(as.formula(get_formula()), data = mdata, permutations = 1000)
+      # by = "terms": assess each term sequentially so every term's R2 is
+      # reported on its own row (default by = NULL collapses to one model line).
+      res <- vegan::adonis2(as.formula(get_formula()), data = mdata,
+                            permutations = 1000, by = "terms")
       flog.info('get_adonis_res() end.')
     })
     return(data.frame(res))

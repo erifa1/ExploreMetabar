@@ -45,6 +45,7 @@ mod_compo_ui <- function(id){
       radioButtons(ns("radio1"), label = ("Plot display:"), choices = list("Default" = 1, "Splitted groups" = 2, "Merge samples" = 3),
       selected = 1, inline = TRUE),
       checkboxInput(ns("autoorder1"), "Autoorder samples", value = TRUE),
+      checkboxInput(ns("show_sample_ids"), "Show sample IDs", value = TRUE),
       input_task_button(ns("go1"), "Run Composition Plot", icon = bs_icon("play-fill"), class = "btn-primary w-100 btn-lg", label_busy = "Computing…")
     ),
 
@@ -137,8 +138,8 @@ mod_compo_server <- function(id, r) {
         flog.info('compo - Std...')
       }
 
-      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
-      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
+      LL$p1 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), sample_labels = isTRUE(input$show_sample_ids), relative = FALSE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Raw abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
+      LL$p2 = bars_fun(Fdata, rank=input$RankCompo, top = input$topTax, Ord1 = get_meta_col(), sample_labels = isTRUE(input$show_sample_ids), relative = TRUE, outfile = NULL, split = split1, autoorder = input$autoorder1, verbose = FALSE, split_sid_order = FALSE, ylab = "Relative abundance", pal = c(r$factor_colors()[[get_meta_col()]], r$taxa_colors()[[input$RankCompo]], 'Other' = 'grey'))
 
       LL
 

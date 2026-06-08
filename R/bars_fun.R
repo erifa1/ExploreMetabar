@@ -30,7 +30,9 @@ aggregate_top_taxa <- function(x, top, level) {
 #'   'ASV' for no glom)
 #' @param top Number of top taxa to plot
 #' @param Ord1 Variable used to order samples (X axis) or split the barplot
-#' @param sample_labels If TRUE, x axis labels are sample IDs
+#' @param sample_labels If TRUE, show sample-ID tick labels on the x axis; if
+#'   FALSE, hide them (group membership is still conveyed by the colour strip in
+#'   default mode and by the facet label in split mode)
 #' @param split If TRUE, make a facet_wrap-like plot grouped by Ord1
 #' @param split_sid_order If TRUE, keep sample IDs order from metadata in split
 #' @param relative Plot relative (TRUE) or raw abundance (FALSE)
@@ -51,7 +53,7 @@ aggregate_top_taxa <- function(x, top, level) {
 #'
 #' @export
 bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
-                     sample_labels = FALSE, split = FALSE,
+                     sample_labels = TRUE, split = FALSE,
                      split_sid_order = FALSE, relative = TRUE,
                      autoorder = TRUE, ylab = "Abundance",
                      outfile = "plot_compo.html", verbose = TRUE,
@@ -108,26 +110,34 @@ bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
   ordered_ids <- unique(meltdat$sample.id)
   ord_levels <- levels(factor(meltdat[[Ord1]]))
 
+  # Per-sample group label, read from meltdat's columns (always reliable) rather
+  # than row-indexing sdata by sample ID — aggregate_taxa can drop the
+  # sample_data rownames, which would make every sdata[id, ] lookup NA.
+  samp_group <- meltdat[!duplicated(meltdat$sample.id), ]
+  g_by_id <- factor(
+    samp_group[[Ord1]][match(ordered_ids, samp_group$sample.id)],
+    levels = ord_levels
+  )
+
   # --- 5. Build x-axis labels ---
-  lab_col <- if (sample_labels) "sample.id" else Ord1
+  # Sample IDs are always the tick text; `sample_labels` only toggles their
+  # visibility (the group is shown by the colour strip below).
   xform <- list(
     categoryorder = "array",
     categoryarray = ordered_ids,
     title = "Samples",
     tickmode = "array",
     tickvals = seq(0, nrow(sdata)),
-    ticktext = sdata[ordered_ids, lab_col],
+    ticktext = ordered_ids,
+    showticklabels = isTRUE(sample_labels),
     tickangle = -90
   )
 
   # --- 6. Group color bar (subplot below main plot) ---
-  df_groups <- data.frame(
-    x = ordered_ids,
-    g = factor(sdata[ordered_ids, Ord1], levels = ord_levels),
-    y = 1
-  )
+  df_groups <- data.frame(x = ordered_ids, g = g_by_id, y = 1)
 
   has_groups <- length(unique(df_groups$g)) > 1
+  n_per_group <- table(df_groups$g)
 
   subp1 <- plotly::plot_ly(
     df_groups, type = "bar", x = ~x, y = ~y,
@@ -149,7 +159,7 @@ bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
       type = "bar", name = ~variable, color = ~variable, colors = pal
     ) |>
       plotly::layout(
-        title = plot_title,
+        title = glue::glue("{plot_title} — grouped by {Ord1}"),
         yaxis = list(title = ylab),
         xaxis = xform, barmode = "stack"
       )
@@ -163,6 +173,10 @@ bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
     if (split_sid_order) {
       meltdat$sample.id <- factor(meltdat$sample.id, levels = unique(meltdat$sample.id))
     }
+
+    # Per-panel label shows the modality only (the factor name lives in the plot
+    # title), annotated with the number of samples in the group.
+    panel_label <- function(lev) glue::glue("{lev}\n(n={n_per_group[[lev]]})")
 
     p1 <- meltdat |>
       dplyr::arrange(.data[[Ord1]]) |>
@@ -179,15 +193,20 @@ bars_fun <- function(data, rank = "Genus", top = 10, Ord1 = NULL,
       ) |>
       plotly::subplot(nrows = 1, shareX = TRUE, shareY = TRUE, titleX = FALSE) |>
       plotly::layout(
-        title = "",
-        xaxis = list(title = glue::glue("{Ord1} =\n{ord_levels[1]}")),
+        title = glue::glue("{plot_title} — grouped by {Ord1}"),
+        xaxis = list(
+          title = panel_label(ord_levels[1]),
+          showticklabels = isTRUE(sample_labels)
+        ),
         yaxis = list(title = ylab),
         barmode = "stack"
       )
 
     for (i in 2:length(ord_levels)) {
-      p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]] <- NULL
-      p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]]$title <- glue::glue("{Ord1} =\n{ord_levels[i]}")
+      p1$x$layoutAttrs[[1]][[paste0("xaxis", i)]] <- list(
+        title = panel_label(ord_levels[i]),
+        showticklabels = isTRUE(sample_labels)
+      )
     }
   }
 

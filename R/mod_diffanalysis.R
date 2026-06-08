@@ -399,6 +399,10 @@ mod_diffanalysis_server <- function(id, r) {
         # columns and counts the manually-added `total` column as a sample,
         # triggering metacoder's "groups without cols" NOTE and an off-by-one.
         obj$data$n_samples <- metacoder::calc_n_samples(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id)
+        # cols = sample_id, otherwise calc_n_samples auto-detects all numeric
+        # columns and counts the manually-added `total` column as a sample,
+        # triggering metacoder's "groups without cols" NOTE and an off-by-one.
+        obj$data$n_samples <- metacoder::calc_n_samples(obj, data = "tax_abund", cols = obj$data$sample_data$sample_id)
 
 
         incProgress(amount = 0.4, message = 'Comparing groups...')
@@ -407,6 +411,33 @@ mod_diffanalysis_server <- function(id, r) {
         flog.info('metacoder - wilcox_p_value')
         obj$data$diff_table$wilcox_p_value <- p.adjust(obj$data$diff_table$wilcox_p_value, method = "fdr")
         table <- merge(obj$data$diff_table, obj$data$tax_data,by='taxon_id')
+
+        flog.info('metacoder - heat_tree')
+        incProgress(amount = 0.1, message = 'Plotting tree...')
+        obj$data$diff_table$log2_mean_ratio[obj$data$diff_table$wilcox_p_value > 0.05] <- 0
+
+        validate(need(!input$diff_factor %in% names(r$numeric_palettes()),
+                      "Metacoder heat tree requires a categorical factor."))
+        # heat_tree() labels via ggfittext, which warns "Ignoring unknown
+        # aesthetics: xmin/xmax/ymin/ymax" under current ggplot2. The aesthetics
+        # come from metacoder internals we can't change, so mute only that
+        # message and let any other warnings through.
+        plot <- withCallingHandlers(
+          heat_tree(obj,
+                          node_label = taxon_names,
+                          node_size = n_obs, # n_obs is a function that calculates, in this case, the number of OTUs per taxon
+                          node_color = log2_mean_ratio, # A column from `obj$data$diff_table`
+                          node_color_range = c(r$factor_colors()[[input$diff_factor]][[input$Cond2]], "gray", r$factor_colors()[[input$diff_factor]][[input$Cond1]]), # The color palette used
+                          node_size_axis_label = "ASV count",
+                          node_color_axis_label = "log2_mean_ratio",
+                          layout = "davidson-harel", # The primary layout algorithm
+                          initial_layout = "reingold-tilford"), # The layout algorithm that initializes node locations
+          warning = function(w) {
+            if (grepl("Ignoring unknown aesthetics", conditionMessage(w))) {
+              invokeRestart("muffleWarning")
+            }
+          }
+        )
       }
       }, message = "Performing metacoder...", min = 0, max = 1)
     return_obj <- list(table = table)
