@@ -29,13 +29,13 @@ mod_mixomics_ui <- function(id){
 
       accordion(
         id = ns("config_accordion"),
-        open = "1. Initial sPLS-DA",
+        open = "1. Run sPLS-DA",
         multiple = TRUE,
 
         accordion_panel(
-          "1. Initial sPLS-DA",
+          "1. Run sPLS-DA",
           icon = bs_icon("play-circle"),
-          htmltools::p("Quick exploration with manual parameters.",
+          htmltools::p("Manual parameters — all features by default, or enter your tuned values.",
                        style = "font-size: 0.85em; color: grey;"),
           numericInput(ns("nb_comp_initial"),
                        label = "Number of components",
@@ -43,7 +43,7 @@ mod_mixomics_ui <- function(id){
           uiOutput(ns("ui_nb_feat_initial")),
           div(
             style = "margin: 1rem 0;",
-            input_task_button(ns("launch_initial"), "Run initial sPLS-DA",
+            input_task_button(ns("launch_initial"), "Run sPLS-DA",
                          icon = bs_icon("play-fill"),
                          class = "btn-primary w-100",
                          label_busy = "Running…")
@@ -51,10 +51,11 @@ mod_mixomics_ui <- function(id){
         ),
 
         accordion_panel(
-          "2. Tune parameters",
+          "2. Tune offline",
           icon = bs_icon("gear"),
-          htmltools::p("Find optimal ncomp and keepX via cross-validation (slow).",
-                       style = "font-size: 0.85em; color: grey;"),
+          htmltools::p(
+            "Finding the optimal ncomp and keepX by cross-validation is slow, so it runs in your own R session. Download the kit below, run the script, then enter the suggested values in panel 1 and re-run.",
+            style = "font-size: 0.85em; color: grey;"),
           selectInput(ns("tuning_distance"),
                       label = "Distance",
                       choices = c("max.dist", "centroids.dist", "mahalanobis.dist")),
@@ -63,34 +64,20 @@ mod_mixomics_ui <- function(id){
                       choices = c("BER", "overall")),
           div(
             style = "margin: 1rem 0;",
-            input_task_button(ns("launch_tune"), "Tune parameters",
-                         icon = bs_icon("gear-fill"),
-                         class = "btn-secondary w-100",
-                         label_busy = "Tuning…")
+            downloadButton(ns("download_tuning_kit"),
+                           label = "Download tuning kit (.zip)",
+                           icon = bs_icon("download"),
+                           class = "btn-secondary w-100")
           ),
-          uiOutput(ns("ui_tune_results"))
-        ),
-
-        accordion_panel(
-          "3. Final sPLS-DA",
-          icon = bs_icon("check-circle"),
-          htmltools::p("Run sPLS-DA with tuned parameters (overridable).",
-                       style = "font-size: 0.85em; color: grey;"),
-          uiOutput(ns("ui_nb_comp_final")),
-          uiOutput(ns("ui_nb_feat_final")),
-          div(
-            style = "margin: 1rem 0;",
-            input_task_button(ns("launch_final"), "Run final sPLS-DA",
-                         icon = bs_icon("play-fill"),
-                         class = "btn-success w-100",
-                         label_busy = "Running…")
-          )
+          htmltools::p(
+            "The kit bundles your data object, a commented R script (pre-filled with the factor / distance / measure above) and a README.",
+            style = "font-size: 0.8em; color: grey;")
         ),
 
         accordion_panel(
           "Axes & Display",
           icon = bs_icon("sliders"),
-          htmltools::p("Available after running any sPLS-DA stage.",
+          htmltools::p("Available after running the sPLS-DA.",
                        style = "font-size: 0.85em; color: grey;"),
           uiOutput(ns("ui_comp_axis")),
           tags$hr(),
@@ -163,12 +150,6 @@ mod_mixomics_ui <- function(id){
         "Download All",
         icon = bs_icon("download"),
         downloadButton(ns("download_all"), label = "Download all results (.zip)")
-      ),
-
-      nav_panel(
-        "Tuning",
-        icon = bs_icon("graph-up"),
-        uiOutput(ns("ui_perform_plots"))
       )
     )
   )
@@ -188,13 +169,10 @@ mod_mixomics_server <- function(id, r) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Active model state — fed by Stage 1 (initial) OR Stage 3 (final)
+    # Active model state — fed by the sPLS-DA run (panel 1)
     active_spls_da <- reactiveVal(NULL)
     active_ncomp <- reactiveVal(NULL)
     active_keepX <- reactiveVal(NULL)
-
-    # Tuning suggestions (used to pre-fill Stage 3 inputs)
-    last_tuned <- reactiveVal(NULL)
 
     observe({
       req(r$phyloseq_filtered())
@@ -235,7 +213,7 @@ mod_mixomics_server <- function(id, r) {
     })
 
     # Validate factor levels on any launch
-    observeEvent(c(input$launch_initial, input$launch_tune, input$launch_final), {
+    observeEvent(input$launch_initial, {
       req(y())
       if(1 %in% table(y())){
         levels_pb <- paste(names(which(table(y()) == 1)), collapse = ", ")
@@ -250,7 +228,7 @@ mod_mixomics_server <- function(id, r) {
       }
     }, ignoreInit = TRUE)
 
-    # ===== Stage 1: Initial sPLS-DA =====
+    # ===== Step 1: Run sPLS-DA =====
 
     output$ui_nb_feat_initial <- renderUI({
       req(input$nb_comp_initial, r$phyloseq_filtered())
@@ -276,7 +254,7 @@ mod_mixomics_server <- function(id, r) {
                                    keepX = list_keepX)
         flog.info('splsda_initial() end.')
         list(model = result, ncomp = input$nb_comp_initial, keepX = list_keepX)
-      }, message = "Computing initial sPLS-DA...")
+      }, message = "Computing sPLS-DA...")
     })
 
     observeEvent(splsda_initial(), {
@@ -284,147 +262,47 @@ mod_mixomics_server <- function(id, r) {
       active_spls_da(res$model)
       active_ncomp(res$ncomp)
       active_keepX(res$keepX)
-      flog.info('active model set from Stage 1 (initial)')
+      flog.info('active model set from sPLS-DA run')
     })
 
-    # ===== Stage 2: Tune parameters =====
+    # ===== Step 2: Tune offline =====
 
-    perform_spls_da <- eventReactive(input$launch_tune, {
-      withProgress({
-        req(x(), y())
-        flog.info('perform_spls_da() starting (perf step)...')
-        spls_da_init <- mixOmics::splsda(X = x(), Y = y(), ncomp = 10)
-        result <- mixOmics::perf(spls_da_init, validation = "Mfold",
-                                 folds = 10, nrepeat = 10,
-                                 progressBar = FALSE, auc = TRUE)
-        flog.info('perform_spls_da() end.')
-        result
-      }, message = "Tuning ncomp via perf(), please wait...")
-    })
+    output$download_tuning_kit <- downloadHandler(
+      filename = function() paste0("splsda_tuning_kit_", input$factor_spls_da, ".zip"),
+      content = function(file) {
+        req(x(), y(), input$factor_spls_da)
+        flog.info('download_tuning_kit(): factor=%s, dist=%s, measure=%s',
+                  input$factor_spls_da, input$tuning_distance, input$tuning_measure)
+        tmpdir <- tempdir()
 
-    tune_spls_da <- eventReactive(input$launch_tune, {
-      withProgress({
-        req(x(), y(), perform_spls_da(), input$tuning_distance, input$tuning_measure)
-        flog.info('tune_spls_da() starting (tune.splsda step)...')
-        ncomp <- perform_spls_da()$choice.ncomp[input$tuning_measure, input$tuning_distance]
-        flog.debug('tune_spls_da(): ncomp from perf=%d (dist=%s, measure=%s)',
-                   ncomp, input$tuning_distance, input$tuning_measure)
-        list_keepX <- c(1:10, seq(20, 300, 10))
-        tune <- mixOmics::tune.splsda(X = x(), Y = y(),
-                                      ncomp = ifelse(ncomp == 1, 2, ncomp),
-                                      validation = 'Mfold',
-                                      folds = 5, nrepeat = 10,
-                                      dist = input$tuning_distance,
-                                      measure = input$tuning_measure,
-                                      test.keepX = list_keepX)
-        flog.info('tune_spls_da(): optimal ncomp=%d, keepX=[%s]',
-                  tune$choice.ncomp$ncomp, paste(tune$choice.keepX, collapse=', '))
-        return(tune)
-      }, message = "Tuning keepX via tune.splsda(), please wait...")
-    })
+        saveRDS(list(X = x(), Y = y(), factor = input$factor_spls_da),
+                file.path(tmpdir, "splsda_input.rds"))
 
-    observeEvent(tune_spls_da(), {
-      tune <- tune_spls_da()
-      ncomp <- ifelse(tune$choice.ncomp$ncomp == 1, 2, tune$choice.ncomp$ncomp)
-      keepX <- as.integer(tune$choice.keepX[1:ncomp])
-      last_tuned(list(ncomp = ncomp, keepX = keepX))
-      flog.info('last_tuned set: ncomp=%d, keepX=[%s]', ncomp, paste(keepX, collapse=', '))
-    })
+        tmpl <- readLines(app_sys("templates", "tune_splsda_template.R"))
+        tmpl <- gsub("{{FACTOR}}",   input$factor_spls_da,  tmpl, fixed = TRUE)
+        tmpl <- gsub("{{DISTANCE}}", input$tuning_distance, tmpl, fixed = TRUE)
+        tmpl <- gsub("{{MEASURE}}",  input$tuning_measure,  tmpl, fixed = TRUE)
+        writeLines(tmpl, file.path(tmpdir, "tune_splsda.R"))
 
-    output$ui_tune_results <- renderUI({
-      req(last_tuned())
-      tagList(
-        tags$hr(),
-        tags$strong("Suggested parameters:"),
-        tags$ul(
-          tags$li(paste0("ncomp: ", last_tuned()$ncomp)),
-          tags$li(paste0("keepX: ", paste(last_tuned()$keepX, collapse = ", ")))
-        ),
-        htmltools::p("These have been pre-filled in Stage 3 below.",
-                     style = "font-size: 0.85em; color: grey;")
-      )
-    })
+        writeLines(c(
+          "ExploreMetabar — sPLS-DA offline tuning kit",
+          "",
+          "This zip contains:",
+          "  - splsda_input.rds : the X / Y data the app prepared for this factor",
+          "  - tune_splsda.R    : a commented script that tunes ncomp and keepX",
+          "  - README.txt       : this file",
+          "",
+          "Run tune_splsda.R in your own R session (it can be slow). When it",
+          "finishes it prints the suggested 'Number of components' and 'keepX' —",
+          "type those into panel 1 (Run sPLS-DA) of the app, then re-run it."
+        ), file.path(tmpdir, "README.txt"))
 
-    # Tuning tab content
-    output$ui_perform_plots <- renderUI({
-      if(input$launch_tune == 0){
-        htmltools::p(
-          "Run 'Tune parameters' from the sidebar to see the performance plots.",
-          style = "color: grey; padding: 2rem;"
-        )
-      } else {
-        tagList(
-          tags$h5("Performance evaluation — choosing ncomp"),
-          plotOutput(ns('spls_da_ncomp'), height = "400px"),
-          tags$hr(),
-          tags$h5("Tuning — choosing keepX"),
-          plotOutput(ns('spls_da_keepX'), height = "400px")
-        )
+        zip::zipr(zipfile = file,
+                  files = file.path(tmpdir, c("splsda_input.rds",
+                                              "tune_splsda.R",
+                                              "README.txt")))
       }
-    })
-
-    output$spls_da_ncomp <- renderPlot({
-      req(perform_spls_da())
-      plot(perform_spls_da(), sd = TRUE, legend.position = "horizontal")
-    })
-
-    output$spls_da_keepX <- renderPlot({
-      req(tune_spls_da())
-      plot(tune_spls_da())
-    })
-
-    # ===== Stage 3: Final sPLS-DA =====
-
-    output$ui_nb_comp_final <- renderUI({
-      val <- if(!is.null(last_tuned())) last_tuned()$ncomp else 2
-      numericInput(ns("nb_comp_final"),
-                   label = "Number of components (override allowed)",
-                   min = 2, value = val)
-    })
-
-    output$ui_nb_feat_final <- renderUI({
-      req(input$nb_comp_final, r$phyloseq_filtered())
-      ntx <- phyloseq::ntaxa(r$phyloseq_filtered())
-      defaults <- if(!is.null(last_tuned())){
-        kx <- last_tuned()$keepX
-        sapply(1:input$nb_comp_final, function(i){
-          if(i <= length(kx)) kx[i] else ntx
-        })
-      } else {
-        rep(ntx, input$nb_comp_final)
-      }
-      lapply(1:input$nb_comp_final, FUN = function(i){
-        numericInput(ns(paste("nb_feat_final", i, sep = "_")),
-                     label = paste("keepX for component", i, "(override allowed)"),
-                     value = defaults[i],
-                     min = 1,
-                     max = ntx)
-      })
-    })
-
-    splsda_final <- eventReactive(input$launch_final, {
-      withProgress({
-        req(x(), y(), input$nb_comp_final)
-        list_keepX <- sapply(1:input$nb_comp_final, FUN = function(i){
-          input[[paste("nb_feat_final", i, sep = "_")]]
-        })
-        flog.info('splsda_final(): ncomp=%d, keepX=[%s]',
-                  input$nb_comp_final, paste(list_keepX, collapse=', '))
-        result <- mixOmics::splsda(X = x(), Y = y(),
-                                   ncomp = input$nb_comp_final,
-                                   keepX = list_keepX)
-        flog.info('splsda_final() end.')
-        list(model = result, ncomp = input$nb_comp_final, keepX = list_keepX)
-      }, message = "Computing final sPLS-DA...")
-    })
-
-    observeEvent(splsda_final(), {
-      res <- splsda_final()
-      active_spls_da(res$model)
-      active_ncomp(res$ncomp)
-      active_keepX(res$keepX)
-      flog.info('active model set from Stage 3 (final)')
-    })
+    )
 
     # ===== Common downstream UI (driven by active_*) =====
 

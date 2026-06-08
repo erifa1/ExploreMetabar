@@ -57,3 +57,19 @@ test_that("mod_mixomics_server: list_colors rejects numeric factors", {
     }
   )
 })
+
+test_that("tune script template ships and fully substitutes its tokens", {
+  tmpl_path <- app_sys("templates", "tune_splsda_template.R")
+  expect_true(file.exists(tmpl_path))
+
+  tmpl <- readLines(tmpl_path)
+  expect_true(any(grepl("{{FACTOR}}",   tmpl, fixed = TRUE)))
+  expect_true(any(grepl("{{DISTANCE}}", tmpl, fixed = TRUE)))
+  expect_true(any(grepl("{{MEASURE}}",  tmpl, fixed = TRUE)))
+
+  rendered <- tmpl
+  rendered <- gsub("{{FACTOR}}",   "modalite", rendered, fixed = TRUE)
+  rendered <- gsub("{{DISTANCE}}", "max.dist", rendered, fixed = TRUE)
+  rendered <- gsub("{{MEASURE}}",  "BER",      rendered, fixed = TRUE)
+  expect_false(any(grepl("{{", rendered, fixed = TRUE)))
+})
