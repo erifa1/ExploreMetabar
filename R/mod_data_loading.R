@@ -567,12 +567,47 @@ mod_data_loading_server <- function(id, r) {
   })
 
 
+  # Taxonomy preview source: the loaded object with the *current sample filter*
+  # applied, then agglomerated to the chosen rank. Available immediately (NOT
+  # gated on Process Data) so the taxonomy table + its datamods filter render on
+  # load and refresh live as samples are selected/deselected.
+  #
+  # res_filter$filtered() lags by one datamods round-trip — harmless for a live
+  # preview, and this is never the committed pipeline: processed() reads the
+  # sample filter itself at Process-Data time. Naming mirrors processed()
+  # (glommed taxa renamed to the rank value) and processed() applies the same
+  # sample subset (plus abundance/prevalence filters), so processed()'s taxa are
+  # always a same-named subset of this preview — keeping the "Apply taxa filter"
+  # intersect against taxa_names(processed()) valid.
+  tax_glom_obj <- reactive({
+    req(phyloseq_data(), input$rank_glom)
+    ps <- phyloseq_data()
+
+    # Track the live sample selection (drop now-empty taxa, like processed()).
+    filt_sdata <- res_filter$filtered()
+    if(!is.null(filt_sdata) && "sample.id" %in% colnames(filt_sdata)){
+      keep <- as.vector(filt_sdata$sample.id)
+      if(any(sample_names(ps) %in% keep)){
+        ps <- phyloseq::prune_samples(keep, ps)
+        ps <- phyloseq::prune_taxa(phyloseq::taxa_sums(ps) > 0, ps)
+      }
+    }
+
+    if(input$rank_glom != 'ASV'){
+      withProgress({
+        ps <- speedyseq::tax_glom(ps, input$rank_glom)
+        taxa_names(ps) <- tax_table(ps)[, input$rank_glom]
+      }, message = 'Agglomerating taxonomy…')
+    }
+    ps
+  })
+
   render_taxonomy_table <- reactive({
     withProgress({
-      req(processed(), input$rank_glom)
+      req(tax_glom_obj(), input$rank_glom)
       flog.info('render_taxonomy_table fun')
 
-      phyloseq_obj <- processed()
+      phyloseq_obj <- tax_glom_obj()
       rnames <- phyloseq::rank_names(phyloseq_obj)
       if(input$rank_glom=="ASV"){
         rank1 = rnames[length(rnames)]
@@ -625,17 +660,8 @@ mod_data_loading_server <- function(id, r) {
 
   })
 
-  output$taxonomy_table <- DT::renderDataTable({
-    if(ncol(render_taxonomy_table()) > 100){
-      showNotification("Truncated abundances for preview...", type="message", duration = 5)
-      render_taxonomy_table()[,c(1:20, ncol(render_taxonomy_table()))]
-    }else{
-      render_taxonomy_table()
-    }
-  }, filter="top", options = list(pageLength = 10, scrollX = TRUE), server=TRUE)
-
-
-  ## Filter taxo — calibrated on processed() so default slider ranges keep all taxa.
+  ## Filter taxo — calibrated on the loaded object (tax_glom_obj) so the table
+  ## and filter widgets render before Process Data; default ranges keep all taxa.
 
   res_filter_taxo <- datamods::filter_data_server(
     id = "filtering_taxo",
@@ -646,7 +672,7 @@ mod_data_loading_server <- function(id, r) {
     name = reactive("tax_table"),
     vars = reactive({
       req(render_taxonomy_table())
-      s_names <- phyloseq::sample_names(processed())
+      s_names <- phyloseq::sample_names(phyloseq_data())
       col_names <- colnames(render_taxonomy_table())
       # Exclude per-sample abundance columns and the DNA `sequences` column — a
       # sequence-as-filter-widget is meaningless and very heavy in datamods.
