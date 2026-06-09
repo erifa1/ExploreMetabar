@@ -8,22 +8,22 @@
 # parsing to it, so it is a hard runtime dependency of this app. The importFrom
 # above declares that (and keeps R CMD check's dependency note quiet).
 
-SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), package='ExploreMetabar'), mime="image/png")
-UCAimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'uca2.png'), package='ExploreMetabar'))
-MIGimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'migale2.png'), package='ExploreMetabar'))
-# White INRAE logo for the (teal) navbar; mime must be set so the SVG renders.
-INRAEimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'inrae-logo-white.svg'), package='ExploreMetabar'), mime="image/svg+xml")
-
-# INRAE branding lives in inst/_brand.yml so it ships with the installed
-# package; bslib reads colors + typography from it (single source of truth).
-brand_path <- system.file("_brand.yml", package = "ExploreMetabar")
-
-description <- read.dcf(system.file("DESCRIPTION", package = "ExploreMetabar"))
-package_name <- description[1, "Package"]
-package_version <- description[1, "Version"]
-
-
 app_ui <- function() {
+  # Resolve these at runtime, NOT at package top level. A top-level
+  # `system.file(package = "ExploreMetabar")` is evaluated while the lazy-load
+  # database is built during install, when it points at the staging directory
+  # (.../00LOCK-ExploreMetabar/00new/...). That absolute path then gets baked
+  # into the installed package and trips R's staged-install guard with
+  # "ERROR: hard-coded installation path". Resolving inside the function keeps
+  # installation safe and still points at the real install location at runtime.
+  SK8img <- base64enc::dataURI(file=system.file(file.path('app/www', 'SK8.png'), package='ExploreMetabar'), mime="image/png")
+  # White INRAE logo for the (teal) navbar; mime must be set so the SVG renders.
+  INRAEimg <- base64enc::dataURI(file=system.file(file.path('app/www', 'inrae-logo-white.svg'), package='ExploreMetabar'), mime="image/svg+xml")
+
+  # INRAE branding lives in inst/_brand.yml so it ships with the installed
+  # package; bslib reads colors + typography from it (single source of truth).
+  brand_path <- system.file("_brand.yml", package = "ExploreMetabar")
+
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
